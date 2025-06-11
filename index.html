@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrafSys - Sistema de Gestão para Gráficas</title>
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS do Sistema -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dark-mode">
+    <!-- Área de Autenticação -->
+    <div id="auth-container" class="active">
+        <div class="auth-card">
+            <div class="logo">
+                <h1>GrafSys</h1>
+                <p>Sistema de Gestão para Gráficas</p>
+            </div>
+            <div class="auth-form">
+                <h2>Acesso ao Sistema</h2>
+                <div class="input-group">
+                    <label for="access-code">Código de Acesso</label>
+                    <input type="password" id="access-code" placeholder="Digite seu código de acesso">
+                </div>
+                <button id="login-btn" class="btn btn-primary">Entrar</button>
+                <div id="login-error" class="error-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área Principal do Sistema -->
+    <div id="main-app" class="hidden">
+        <!-- Barra Superior -->
+        <header class="top-bar">
+            <div class="logo">GrafSys</div>
+            <nav id="main-menu">
+                <!-- Menu dinâmico gerado via JavaScript -->
+            </nav>
+            <div class="user-info">
+                <span id="user-name">Nome do Usuário</span>
+                <span id="user-role">Cargo</span>
+                <button id="logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </header>
+
+        <!-- Área de Notificações -->
+        <div id="notification-area"></div>
+
+        <!-- Conteúdo Principal -->
+        <main id="main-content">
+            <!-- O conteúdo será carregado dinamicamente via JavaScript -->
+        </main>
+    </div>
+
+    <!-- Modal para ações rápidas -->
+    <div id="quick-action-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Título do Modal</h2>
+                <button id="close-modal" class="close-btn">&times;</button>
+            </div>
+            <div id="modal-body">
+                <!-- Conteúdo do modal será inserido dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    
+    <!-- Scripts do Sistema -->
+    <script src="js/config.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/orders.js"></script>
+    <script src="js/clients.js"></script>
+    <script src="js/products.js"></script>
+    <script src="js/employees.js"></script>
+    <script src="js/suppliers.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
