@@ -461,12 +461,22 @@ class ProductsComponent {
                                 <option value="hour" ${product.pricingType === 'hour' ? 'selected' : ''}>Por Hora</option>
                             </select>
                         </div>
-                        
-                        <div class="form-group" id="price-group">
-                            <label for="product-price" id="price-label">Preço</label>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group" id="price-group-final">
+                            <label for="product-price-final" id="price-label-final">Preço (Cliente Final)</label>
                             <div class="input-group">
                                 <span class="input-group-text">R$</span>
-                                <input type="number" id="product-price" class="form-control" step="0.01" min="0" value="${product.price || 0}" required>
+                                <input type="number" id="product-price-final" class="form-control" step="0.01" min="0" value="${product.priceFinal || product.price || 0}">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" id="price-group-reseller">
+                            <label for="product-price-reseller" id="price-label-reseller">Preço (Revenda)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" id="product-price-reseller" class="form-control" step="0.01" min="0" value="${product.priceReseller || (product.price ? (product.price * 0.8).toFixed(2) : 0)}">
                             </div>
                         </div>
                         
@@ -582,6 +592,9 @@ class ProductsComponent {
                 pricingType = 'area';
             }
             
+            const priceFinal = parseFloat(document.getElementById('product-price-final')?.value || 0);
+            const priceReseller = parseFloat(document.getElementById('product-price-reseller')?.value || 0);
+            
             const productData = {
                 name: name.trim(),
                 category: document.getElementById('product-category')?.value || 'outro',
@@ -589,7 +602,9 @@ class ProductsComponent {
                 active: document.getElementById('product-active')?.value === 'true',
                 description: document.getElementById('product-description')?.value || '',
                 pricingType: pricingType,
-                price: parseFloat(document.getElementById('product-price')?.value || 0),
+                price: priceFinal, // Mantém o campo original para compatibilidade
+                priceFinal: priceFinal, // Preço para cliente final
+                priceReseller: priceReseller, // Preço para revenda
                 minPrice: parseFloat(document.getElementById('product-min-price')?.value || 0),
                 unit: document.getElementById('product-unit')?.value || '',
                 minQuantity: parseInt(document.getElementById('product-min-quantity')?.value || 0),
@@ -599,8 +614,13 @@ class ProductsComponent {
             };
             
             // Validação adicional
-            if (productData.price <= 0) {
-                ui.showNotification('O preço deve ser maior que zero.', 'error');
+            if (productData.priceFinal <= 0) {
+                ui.showNotification('O preço para cliente final deve ser maior que zero.', 'error');
+                return;
+            }
+            
+            if (productData.priceReseller <= 0) {
+                ui.showNotification('O preço para revenda deve ser maior que zero.', 'error');
                 return;
             }
             

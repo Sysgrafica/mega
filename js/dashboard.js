@@ -6,10 +6,24 @@ class DashboardComponent {
             dailyOrders: 0,
             pendingOrders: 0,
             monthlyRevenue: 0,
+            monthlyOrders: 0,
             totalClients: 0
         };
         this.upcomingDeliveries = [];
         this.latestOrders = [];
+        this.deliveryOrders = []; // Pedidos para entregar
+        
+        // Pontos de Controle - adicionado
+        this.controlPoints = {
+            orcamento: 0,
+            aguardando: 0,
+            impressao: 0,
+            cortesEspeciais: 0,
+            acabamento: 0,
+            aplicacao: 0, 
+            prontoNaEntrega: 0,
+            entregue: 0
+        };
         
         // Dados de demonstração para quando não há dados no Firestore
         this.demoData = {
@@ -17,6 +31,7 @@ class DashboardComponent {
                 dailyOrders: 12,
                 pendingOrders: 28,
                 monthlyRevenue: 15340,
+                monthlyOrders: 45,
                 totalClients: 187
             },
             upcomingDeliveries: [
@@ -67,6 +82,47 @@ class DashboardComponent {
                     status: 'production',
                     createdAt: new Date(new Date().getTime() - 86400000 * 2)
                 }
+            ],
+            // Dados de demonstração para pontos de controle
+            controlPoints: {
+                orcamento: 5,
+                aguardando: 8,
+                impressao: 3,
+                cortesEspeciais: 2,
+                acabamento: 4,
+                aplicacao: 3,
+                prontoNaEntrega: 6,
+                entregue: 10
+            },
+            // Dados de demonstração para pedidos de entrega
+            deliveryOrders: [
+                {
+                    id: 'demo7',
+                    orderNumber: '1240',
+                    clientName: 'Empresa JKL',
+                    clientAddress: 'Rua das Oliveiras, 789, São Paulo - SP',
+                    deliveryDate: new Date(new Date().getTime() + 86400000), // Amanhã
+                    status: 'ready',
+                    deliveryCost: 25.00
+                },
+                {
+                    id: 'demo8',
+                    orderNumber: '1241',
+                    clientName: 'Loja de Roupas MNO',
+                    clientAddress: 'Av. Brasil, 456, São Paulo - SP', 
+                    deliveryDate: new Date(new Date().getTime() + 86400000 * 2), // Em 2 dias
+                    status: 'ready',
+                    deliveryCost: 35.00
+                },
+                {
+                    id: 'demo9',
+                    orderNumber: '1242',
+                    clientName: 'Restaurante PQR',
+                    clientAddress: 'Rua Augusta, 123, São Paulo - SP',
+                    deliveryDate: new Date(new Date().getTime() + 86400000 * 3), // Em 3 dias
+                    status: 'finishing',
+                    deliveryCost: 30.00
+                }
             ]
         };
     }
@@ -83,43 +139,252 @@ class DashboardComponent {
             </div>
         `;
         
-        try {
-            // Carrega dados do Firestore
-            await this.loadData();
-            
-            // Verifica se há dados e, se não houver, usa os dados de demonstração
-            if (this.statsData.dailyOrders === 0 && 
-                this.statsData.pendingOrders === 0 && 
-                this.upcomingDeliveries.length === 0 && 
-                this.latestOrders.length === 0) {
-                
-                console.log("Usando dados de demonstração para o dashboard");
-                
-                // Usa dados de demonstração
-                this.statsData = this.demoData.statsData;
-                this.upcomingDeliveries = this.demoData.upcomingDeliveries;
-                this.latestOrders = this.demoData.latestOrders;
-                
-                // Cria alguns dados de demonstração no Firestore
-                this.createDemoData();
+        // Renderiza imediatamente o esqueleto do dashboard
+        this.renderDashboardSkeleton();
+        
+        // Retorna uma Promise para sinalizar quando o carregamento completo terminar
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Carrega dados do Firestore em segundo plano
+                await this.loadDataAsync();
+                resolve();
+            } catch (error) {
+                console.error("Erro ao carregar dados do dashboard:", error);
+                ui.showNotification("Erro ao carregar alguns dados do dashboard.", "warning");
+                // Mesmo com erro, resolvemos a Promise para não bloquear a UI
+                resolve();
             }
+        });
+    }
+    
+    // Renderiza o esqueleto do dashboard enquanto os dados são carregados
+    renderDashboardSkeleton() {
+        // Obtém o nome do usuário atual
+        let userName = '';
+        if (window.auth && window.auth.currentUser) {
+            userName = window.auth.currentUser.name || '';
+        }
+        
+        this.container.innerHTML = `
+            <h1>Dashboard</h1>
             
-            // Renderiza o conteúdo do dashboard
-            this.renderDashboard();
+            <div class="dashboard-stats">
+                <div class="stat-card skeleton">
+                    <div class="stat-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="stat-title">Carregando...</div>
+                    <div class="stat-value">...</div>
+                </div>
+                <div class="stat-card skeleton">
+                    <div class="stat-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="stat-title">Carregando...</div>
+                    <div class="stat-value">...</div>
+                </div>
+                <div class="stat-card skeleton">
+                    <div class="stat-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="stat-title">Carregando...</div>
+                    <div class="stat-value">...</div>
+                </div>
+                <div class="stat-card skeleton">
+                    <div class="stat-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="stat-title">Carregando...</div>
+                    <div class="stat-value">...</div>
+                </div>
+            </div>
+            
+            <div class="table-card control-points-card">
+                <h3><i class="fas fa-tasks"></i> Ponto de Controle</h3>
+                <div class="loading-indicator">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Carregando pontos de controle...</p>
+                </div>
+            </div>
+            
+            <div class="table-card">
+                <h3><i class="fas fa-truck"></i> Pedidos para Entregar</h3>
+                <div class="loading-indicator">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Carregando pedidos...</p>
+                </div>
+            </div>
+            
+            <div class="dashboard-tables">
+                <div class="table-card">
+                    <h3><i class="fas fa-exclamation-circle"></i> Entregas Próximas</h3>
+                    <div class="loading-indicator">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Carregando entregas...</p>
+                    </div>
+                </div>
+                
+                <div class="table-card">
+                    <h3><i class="fas fa-clipboard-list"></i> Últimos Pedidos</h3>
+                    <div class="loading-indicator">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Carregando pedidos...</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Carrega dados de forma assíncrona e atualiza a UI gradualmente
+    async loadDataAsync() {
+        try {
+            this.isLoading = true;
+            
+            // Mostra o toast de carregamento
+            ui.showLoadingToast('Carregando dados do dashboard...');
+            
+            // Carrega estatísticas gerais e atualiza a seção correspondente
+            this.loadStatistics().then(() => {
+                const statsSection = document.querySelector('.dashboard-stats');
+                if (statsSection) {
+                    statsSection.innerHTML = this.renderStatsCards();
+                }
+                ui.updateLoadingToast('Estatísticas carregadas. Carregando entregas...');
+            }).catch(error => {
+                console.error("Erro ao carregar estatísticas:", error);
+                // Usa dados de demonstração em caso de erro
+                this.statsData = this.demoData.statsData;
+                const statsSection = document.querySelector('.dashboard-stats');
+                if (statsSection) {
+                    statsSection.innerHTML = this.renderStatsCards();
+                }
+            });
+            
+            // Carrega dados de entregas próximas e atualiza a seção correspondente
+            this.loadUpcomingDeliveries().then(() => {
+                const deliveriesSection = document.querySelector('.table-card .fa-exclamation-circle').closest('.table-card');
+                if (deliveriesSection) {
+                    const header = deliveriesSection.querySelector('h3');
+                    if (header) {
+                        deliveriesSection.innerHTML = '';
+                        deliveriesSection.appendChild(header);
+                        deliveriesSection.insertAdjacentHTML('beforeend', this.renderUpcomingDeliveries());
+                    }
+                }
+                ui.updateLoadingToast('Entregas carregadas. Carregando pedidos...');
+            }).catch(error => {
+                console.error("Erro ao carregar entregas próximas:", error);
+                // Usa dados de demonstração em caso de erro
+                this.upcomingDeliveries = this.demoData.upcomingDeliveries;
+                const deliveriesSection = document.querySelector('.table-card .fa-exclamation-circle').closest('.table-card');
+                if (deliveriesSection) {
+                    const header = deliveriesSection.querySelector('h3');
+                    if (header) {
+                        deliveriesSection.innerHTML = '';
+                        deliveriesSection.appendChild(header);
+                        deliveriesSection.insertAdjacentHTML('beforeend', this.renderUpcomingDeliveries());
+                    }
+                }
+            });
+            
+            // Carrega os últimos pedidos e atualiza a seção correspondente
+            this.loadLatestOrders().then(() => {
+                const ordersSection = document.querySelector('.table-card .fa-clipboard-list').closest('.table-card');
+                if (ordersSection) {
+                    const header = ordersSection.querySelector('h3');
+                    if (header) {
+                        ordersSection.innerHTML = '';
+                        ordersSection.appendChild(header);
+                        ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
+                    }
+                }
+                ui.updateLoadingToast('Pedidos carregados. Carregando pontos de controle...');
+            }).catch(error => {
+                console.error("Erro ao carregar últimos pedidos:", error);
+                // Usa dados de demonstração em caso de erro
+                this.latestOrders = this.demoData.latestOrders;
+                const ordersSection = document.querySelector('.table-card .fa-clipboard-list').closest('.table-card');
+                if (ordersSection) {
+                    const header = ordersSection.querySelector('h3');
+                    if (header) {
+                        ordersSection.innerHTML = '';
+                        ordersSection.appendChild(header);
+                        ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
+                    }
+                }
+            });
+            
+            // Carrega os pontos de controle e atualiza a seção correspondente
+            this.loadControlPoints().then(() => {
+                const controlPointsSection = document.querySelector('.control-points-card');
+                if (controlPointsSection) {
+                    const header = controlPointsSection.querySelector('h3');
+                    if (header) {
+                        controlPointsSection.innerHTML = '';
+                        controlPointsSection.appendChild(header);
+                        controlPointsSection.insertAdjacentHTML('beforeend', this.renderControlPoints());
+                    }
+                }
+                ui.updateLoadingToast('Pontos de controle carregados. Carregando pedidos para entrega...');
+            }).catch(error => {
+                console.error("Erro ao carregar pontos de controle:", error);
+                // Usa dados de demonstração em caso de erro
+                this.controlPoints = this.demoData.controlPoints;
+                const controlPointsSection = document.querySelector('.control-points-card');
+                if (controlPointsSection) {
+                    const header = controlPointsSection.querySelector('h3');
+                    if (header) {
+                        controlPointsSection.innerHTML = '';
+                        controlPointsSection.appendChild(header);
+                        controlPointsSection.insertAdjacentHTML('beforeend', this.renderControlPoints());
+                    }
+                }
+            });
+            
+            // Carrega os pedidos para entregar e atualiza a seção correspondente
+            this.loadDeliveryOrders().then(() => {
+                const deliverySection = document.querySelector('.table-card .fa-truck').closest('.table-card');
+                if (deliverySection) {
+                    const header = deliverySection.querySelector('h3');
+                    if (header) {
+                        deliverySection.innerHTML = '';
+                        deliverySection.appendChild(header);
+                        deliverySection.insertAdjacentHTML('beforeend', this.renderDeliveryOrders());
+                        
+                        // Reativa os event listeners para os pedidos clicáveis
+                        this.setupClickableRows();
+                    }
+                }
+                
+                // Oculta o toast quando todos os dados estiverem carregados
+                ui.hideLoadingToast();
+                ui.showNotification('Dashboard atualizado com sucesso!', 'success');
+            }).catch(error => {
+                console.error("Erro ao carregar pedidos para entregar:", error);
+                // Usa dados de demonstração em caso de erro
+                this.deliveryOrders = this.demoData.deliveryOrders;
+                const deliverySection = document.querySelector('.table-card .fa-truck').closest('.table-card');
+                if (deliverySection) {
+                    const header = deliverySection.querySelector('h3');
+                    if (header) {
+                        deliverySection.innerHTML = '';
+                        deliverySection.appendChild(header);
+                        deliverySection.insertAdjacentHTML('beforeend', this.renderDeliveryOrders());
+                        
+                        // Reativa os event listeners para os pedidos clicáveis
+                        this.setupClickableRows();
+                    }
+                }
+                
+                // Oculta o toast mesmo em caso de erro
+                ui.hideLoadingToast();
+            });
             
             // Configura listeners para atualização em tempo real
             this.setupRealtimeListeners();
+            
+            this.isLoading = false;
         } catch (error) {
             console.error("Erro ao carregar dados do dashboard:", error);
-            ui.showNotification("Erro ao carregar dados do dashboard. Usando dados de demonstração.", "warning");
+            this.isLoading = false;
             
-            // Usa dados de demonstração em caso de erro
-            this.statsData = this.demoData.statsData;
-            this.upcomingDeliveries = this.demoData.upcomingDeliveries;
-            this.latestOrders = this.demoData.latestOrders;
+            // Oculta o toast em caso de erro
+            ui.hideLoadingToast();
+            ui.showNotification('Erro ao carregar alguns dados do dashboard.', 'error');
             
-            // Renderiza o dashboard com dados de demonstração
-            this.renderDashboard();
+            throw error;
         }
     }
     
@@ -479,18 +744,28 @@ class DashboardComponent {
     // Carrega dados iniciais do Firestore
     async loadData() {
         try {
-            // Carrega estatísticas
+            this.isLoading = true;
+            
+            // Carrega estatísticas gerais
             await this.loadStatistics();
             
-            // Carrega entregas próximas
+            // Carrega dados de entregas próximas
             await this.loadUpcomingDeliveries();
             
-            // Carrega pedidos recentes
+            // Carrega os últimos pedidos
             await this.loadLatestOrders();
             
+            // Carrega os pontos de controle
+            await this.loadControlPoints();
+            
+            // Carrega os pedidos para entregar
+            await this.loadDeliveryOrders();
+            
+            this.isLoading = false;
         } catch (error) {
             console.error("Erro ao carregar dados do dashboard:", error);
-            throw error; // Propaga o erro para ser tratado no método render
+            this.isLoading = false;
+            throw error;
         }
     }
     
@@ -517,11 +792,15 @@ class DashboardComponent {
         
         this.statsData.pendingOrders = pendingOrdersSnapshot.size;
         
-        // Faturamento do mês
+        // Pedidos e faturamento do mês
         const monthlyOrdersSnapshot = await db.collection('orders')
             .where('createdAt', '>=', firstDayOfMonth)
             .get();
         
+        // Total de pedidos do mês
+        this.statsData.monthlyOrders = monthlyOrdersSnapshot.size;
+        
+        // Faturamento do mês
         let monthlyRevenue = 0;
         monthlyOrdersSnapshot.forEach(doc => {
             const order = doc.data();
@@ -614,13 +893,147 @@ class DashboardComponent {
         });
     }
     
+    // Carrega os dados para os pontos de controle
+    async loadControlPoints() {
+        try {
+            // Consulta para cada status dos pontos de controle
+            try {
+                // Busca todos os pedidos por status, sem filtrar por usuário
+                const queryOrcamento = await db.collection('orders')
+                    .where('status', '==', 'budget')
+                    .get();
+                    
+                const queryAguardando = await db.collection('orders')
+                    .where('status', '==', 'pending')
+                    .get();
+                    
+                const queryImpressao = await db.collection('orders')
+                    .where('status', '==', 'printing')
+                    .get();
+                    
+                const queryCortesEspeciais = await db.collection('orders')
+                    .where('status', '==', 'cutting')
+                    .get();
+                    
+                const queryAcabamento = await db.collection('orders')
+                    .where('status', '==', 'finishing')
+                    .get();
+                    
+                const queryAplicacao = await db.collection('orders')
+                    .where('status', '==', 'application')
+                    .get();
+                    
+                const queryProntoNaEntrega = await db.collection('orders')
+                    .where('status', '==', 'ready')
+                    .get();
+                    
+                const queryEntregue = await db.collection('orders')
+                    .where('status', '==', 'delivered')
+                    .get();
+                    
+                // Atualiza os contadores de pontos de controle
+                this.controlPoints = {
+                    orcamento: queryOrcamento.size,
+                    aguardando: queryAguardando.size,
+                    impressao: queryImpressao.size,
+                    cortesEspeciais: queryCortesEspeciais.size,
+                    acabamento: queryAcabamento.size,
+                    aplicacao: queryAplicacao.size,
+                    prontoNaEntrega: queryProntoNaEntrega.size,
+                    entregue: queryEntregue.size
+                };
+                
+                console.log("Contagem de pedidos por status:", this.controlPoints);
+            } catch (queryError) {
+                console.error("Erro nas consultas dos pontos de controle:", queryError);
+                this.controlPoints = this.demoData.controlPoints;
+            }
+        } catch (error) {
+            console.error("Erro ao carregar dados dos pontos de controle:", error);
+            // Em caso de erro, use os dados de demonstração
+            this.controlPoints = this.demoData.controlPoints;
+        }
+    }
+    
+    // Carrega os pedidos para entregar
+    async loadDeliveryOrders() {
+        try {
+            // Busca pedidos marcados como "needsDelivery" e não entregues ainda
+            const query = await db.collection('orders')
+                .where('needsDelivery', '==', true)
+                .where('status', 'in', ['ready', 'finishing', 'printing', 'cutting', 'application'])
+                .orderBy('deliveryDate', 'asc')
+                .limit(10)
+                .get();
+                
+            this.deliveryOrders = [];
+            
+            if (!query.empty) {
+                query.forEach(doc => {
+                    const order = doc.data();
+                    
+                    this.deliveryOrders.push({
+                        id: doc.id,
+                        orderNumber: order.orderNumber || 'S/N',
+                        clientName: order.clientName || 'Cliente não identificado',
+                        clientAddress: order.clientAddress || 'Endereço não informado',
+                        deliveryDate: order.deliveryDate ? order.deliveryDate.toDate() : null,
+                        toArrange: order.toArrange || false,
+                        status: order.status,
+                        deliveryCost: order.deliveryCost || 0
+                    });
+                });
+                
+                // Ordena por data de entrega (os com data não definida ficam no final)
+                this.deliveryOrders.sort((a, b) => {
+                    if (a.toArrange && !b.toArrange) return 1;
+                    if (!a.toArrange && b.toArrange) return -1;
+                    if (!a.deliveryDate && !b.deliveryDate) return 0;
+                    if (!a.deliveryDate) return 1;
+                    if (!b.deliveryDate) return -1;
+                    return a.deliveryDate - b.deliveryDate;
+                });
+                
+                console.log("Pedidos para entregar carregados:", this.deliveryOrders.length);
+            } else {
+                console.log("Nenhum pedido para entregar encontrado");
+                
+                // Se não houver dados reais, use os dados de demonstração
+                if (!window.PRODUCTION_MODE) {
+                    this.deliveryOrders = this.demoData.deliveryOrders;
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao carregar pedidos para entregar:", error);
+            
+            // Em caso de erro, use dados de demonstração
+            if (!window.PRODUCTION_MODE) {
+                this.deliveryOrders = this.demoData.deliveryOrders;
+            }
+        }
+    }
+    
     // Configura listeners para atualização em tempo real
     setupRealtimeListeners() {
-        // Listener para novos pedidos
+        // Verifica se já existem listeners ativos e remove
+        this.cleanup();
+        
+        // Flag para controlar se o componente está ativo
+        this.isActive = true;
+        
+        console.log("Configurando listeners do dashboard");
+        
+        // Listener para novos pedidos com menos frequência de atualização
         this.ordersListener = db.collection('orders')
             .orderBy('createdAt', 'desc')
             .limit(10)
             .onSnapshot(snapshot => {
+                // Verifica se o componente ainda está montado
+                if (!this.isActive) {
+                    console.log("Dashboard já não está mais ativo, ignorando atualização");
+                    return;
+                }
+                
                 let newOrders = false;
                 
                 snapshot.docChanges().forEach(change => {
@@ -630,21 +1043,113 @@ class DashboardComponent {
                 });
                 
                 if (newOrders) {
-                    // Recarrega os dados e atualiza a UI
-                    this.loadData().then(() => this.renderDashboard());
+                    // Usa debounce para evitar múltiplas atualizações em sequência
+                    if (this.updateTimeout) {
+                        clearTimeout(this.updateTimeout);
+                    }
+                    
+                    this.updateTimeout = setTimeout(() => {
+                        // Verifica novamente se o componente ainda está ativo
+                        if (this.isActive) {
+                            // Recarrega os dados e atualiza a UI
+                            this.loadData().then(() => this.renderDashboard());
+                        }
+                    }, 2000); // Espera 2 segundos antes de atualizar
                 }
             }, error => {
                 console.error("Erro no listener de pedidos:", error);
             });
+            
+        // Listener para atualizações nos pontos de controle
+        try {
+            // Listener para todos os pedidos sem filtrar por usuário - com throttling
+            this.controlPointsListener = db.collection('orders')
+                .onSnapshot(() => {
+                    // Verifica se o componente ainda está montado
+                    if (!this.isActive) {
+                        console.log("Dashboard já não está mais ativo, ignorando atualização de pontos de controle");
+                        return;
+                    }
+                    
+                    // Usa throttle para limitar frequência de atualizações
+                    if (this.controlPointsTimeout) {
+                        clearTimeout(this.controlPointsTimeout);
+                    }
+                    
+                    this.controlPointsTimeout = setTimeout(() => {
+                        if (!this.isActive) return;
+                        
+                        // Recarrega apenas os dados de pontos de controle e atualiza o bloco
+                        this.loadControlPoints().then(() => {
+                            if (!this.isActive) return;
+                            
+                            const controlPointsSection = document.querySelector('.control-points-card');
+                            if (controlPointsSection) {
+                                const titleElement = controlPointsSection.querySelector('h3');
+                                if (titleElement) {
+                                    titleElement.insertAdjacentHTML('afterend', this.renderControlPoints());
+                                    // Remove o conteúdo anterior
+                                    const oldPoints = controlPointsSection.querySelector('.control-points');
+                                    if (oldPoints) {
+                                        oldPoints.remove();
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // Atualiza também os pedidos para entregar
+                        this.loadDeliveryOrders().then(() => {
+                            if (!this.isActive) return;
+                            
+                            const truckIcon = document.querySelector('.table-card h3 i.fa-truck');
+                            if (truckIcon) {
+                                const deliverySection = truckIcon.closest('.table-card');
+                                if (deliverySection) {
+                                    // Mantém o cabeçalho e substitui o conteúdo
+                                    const header = deliverySection.querySelector('h3');
+                                    if (header) {
+                                        deliverySection.innerHTML = '';
+                                        deliverySection.appendChild(header);
+                                        deliverySection.insertAdjacentHTML('beforeend', this.renderDeliveryOrders());
+                                        
+                                        // Reativa os event listeners para os pedidos clicáveis
+                                        this.setupClickableRows();
+                                    }
+                                }
+                            }
+                        });
+                    }, 3000); // Espera 3 segundos antes de atualizar
+                }, error => {
+                    console.error("Erro no listener de pontos de controle:", error);
+                });
+        } catch (error) {
+            console.error("Erro ao configurar listener de pontos de controle:", error);
+        }
     }
     
     // Renderiza o conteúdo do dashboard
     renderDashboard() {
+        // Obtém o nome do usuário atual
+        let userName = '';
+        if (window.auth && window.auth.currentUser) {
+            userName = window.auth.currentUser.name || '';
+        }
+        
         this.container.innerHTML = `
             <h1>Dashboard</h1>
             
             <div class="dashboard-stats">
                 ${this.renderStatsCards()}
+            </div>
+            
+            <div class="table-card control-points-card">
+                <h3><i class="fas fa-tasks"></i> Ponto de Controle</h3>
+                ${this.renderControlPoints()}
+            </div>
+            
+            <div class="table-card">
+                <h3><i class="fas fa-truck"></i> Pedidos para Entregar</h3>
+                ${this.renderDeliveryOrders()}
             </div>
             
             <div class="dashboard-tables">
@@ -659,11 +1164,17 @@ class DashboardComponent {
                 </div>
             </div>
         `;
+        
+        // Adiciona evento para linhas clicáveis
+        this.setupClickableRows();
     }
     
     // Renderiza os cards de estatísticas
     renderStatsCards() {
-        return `
+        // Verifica se o usuário é administrador
+        const isAdmin = window.auth && window.auth.getUserAccessLevel && window.auth.getUserAccessLevel() >= 4;
+        
+        let html = `
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
                 <div class="stat-title">Pedidos do Dia</div>
@@ -677,17 +1188,30 @@ class DashboardComponent {
             </div>
             
             <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+                <div class="stat-title">Pedidos do Mês</div>
+                <div class="stat-value">${this.statsData.monthlyOrders}</div>
+            </div>`;
+        
+        // Mostra faturamento apenas para administradores
+        if (isAdmin) {
+            html += `
+            <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
                 <div class="stat-title">Faturamento do Mês</div>
                 <div class="stat-value">${ui.formatCurrency(this.statsData.monthlyRevenue)}</div>
-            </div>
-            
+            </div>`;
+        }
+        
+        html += `
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-users"></i></div>
                 <div class="stat-title">Total de Clientes</div>
                 <div class="stat-value">${this.statsData.totalClients}</div>
             </div>
         `;
+        
+        return html;
     }
     
     // Renderiza a tabela de entregas próximas
@@ -785,11 +1309,290 @@ class DashboardComponent {
         return html;
     }
     
+    // Renderiza os pontos de controle
+    renderControlPoints() {
+        return `
+            <div class="control-points">
+                <div class="control-point-item">
+                    <div class="control-point-title">Orçamento</div>
+                    <div class="control-point-value">${this.controlPoints.orcamento}</div>
+                </div>
+                
+                <div class="control-point-item">
+                    <div class="control-point-title">Aguardando</div>
+                    <div class="control-point-value">${this.controlPoints.aguardando}</div>
+                </div>
+                
+                <div class="control-point-item">
+                    <div class="control-point-title">Impressão</div>
+                    <div class="control-point-value">${this.controlPoints.impressao}</div>
+                </div>
+                
+                <div class="control-point-item">
+                    <div class="control-point-title">Cortes Especiais</div>
+                    <div class="control-point-value">${this.controlPoints.cortesEspeciais}</div>
+                </div>
+                
+                <div class="control-point-item">
+                    <div class="control-point-title">Acabamento</div>
+                    <div class="control-point-value">${this.controlPoints.acabamento}</div>
+                </div>
+                
+                <div class="control-point-item">
+                    <div class="control-point-title">Aplicação</div>
+                    <div class="control-point-value">${this.controlPoints.aplicacao}</div>
+                </div>
+                
+                <div class="control-point-item">
+                    <div class="control-point-title">Pronto na entrega</div>
+                    <div class="control-point-value">${this.controlPoints.prontoNaEntrega}</div>
+                </div>
+                
+                <div class="control-point-item">
+                    <div class="control-point-title">Entregue</div>
+                    <div class="control-point-value">${this.controlPoints.entregue}</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Renderiza os pedidos para entregar
+    renderDeliveryOrders() {
+        if (this.deliveryOrders.length === 0) {
+            return '<p class="no-data-message">Não há pedidos para entrega no momento.</p>';
+        }
+        
+        let html = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Nº Pedido</th>
+                        <th>Cliente</th>
+                        <th>Endereço</th>
+                        <th>Data de Entrega</th>
+                        <th>Valor da Entrega</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        this.deliveryOrders.forEach(order => {
+            // Obtém informações do status
+            const statusObj = SYSTEM_CONFIG.orderStatus.find(s => s.id === order.status) || {
+                name: 'Status Desconhecido',
+                color: '#999'
+            };
+            
+            // Formata data de entrega
+            let deliveryDateDisplay = '-';
+            if (order.toArrange) {
+                deliveryDateDisplay = 'A combinar';
+            } else if (order.deliveryDate) {
+                const dateObj = order.deliveryDate instanceof Date ? order.deliveryDate : new Date(order.deliveryDate.seconds * 1000);
+                deliveryDateDisplay = dateObj.toLocaleDateString('pt-BR');
+            }
+            
+            html += `
+                <tr data-id="${order.id}" class="clickable-row">
+                    <td>${order.orderNumber}</td>
+                    <td>${order.clientName}</td>
+                    <td>${order.clientAddress}</td>
+                    <td>${deliveryDateDisplay}</td>
+                    <td>R$ ${order.deliveryCost.toFixed(2)}</td>
+                    <td><span class="status-tag ${statusObj.color}">${statusObj.name}</span></td>
+                    <td>
+                        <button class="btn-icon view-order" data-id="${order.id}" title="Ver Detalhes">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-icon edit-order" data-id="${order.id}" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon change-status" data-id="${order.id}" title="Alterar Status">
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+            </table>
+        `;
+        
+        return html;
+    }
+    
+    // Configura os eventos para as linhas de tabelas clicáveis
+    setupClickableRows() {
+        document.querySelectorAll('.clickable-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                // Ignora se o clique foi em um botão
+                if (e.target.closest('.btn-icon')) return;
+                
+                const orderId = row.getAttribute('data-id');
+                if (orderId) {
+                    // Salva o ID do pedido para a página de pedidos poder abri-lo
+                    localStorage.setItem('viewOrderId', orderId);
+                    
+                    // Navega para a página de pedidos
+                    ui.navigateTo('orders');
+                }
+            });
+        });
+        
+        // Adiciona event listeners para os botões de ação
+        document.querySelectorAll('.view-order').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const orderId = e.currentTarget.getAttribute('data-id');
+                localStorage.setItem('viewOrderId', orderId);
+                ui.navigateTo('orders');
+            });
+        });
+        
+        document.querySelectorAll('.edit-order').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const orderId = e.currentTarget.getAttribute('data-id');
+                localStorage.setItem('editOrderId', orderId);
+                ui.navigateTo('orders');
+            });
+        });
+        
+        document.querySelectorAll('.change-status').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const orderId = e.currentTarget.getAttribute('data-id');
+                this.showChangeStatusDialog(orderId);
+            });
+        });
+    }
+    
     // Limpa os listeners quando o componente é desmontado
     cleanup() {
+        // Marca que o componente não está mais ativo
+        this.isActive = false;
+        
+        console.log("Limpando listeners do Dashboard");
+        
+        // Limpa todos os timeouts
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout);
+            this.updateTimeout = null;
+        }
+        
+        if (this.controlPointsTimeout) {
+            clearTimeout(this.controlPointsTimeout);
+            this.controlPointsTimeout = null;
+        }
+        
+        // Desativa os listeners do Firestore
         if (this.ordersListener) {
             this.ordersListener();
+            this.ordersListener = null;
         }
+        
+        if (this.controlPointsListener) {
+            this.controlPointsListener();
+            this.controlPointsListener = null;
+        }
+        
+        console.log("Listeners do Dashboard removidos com sucesso");
+    }
+    
+    // Mostra diálogo para alterar o status do pedido
+    showChangeStatusDialog(orderId) {
+        // Busca o pedido no Firestore
+        db.collection('orders').doc(orderId).get().then(doc => {
+            if (!doc.exists) {
+                ui.showNotification('Pedido não encontrado.', 'error');
+                return;
+            }
+            
+            const order = doc.data();
+            const currentStatus = order.status;
+            
+            // Cria um modal para seleção do status
+            let statusOptions = '';
+            
+            SYSTEM_CONFIG.orderStatus.forEach(status => {
+                if (status.id !== currentStatus) {
+                    statusOptions += `<option value="${status.id}">${status.name}</option>`;
+                }
+            });
+            
+            const modalContent = `
+                <div class="form-group">
+                    <label for="new-status">Selecione o novo status:</label>
+                    <select id="new-status" class="form-control">
+                        ${statusOptions}
+                    </select>
+                </div>
+            `;
+            
+            ui.showModal('Alterar Status do Pedido', modalContent, async () => {
+                const newStatus = document.getElementById('new-status').value;
+                if (newStatus && newStatus !== currentStatus) {
+                    try {
+                        ui.showLoading('Atualizando status do pedido...');
+                        
+                        // Se o status for 'cancelled', pergunta o motivo
+                        if (newStatus === 'cancelled') {
+                            const reason = await this.askCancellationReason();
+                            if (reason === null) {
+                                ui.hideLoading();
+                                return; // Cancelou a operação
+                            }
+                            
+                            await db.collection('orders').doc(orderId).update({
+                                status: newStatus,
+                                cancellationReason: reason,
+                                lastUpdate: new Date()
+                            });
+                        } else {
+                            await db.collection('orders').doc(orderId).update({
+                                status: newStatus,
+                                lastUpdate: new Date()
+                            });
+                        }
+                        
+                        ui.showNotification('Status do pedido atualizado com sucesso!', 'success');
+                        
+                        // Recarrega os dados e atualiza a visualização
+                        await this.loadData();
+                        this.renderDashboard();
+                        
+                        ui.hideLoading();
+                    } catch (error) {
+                        console.error('Erro ao atualizar status do pedido:', error);
+                        ui.hideLoading();
+                        ui.showNotification('Erro ao atualizar status do pedido.', 'error');
+                    }
+                }
+            });
+        }).catch(error => {
+            console.error('Erro ao buscar pedido:', error);
+            ui.showNotification('Erro ao buscar informações do pedido.', 'error');
+        });
+    }
+    
+    // Pergunta o motivo do cancelamento
+    async askCancellationReason() {
+        return new Promise((resolve) => {
+            ui.promptModal(
+                'Motivo do Cancelamento', 
+                'Por favor, informe o motivo do cancelamento:',
+                (reason) => {
+                    resolve(reason);
+                },
+                () => {
+                    resolve(null);
+                }
+            );
+        });
     }
 }
 

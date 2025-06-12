@@ -140,6 +140,13 @@ class AuthSystem {
             // Salva no localStorage para persistência de sessão
             localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
             
+            // Salva também no formato userConfig para compatibilidade com o módulo de pedidos
+            localStorage.setItem('userConfig', JSON.stringify({
+                role: user.role,
+                name: user.name,
+                id: user.id
+            }));
+            
             // Registra o login no histórico
             this.logUserActivity('login');
             
@@ -182,6 +189,7 @@ class AuthSystem {
         
         this.currentUser = null;
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('userConfig');
         this.showAuthScreen();
         
         // Limpa campos e mensagens de erro

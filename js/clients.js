@@ -122,6 +122,13 @@ class ClientsComponent {
                         <option value="juridica">Pessoa Jurídica</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <select id="category-filter" class="filter-select">
+                        <option value="">Todas as categorias</option>
+                        <option value="final">Cliente Final</option>
+                        <option value="reseller">Revenda</option>
+                    </select>
+                </div>
             </div>
         `;
         
@@ -145,6 +152,7 @@ class ClientsComponent {
                                 <th>Telefone</th>
                                 <th>E-mail</th>
                                 <th>Tipo</th>
+                                <th>Categoria</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
@@ -153,6 +161,7 @@ class ClientsComponent {
             
             this.clients.forEach(client => {
                 const clientType = client.type === 'juridica' ? 'Pessoa Jurídica' : 'Pessoa Física';
+                const clientCategory = client.category === 'reseller' ? 'Revenda' : 'Cliente Final';
                 
                 html += `
                     <tr class="client-row" data-id="${client.id}">
@@ -161,6 +170,7 @@ class ClientsComponent {
                         <td>${client.phone || '-'}</td>
                         <td>${client.email || '-'}</td>
                         <td>${clientType}</td>
+                        <td>${clientCategory}</td>
                         <td>
                             <button class="btn-icon view-client" data-id="${client.id}" title="Ver Detalhes">
                                 <i class="fas fa-eye"></i>
@@ -216,6 +226,7 @@ class ClientsComponent {
             // Eventos para busca e filtros
             document.getElementById('client-search').addEventListener('input', () => this.applyFilters());
             document.getElementById('type-filter').addEventListener('change', () => this.applyFilters());
+            document.getElementById('category-filter').addEventListener('change', () => this.applyFilters());
         }
     }
     
@@ -223,6 +234,7 @@ class ClientsComponent {
     applyFilters() {
         const searchTerm = document.getElementById('client-search').value.toLowerCase();
         const typeFilter = document.getElementById('type-filter').value;
+        const categoryFilter = document.getElementById('category-filter').value;
         
         const rows = document.querySelectorAll('.client-row');
         
@@ -247,6 +259,11 @@ class ClientsComponent {
             
             // Filtro de tipo
             if (typeFilter && client.type !== typeFilter) {
+                visible = false;
+            }
+            
+            // Filtro de categoria
+            if (categoryFilter && client.category !== categoryFilter) {
                 visible = false;
             }
             
@@ -364,6 +381,14 @@ class ClientsComponent {
                             </select>
                         </div>
                         
+                        <div class="form-group">
+                            <label for="client-category">Categoria de Cliente</label>
+                            <select id="client-category" class="form-control" required>
+                                <option value="final" ${(client.category === 'final' || !client.category) ? 'selected' : ''}>Cliente Final</option>
+                                <option value="reseller" ${client.category === 'reseller' ? 'selected' : ''}>Revenda</option>
+                            </select>
+                        </div>
+                        
                         <div class="form-group full-width">
                             <label for="client-name">Nome / Razão Social</label>
                             <input type="text" id="client-name" class="form-control" value="${client.name || ''}" required>
@@ -441,6 +466,7 @@ class ClientsComponent {
         try {
             // Obtém os dados do formulário
             const clientType = document.getElementById('client-type')?.value || 'fisica';
+            const clientCategory = document.getElementById('client-category')?.value || 'final';
             const clientName = document.getElementById('client-name')?.value || '';
             const clientDocument = document.getElementById('client-document')?.value || '';
             const clientPhone = document.getElementById('client-phone')?.value || '';
@@ -460,6 +486,7 @@ class ClientsComponent {
             // Prepara os dados do cliente (certifica-se de que todos os campos estão definidos)
             const clientData = {
                 type: clientType,
+                category: clientCategory,
                 name: clientName.trim(),
                 document: clientDocument.trim(),
                 phone: clientPhone.trim(),
@@ -537,6 +564,7 @@ class ClientsComponent {
         }
         
         const clientType = client.type === 'juridica' ? 'Pessoa Jurídica' : 'Pessoa Física';
+        const clientCategory = client.category === 'reseller' ? 'Revenda' : 'Cliente Final';
         const createdDate = client.createdAt ? ui.formatDate(client.createdAt) : '-';
         
         const html = `
@@ -559,6 +587,11 @@ class ClientsComponent {
                     <div class="info-group">
                         <div class="info-label">Tipo:</div>
                         <div class="info-value">${clientType}</div>
+                    </div>
+                    
+                    <div class="info-group">
+                        <div class="info-label">Categoria:</div>
+                        <div class="info-value">${clientCategory}</div>
                     </div>
                     
                     <div class="info-group">

@@ -10,6 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- CSS do Sistema -->
     <link rel="stylesheet" href="css/style.css">
+    <!-- CSS para Detalhes de Pedido -->
+    <link rel="stylesheet" href="css/order-details.css">
+    <!-- CSS para Impressão -->
+    <link rel="stylesheet" href="css/print-styles.css">
 </head>
 <body class="dark-mode">
     <!-- Área de Autenticação -->
@@ -74,11 +78,35 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     
+    <!-- Biblioteca html2canvas para captura de tela -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Script de fallback para html2canvas caso a CDN falhe -->
+    <script>
+        // Verifica se html2canvas foi carregado corretamente
+        window.addEventListener('DOMContentLoaded', function() {
+            if (typeof html2canvas !== 'function') {
+                console.warn('html2canvas não foi carregado da CDN primária. Tentando fonte alternativa...');
+                // Cria um novo script para carregar de uma fonte alternativa
+                var fallbackScript = document.createElement('script');
+                fallbackScript.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+                fallbackScript.onerror = function() {
+                    console.error('Falha ao carregar html2canvas de ambas as fontes.');
+                    // Notifica o usuário sobre o problema
+                    if (window.ui) {
+                        window.ui.showNotification('Não foi possível carregar a biblioteca de captura de tela. Algumas funcionalidades podem não funcionar corretamente.', 'warning');
+                    }
+                };
+                document.body.appendChild(fallbackScript);
+            }
+        });
+    </script>
+    
     <!-- Scripts do Sistema -->
     <script src="js/config.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/dashboard.js"></script>
+    <script src="js/workflow.js"></script>
     <script src="js/orders.js"></script>
     <script src="js/clients.js"></script>
     <script src="js/products.js"></script>

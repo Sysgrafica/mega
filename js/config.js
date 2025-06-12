@@ -30,29 +30,52 @@ const SYSTEM_CONFIG = {
         admin: {
             name: "Administrador",
             level: 4,
-            menuAccess: ["dashboard", "orders", "clients", "products", "employees", "suppliers", "reports"]
+            menuAccess: ["dashboard", "workflow", "orders", "clients", "products", "employees", "suppliers", "reports"]
         },
         seller: {
             name: "Vendedor",
             level: 3,
-            menuAccess: ["dashboard", "orders", "clients", "products"]
+            menuAccess: ["dashboard", "workflow", "orders", "clients", "products"]
         },
         designer: {
             name: "Designer",
             level: 2,
-            menuAccess: ["dashboard", "orders", "products"]
+            menuAccess: ["dashboard", "workflow", "orders", "products"]
         },
         production: {
             name: "Produção",
             level: 1,
-            menuAccess: ["dashboard", "orders"]
+            menuAccess: ["dashboard", "workflow", "orders"]
+        },
+        impressor: {
+            name: "Impressor",
+            level: 1,
+            menuAccess: ["dashboard", "workflow", "orders"]
+        },
+        acabamento: {
+            name: "Acabamento",
+            level: 1,
+            menuAccess: ["dashboard", "workflow", "orders"]
+        },
+        cortesEspeciais: {
+            name: "Cortes Especiais",
+            level: 1,
+            menuAccess: ["dashboard", "workflow", "orders"]
+        },
+        aplicador: {
+            name: "Aplicador",
+            level: 1,
+            menuAccess: ["dashboard", "workflow", "orders"]
         }
     },
     orderStatus: [
-        { id: "pending", name: "Aguardando Aprovação", color: "status-pending" },
-        { id: "approved", name: "Aprovado", color: "status-pending" },
-        { id: "production", name: "Em Produção", color: "status-processing" },
-        { id: "ready", name: "Pronto para Retirada", color: "status-completed" },
+        { id: "budget", name: "Orçamento", color: "status-pending" },
+        { id: "pending", name: "Aguardando", color: "status-pending" },
+        { id: "printing", name: "Impressão", color: "status-processing" },
+        { id: "cutting", name: "Cortes Especiais", color: "status-processing" },
+        { id: "finishing", name: "Acabamento", color: "status-processing" },
+        { id: "application", name: "Aplicação", color: "status-processing" },
+        { id: "ready", name: "Pronto na entrega", color: "status-completed" },
         { id: "delivered", name: "Entregue", color: "status-completed" },
         { id: "cancelled", name: "Cancelado", color: "status-cancelled" }
     ],

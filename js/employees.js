@@ -87,6 +87,10 @@ class EmployeesComponent {
                         <option value="seller">Vendedor</option>
                         <option value="designer">Designer</option>
                         <option value="production">Produção</option>
+                        <option value="impressor">Impressor</option>
+                        <option value="acabamento">Acabamento</option>
+                        <option value="cortesEspeciais">Cortes Especiais</option>
+                        <option value="aplicador">Aplicador</option>
                     </select>
                 </div>
             </div>

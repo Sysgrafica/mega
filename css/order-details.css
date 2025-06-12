@@ -1,0 +1,577 @@
+/* --- Reset Básico e Configurações Globais --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.order-detail-container {
+    font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7fa; /* Um cinza claro para o fundo da página */
+    color: #333;
+    line-height: 1.6;
+    padding: 2rem;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* --- Layout Principal (Simula uma folha A4) --- */
+.page {
+    width: 100%;
+    max-width: 210mm;
+    min-height: 297mm; /* Altura mínima para garantir que o conteúdo não seja cortado */
+    padding: 20mm;
+    background: #fff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    margin: 0 auto;
+}
+
+/* --- Estilos Otimizados para Impressão --- */
+@media print {
+    body {
+        background-color: #fff !important; /* Fundo branco para impressão */
+        padding: 0 !important;
+    }
+    
+    .order-detail-container {
+        background-color: #fff !important;
+        padding: 0 !important;
+    }
+    
+    .page {
+        width: 100% !important;
+        min-height: initial !important;
+        margin: 0 !important;
+        padding: 10mm !important;
+        box-shadow: none !important; /* Remove a sombra na impressão */
+        border-radius: 0 !important;
+    }
+    
+    .print-button, .top-bar, .back-button-wrapper, .action-buttons, .action-panel, button {
+        display: none !important; /* Oculta o botão de impressão e outros elementos de navegação */
+    }
+    
+    .main-footer {
+        position: fixed !important;
+        bottom: 0 !important;
+        width: calc(100% - 20mm) !important; /* Garante que o rodapé não ultrapasse a área de impressão */
+        text-align: center !important;
+    }
+}
+
+/* --- Cabeçalho --- */
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+.main-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a202c;
+}
+
+.main-header .order-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: #4a5568;
+    margin-top: 4px;
+}
+
+.print-button {
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.print-button:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-2px);
+}
+
+/* --- Títulos de Seção --- */
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* --- Grid de Informações Principais --- */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-bottom: 35px;
+}
+
+.info-card {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.info-card .card-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #343a40;
+}
+
+.info-card p {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #495057;
+    display: flex;
+}
+
+.info-card p strong {
+    color: #212529;
+    min-width: 140px; /* Alinha os valores */
+    display: inline-block;
+    font-weight: 500;
+}
+
+.info-card .delivery-date strong {
+    color: #dc3545; /* Destaque para a data de entrega */
+}
+
+/* --- Detalhes do Pedido (Itens e Imagem) --- */
+.order-details .details-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+.item {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    margin-bottom: 15px;
+    font-size: 17px;
+}
+
+.item-name {
+    color: #0d6efd;
+}
+
+.item-body p {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: #495057;
+}
+
+.item-body strong {
+    color: #212529;
+    min-width: 120px;
+    display: inline-block;
+    font-weight: 500;
+}
+
+.item-description {
+    background-color: #e9f7ff;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    font-style: italic;
+}
+
+.reference-image {
+    width: 100%;
+    margin-bottom: 30px;
+    margin-top: 20px;
+}
+
+.reference-image h4 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #343a40;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.reference-image img {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    display: block;
+    margin: 0 auto;
+}
+
+/* --- Totais do Pedido --- */
+.totals {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 15px;
+}
+
+.totals p {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    margin-bottom: 10px;
+}
+
+.totals .discount span:last-child {
+    color: #198754;
+    font-weight: 500;
+}
+
+.totals .grand-total {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a202c;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px solid #ced4da;
+}
+
+/* --- Detalhes de Pagamento --- */
+.payment-details {
+    margin-top: 35px;
+}
+
+.payment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.payment-item p {
+    font-size: 15px;
+    color: #495057;
+}
+
+.payment-item span {
+    font-size: 15px;
+    font-weight: 600;
+    color: #198754;
+}
+
+.payment-summary p {
+    display: flex;
+    justify-content: space-between;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.payment-summary span:first-child {
+    font-weight: 600;
+}
+
+.payment-summary .paid-amount {
+    color: #198754;
+    font-weight: 700;
+}
+
+.payment-summary .remaining-balance {
+    color: #dc3545;
+    font-weight: 700;
+}
+
+/* --- Seção de Observações --- */
+.observations {
+    margin-top: 35px;
+    background-color: #fffbe6;
+    border: 1px solid #ffe58f;
+    border-left: 5px solid #ffc107;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.observations p {
+    color: #856404;
+    font-size: 15px;
+}
+
+/* --- Rodapé --- */
+.main-footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+    font-size: 14px;
+    color: #6c757d;
+}
+
+/* Responsividade para telas menores */
+@media (max-width: 768px) {
+    .page {
+        padding: 10mm;
+    }
+    
+    .order-details .details-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Estilos para tema escuro */
+.dark-mode .order-detail-container {
+    background-color: #1a1a2e;
+    color: #e1e1e1;
+}
+
+.dark-mode .page {
+    background: #272741;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.dark-mode .main-header h1 {
+    color: #ffffff;
+}
+
+.dark-mode .main-header .order-title {
+    color: #cccccc;
+}
+
+.dark-mode .section-title {
+    color: #ffffff;
+    border-bottom-color: #3a3a5a;
+}
+
+.dark-mode .info-card {
+    background-color: #2a2a45;
+    border-color: #3a3a5a;
+}
+
+.dark-mode .info-card .card-title {
+    color: #e1e1e1;
+}
+
+.dark-mode .info-card p {
+    color: #b8b8b8;
+}
+
+.dark-mode .info-card p strong {
+    color: #e1e1e1;
+}
+
+.dark-mode .item {
+    border-color: #3a3a5a;
+    background-color: #2a2a45;
+}
+
+.dark-mode .item-name {
+    color: #5e9afc;
+}
+
+.dark-mode .item-body p {
+    color: #b8b8b8;
+}
+
+.dark-mode .item-body strong {
+    color: #e1e1e1;
+}
+
+.dark-mode .item-description {
+    background-color: #1c3755;
+}
+
+.dark-mode .reference-image h4 {
+    color: #e1e1e1;
+}
+
+.dark-mode .reference-image img {
+    border-color: #3a3a5a;
+}
+
+.dark-mode .totals {
+    border-top-color: #3a3a5a;
+}
+
+.dark-mode .totals .grand-total {
+    color: #ffffff;
+    border-top-color: #3a3a5a;
+}
+
+.dark-mode .payment-item {
+    background-color: #2a2a45;
+    border-color: #3a3a5a;
+}
+
+.dark-mode .payment-item p {
+    color: #b8b8b8;
+}
+
+.dark-mode .observations {
+    background-color: #332d19;
+    border-color: #665c34;
+    border-left-color: #997b25;
+}
+
+.dark-mode .observations p {
+    color: #d6c989;
+}
+
+.dark-mode .main-footer {
+    border-top-color: #3a3a5a;
+    color: #b8b8b8;
+}
+
+/* Ajuste para título do pedido mais próximo da imagem */
+.order-title-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.order-title-section h2 {
+    margin-bottom: 5px;
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.order-title-section p {
+    font-size: 16px;
+    color: #4a5568;
+    margin-bottom: 5px;
+}
+
+/* Ajustes para itens em uma única linha */
+.item-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.item-inline-label {
+    font-weight: 600;
+    color: #4a5568;
+    min-width: 120px;
+}
+
+.item-inline-value {
+    color: #1a202c;
+}
+
+/* Caixas de marcação para impressão e acabamento */
+.production-checkboxes {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+}
+
+.checkbox-container input {
+    margin-right: 5px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-container label {
+    font-size: 14px;
+    color: #4a5568;
+    cursor: pointer;
+}
+
+.checkbox-container .tooltip {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background-color: #333;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+    z-index: 10;
+    white-space: nowrap;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
+.checkbox-container .tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 15px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+.checkbox-container:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Ajustes para o modo escuro */
+.dark-mode .production-checkboxes {
+    border-top-color: #3a3a5a;
+}
+
+.dark-mode .checkbox-container label {
+    color: #b8b8b8;
+}
+
+.dark-mode .checkbox-container .tooltip {
+    background-color: #111;
+    color: #ddd;
+}
+
+/* Ajustes para o modo escuro */
+.dark-mode .order-title-section h2 {
+    color: #ffffff;
+}
+
+.dark-mode .order-title-section p {
+    color: #cccccc;
+}
+
+.dark-mode .item-inline-label {
+    color: #b8b8b8;
+}
+
+.dark-mode .item-inline-value {
+    color: #e1e1e1;
+} 
