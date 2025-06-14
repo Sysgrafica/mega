@@ -80,21 +80,20 @@ class UI {
     }
     
     // Navega para uma página específica
-    navigateTo(pageId, isInitialLoad = false) {
-        // Se o componente atual for o mesmo que o solicitado, e não for carregamento inicial, ignore
-        if (this.currentPage === pageId && !isInitialLoad) {
-            console.log(`Já estamos na página ${pageId}, ignorando navegação`);
-            return;
+    navigateTo(pageId, callback = null, isInitialLoad = false) {
+        // Verifica se a página existe
+        if (!this.menuItems.find(item => item.id === pageId)) {
+            console.error(`Página não encontrada: ${pageId}`);
+            pageId = 'dashboard'; // Redireciona para o dashboard
         }
         
         // Limpa o componente anterior, se existir
-        if (this.currentComponent && this.currentComponent.cleanup && typeof this.currentComponent.cleanup === 'function') {
+        if (this.currentComponent && typeof this.currentComponent.cleanup === 'function') {
             console.log(`Limpando componente anterior: ${this.currentPage}`);
             this.currentComponent.cleanup();
-            this.currentComponent = null;
         }
         
-        // Atualiza o estado atual
+        // Atualiza a página atual
         this.currentPage = pageId;
         
         // Atualiza o menu
@@ -113,7 +112,7 @@ class UI {
         
         // Renderiza o componente correspondente de forma assíncrona
         setTimeout(() => {
-            this.renderComponent(pageId, isInitialLoad);
+            this.renderComponent(pageId, callback, isInitialLoad);
             
             // Atualiza a URL sem recarregar a página
             window.history.pushState({}, '', `#${pageId}`);
@@ -133,7 +132,7 @@ class UI {
     }
     
     // Renderiza um componente na área de conteúdo principal
-    renderComponent(componentId, isInitialLoad = false) {
+    renderComponent(componentId, callback = null, isInitialLoad = false) {
         console.log(`Renderizando componente: ${componentId}`);
         // Encontra o componente correspondente
         const menuItem = this.menuItems.find(item => item.id === componentId);
@@ -165,6 +164,9 @@ class UI {
                         // Após renderização completa, reseta a flag de carregamento
                         if (componentId === 'dashboard') {
                             window.isLoadingData = false;
+                        }
+                        if (callback && typeof callback === 'function') {
+                            callback();
                         }
                     })
                     .catch(error => {

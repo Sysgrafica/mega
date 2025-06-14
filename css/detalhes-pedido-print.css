@@ -1,0 +1,304 @@
+/**
+ * detalhes-pedido-print.css
+ * Estilos específicos para visualização e impressão da página de Detalhes do Pedido
+ * Otimizado para formato A4 com espaços minimizados
+ */
+
+/* Configurações de Impressão */
+@media print {
+    @page {
+        size: A4;
+        margin: 10mm; /* Margens reduzidas para maximizar o uso do espaço */
+    }
+    
+    /* Oculta elementos desnecessários para impressão */
+    .no-print,
+    .top-bar,
+    .header-actions,
+    .back-button,
+    #notification-area,
+    .action-panel,
+    button:not(.status-btn) {
+        display: none !important;
+    }
+    
+    /* Estilos básicos para impressão */
+    body {
+        background-color: white !important;
+        font-family: 'Poppins', 'Segoe UI', sans-serif;
+        font-size: 11pt;
+        line-height: 1.3;
+        color: #000;
+    }
+    
+    /* Container principal */
+    .order-detail-content {
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    /* Cabeçalho do pedido */
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+    }
+    
+    /* Título do pedido */
+    .order-title h2 {
+        font-size: 16pt;
+        margin: 0 0 4px 0;
+    }
+    
+    /* Badge de status */
+    .order-status-badge {
+        font-size: 9pt;
+        padding: 2px 5px;
+        margin: 0;
+    }
+    
+    /* Metadados do pedido (data, entrega, etc.) */
+    .order-meta {
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 9pt;
+        column-gap: 12px;
+        row-gap: 2px;
+    }
+    
+    .meta-item {
+        margin-bottom: 2px;
+    }
+    
+    .meta-label {
+        font-weight: bold;
+        margin-right: 4px;
+        display: inline-block;
+    }
+    
+    /* Seções do pedido */
+    .order-section {
+        margin-bottom: 8px;
+        page-break-inside: avoid;
+    }
+    
+    .order-section h3 {
+        font-size: 12pt;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 3px;
+        margin: 8px 0 6px 0;
+    }
+    
+    /* Informações do cliente */
+    .client-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+    }
+    
+    .info-group {
+        font-size: 9pt;
+        margin-bottom: 3px;
+    }
+    
+    .info-label {
+        font-weight: bold;
+        display: inline-block;
+        min-width: 80px;
+    }
+    
+    /* Itens do pedido */
+    .order-items {
+        margin-bottom: 8px;
+    }
+    
+    .order-item {
+        border: 1px solid #ddd;
+        padding: 5px 8px;
+        margin-bottom: 5px;
+        border-radius: 3px;
+        page-break-inside: avoid;
+    }
+    
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px dotted #eee;
+        padding-bottom: 3px;
+        margin-bottom: 4px;
+    }
+    
+    .item-name {
+        font-weight: bold;
+        font-size: 10pt;
+    }
+    
+    .item-price {
+        font-weight: bold;
+    }
+    
+    .item-details {
+        font-size: 9pt;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .item-detail {
+        margin-bottom: 2px;
+    }
+    
+    .item-detail-label {
+        font-weight: bold;
+        margin-right: 4px;
+    }
+    
+    .item-description {
+        grid-column: 1 / -1;
+        font-style: italic;
+        margin-top: 3px;
+        padding-top: 3px;
+        border-top: 1px dotted #eee;
+    }
+    
+    /* Pagamentos */
+    .payment-items {
+        margin-bottom: 8px;
+    }
+    
+    .payment-item {
+        border: 1px solid #eee;
+        padding: 5px 8px;
+        margin-bottom: 4px;
+        display: flex;
+        justify-content: space-between;
+        border-radius: 3px;
+        font-size: 9pt;
+    }
+    
+    /* Resumo do pedido */
+    .order-summary {
+        margin-top: 6px;
+        border-top: 1px solid #ddd;
+        padding-top: 5px;
+        text-align: right;
+        page-break-inside: avoid;
+    }
+    
+    .summary-item {
+        margin-bottom: 2px;
+        font-size: 9pt;
+    }
+    
+    .summary-label {
+        font-weight: bold;
+        margin-right: 20px;
+        display: inline-block;
+        min-width: 80px;
+    }
+    
+    .summary-value {
+        font-weight: normal;
+        display: inline-block;
+        min-width: 80px;
+    }
+    
+    .order-summary .total {
+        font-size: 11pt;
+        font-weight: bold;
+        border-top: 1px solid #ddd;
+        padding-top: 3px;
+        margin-top: 4px;
+    }
+    
+    /* Observações */
+    .order-notes {
+        margin-top: 10px;
+        padding-top: 5px;
+        border-top: 1px solid #ddd;
+        font-size: 9pt;
+        page-break-inside: avoid;
+    }
+    
+    .notes-title {
+        font-weight: bold;
+        margin-bottom: 3px;
+    }
+    
+    /* Imagens do pedido */
+    .order-images {
+        text-align: center;
+        margin-top: 10px;
+    }
+    
+    .order-image {
+        max-width: 100%;
+        max-height: 180mm;
+        margin-bottom: 10px;
+        page-break-inside: avoid;
+    }
+    
+    .order-image img {
+        max-width: 100%;
+        max-height: 160mm;
+        border: 1px solid #ddd;
+    }
+    
+    /* Assinatura */
+    .signature-area {
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        page-break-inside: avoid;
+    }
+    
+    .signature-block {
+        width: 45%;
+        text-align: center;
+    }
+    
+    .signature-line {
+        border-top: 1px solid #000;
+        margin-top: 30px;
+        padding-top: 5px;
+    }
+}
+
+/* Estilos para visualização em tela */
+.order-detail-container {
+    max-width: 210mm;
+    margin: 0 auto;
+    background: white;
+    padding: 15mm;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+}
+
+/* Botão de impressão (visível apenas na tela) */
+.print-button {
+    display: inline-block;
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 10px 0;
+    text-decoration: none;
+}
+
+.print-button:hover {
+    background-color: #0b5ed7;
+}
+
+@media (max-width: 210mm) {
+    .order-detail-container {
+        width: 100%;
+        padding: 10px;
+        box-shadow: none;
+    }
+} 

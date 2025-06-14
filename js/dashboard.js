@@ -842,9 +842,10 @@ class DashboardComponent {
                 if (deliveryDate >= today && deliveryDate <= limitDate) {
                     this.upcomingDeliveries.push({
                         id: doc.id,
-                        orderNumber: order.orderNumber,
                         clientName: order.clientName,
                         deliveryDate: order.deliveryDate,
+                        toArrange: order.toArrange || false,
+                        delivered: order.delivered || false,
                         status: order.status
                     });
                 }
@@ -884,9 +885,10 @@ class DashboardComponent {
             const order = doc.data();
             this.latestOrders.push({
                 id: doc.id,
-                orderNumber: order.orderNumber,
                 clientName: order.clientName,
-                totalValue: order.totalValue,
+                deliveryDate: order.deliveryDate,
+                toArrange: order.toArrange || false,
+                delivered: order.delivered || false,
                 status: order.status,
                 createdAt: order.createdAt
             });
@@ -1147,6 +1149,13 @@ class DashboardComponent {
                 ${this.renderControlPoints()}
             </div>
             
+            <!-- Botão de Novo Pedido -->
+            <div class="new-order-button-container">
+                <button id="new-order-btn" class="btn-dashboard-new-order" onclick="localStorage.setItem('createNewOrder', 'true'); ui.navigateTo('orders')">
+                    <i class="fas fa-plus-circle"></i> Novo Pedido
+                </button>
+            </div>
+            
             <div class="table-card">
                 <h3><i class="fas fa-truck"></i> Pedidos para Entregar</h3>
                 ${this.renderDeliveryOrders()}
@@ -1201,15 +1210,15 @@ class DashboardComponent {
                 <div class="stat-title">Faturamento do Mês</div>
                 <div class="stat-value">${ui.formatCurrency(this.statsData.monthlyRevenue)}</div>
             </div>`;
-        }
-        
-        html += `
+            
+            // Mostra total de clientes apenas para administradores
+            html += `
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-users"></i></div>
                 <div class="stat-title">Total de Clientes</div>
                 <div class="stat-value">${this.statsData.totalClients}</div>
-            </div>
-        `;
+            </div>`;
+        }
         
         return html;
     }
@@ -1224,10 +1233,12 @@ class DashboardComponent {
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Nº Pedido</th>
                         <th>Cliente</th>
-                        <th>Entrega</th>
+                        <th>Data de Entrega</th>
+                        <th>Hora</th>
+                        <th>Situação</th>
                         <th>Status</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1240,19 +1251,52 @@ class DashboardComponent {
             const isLate = deliveryDate < today;
             const isCloseToDue = !isLate && (deliveryDate - today) / (1000 * 60 * 60 * 24) <= 2; // 2 dias ou menos
             
-            const alertIcon = isLate ? '<i class="fas fa-exclamation-triangle alert-icon"></i>' : 
-                             isCloseToDue ? '<i class="fas fa-hourglass-half alert-icon"></i>' : '';
+            // Define a situação
+            let situacao = '';
+            let situacaoClass = '';
+            
+            if (delivery.toArrange) {
+                situacao = 'A combinar';
+            } else if (delivery.delivered) {
+                situacao = 'Entregue';
+            } else {
+                // Calcula a diferença em minutos entre agora e a data de entrega
+                const minutesToDelivery = Math.floor((deliveryDate - today) / (1000 * 60));
+                
+                if (minutesToDelivery < 0) {
+                    // Atrasado - vermelho
+                    situacao = 'Atrasado';
+                    situacaoClass = 'situacao-atrasado';
+                } else if (minutesToDelivery <= 60) {
+                    // Menos de 60 minutos - amarelo
+                    situacao = 'Apresse';
+                    situacaoClass = 'situacao-apresse';
+                } else {
+                    // Mais de 60 minutos - azul
+                    situacao = 'No prazo';
+                    situacaoClass = 'situacao-no-prazo';
+                }
+            }
             
             // Encontra o objeto de status
             const statusObj = SYSTEM_CONFIG.orderStatus.find(s => s.id === delivery.status) || 
                              { name: 'Desconhecido', color: '' };
             
             html += `
-                <tr data-id="${delivery.id}" class="clickable-row">
-                    <td>${alertIcon} ${delivery.orderNumber}</td>
+                <tr data-id="${delivery.id}" class="clickable-row ${isLate ? 'late-delivery' : (isCloseToDue ? 'urgent-delivery' : '')}">
                     <td>${delivery.clientName}</td>
                     <td>${ui.formatDate(delivery.deliveryDate)}</td>
+                    <td>${this.formatTime(deliveryDate)}</td>
+                    <td>${this.getSituacaoHTML(delivery)}</td>
                     <td><span class="status-tag ${statusObj.color}">${statusObj.name}</span></td>
+                    <td>
+                        <button class="btn-icon view-order" data-id="${delivery.id}" title="Ver Detalhes">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-icon edit-order" data-id="${delivery.id}" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
                 </tr>
             `;
         });
@@ -1275,11 +1319,12 @@ class DashboardComponent {
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Nº Pedido</th>
                         <th>Cliente</th>
-                        <th>Valor</th>
+                        <th>Data de Entrega</th>
+                        <th>Hora</th>
+                        <th>Situação</th>
                         <th>Status</th>
-                        <th>Data</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1292,11 +1337,21 @@ class DashboardComponent {
             
             html += `
                 <tr data-id="${order.id}" class="clickable-row">
-                    <td>${order.orderNumber}</td>
                     <td>${order.clientName}</td>
-                    <td>${ui.formatCurrency(order.totalValue)}</td>
+                    <td>${order.deliveryDate ? ui.formatDate(order.deliveryDate) : 'A combinar'}</td>
+                    <td>${order.deliveryDate ? (order.deliveryDate.toDate ? this.formatTime(order.deliveryDate.toDate()) : this.formatTime(new Date(order.deliveryDate))) : '-'}</td>
+                    <td>
+                        ${this.getSituacaoHTML(order)}
+                    </td>
                     <td><span class="status-tag ${statusObj.color}">${statusObj.name}</span></td>
-                    <td>${ui.formatDate(order.createdAt)}</td>
+                    <td>
+                        <button class="btn-icon view-order" data-id="${order.id}" title="Ver Detalhes">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-icon edit-order" data-id="${order.id}" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
                 </tr>
             `;
         });
@@ -1356,6 +1411,53 @@ class DashboardComponent {
         `;
     }
     
+    // Formata a hora de um timestamp
+    formatTime(date) {
+        if (!date) return '-';
+        try {
+            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+            console.error('Erro ao formatar hora:', e);
+            return '-';
+        }
+    }
+    
+    // Calcula e formata a situação do pedido
+    getSituacaoHTML(order) {
+        if (order.toArrange) {
+            return '<span>A combinar</span>';
+        } else if (order.delivered) {
+            return '<span>Entregue</span>';
+        } else if (order.deliveryDate) {
+            const today = new Date();
+            let deliveryDate;
+            
+            if (order.deliveryDate.toDate) {
+                deliveryDate = order.deliveryDate.toDate();
+            } else if (order.deliveryDate instanceof Date) {
+                deliveryDate = order.deliveryDate;
+            } else {
+                deliveryDate = new Date(order.deliveryDate);
+            }
+            
+            // Calcula a diferença em minutos entre agora e a data de entrega
+            const minutesToDelivery = Math.floor((deliveryDate - today) / (1000 * 60));
+            
+            if (minutesToDelivery < 0) {
+                // Atrasado - vermelho
+                return '<span class="situacao-atrasado">Atrasado</span>';
+            } else if (minutesToDelivery <= 60) {
+                // Menos de 60 minutos - amarelo
+                return '<span class="situacao-apresse">Apresse</span>';
+            } else {
+                // Mais de 60 minutos - azul
+                return '<span class="situacao-no-prazo">No prazo</span>';
+            }
+        } else {
+            return '<span>Pendente</span>';
+        }
+    }
+    
     // Renderiza os pedidos para entregar
     renderDeliveryOrders() {
         if (this.deliveryOrders.length === 0) {
@@ -1366,11 +1468,10 @@ class DashboardComponent {
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Nº Pedido</th>
                         <th>Cliente</th>
-                        <th>Endereço</th>
                         <th>Data de Entrega</th>
-                        <th>Valor da Entrega</th>
+                        <th>Hora</th>
+                        <th>Situação</th>
                         <th>Status</th>
                         <th>Ações</th>
                     </tr>
@@ -1385,22 +1486,49 @@ class DashboardComponent {
                 color: '#999'
             };
             
-            // Formata data de entrega
+            // Formata data e hora de entrega
             let deliveryDateDisplay = '-';
+            let deliveryTimeDisplay = '-';
+            let deliverySituation = '';
+            let situacaoClass = '';
+            
             if (order.toArrange) {
                 deliveryDateDisplay = 'A combinar';
+                deliverySituation = 'A combinar';
             } else if (order.deliveryDate) {
                 const dateObj = order.deliveryDate instanceof Date ? order.deliveryDate : new Date(order.deliveryDate.seconds * 1000);
                 deliveryDateDisplay = dateObj.toLocaleDateString('pt-BR');
+                deliveryTimeDisplay = this.formatTime(dateObj);
+                
+                if (order.delivered) {
+                    deliverySituation = 'Entregue';
+                } else {
+                    // Calcula a diferença em minutos entre agora e a data de entrega
+                    const today = new Date();
+                    const minutesToDelivery = Math.floor((dateObj - today) / (1000 * 60));
+                    
+                    if (minutesToDelivery < 0) {
+                        // Atrasado - vermelho
+                        deliverySituation = 'Atrasado';
+                        situacaoClass = 'situacao-atrasado';
+                    } else if (minutesToDelivery <= 60) {
+                        // Menos de 60 minutos - amarelo
+                        deliverySituation = 'Apresse';
+                        situacaoClass = 'situacao-apresse';
+                    } else {
+                        // Mais de 60 minutos - azul
+                        deliverySituation = 'No prazo';
+                        situacaoClass = 'situacao-no-prazo';
+                    }
+                }
             }
             
             html += `
                 <tr data-id="${order.id}" class="clickable-row">
-                    <td>${order.orderNumber}</td>
                     <td>${order.clientName}</td>
-                    <td>${order.clientAddress}</td>
                     <td>${deliveryDateDisplay}</td>
-                    <td>R$ ${order.deliveryCost.toFixed(2)}</td>
+                    <td>${deliveryTimeDisplay}</td>
+                    <td>${this.getSituacaoHTML(order)}</td>
                     <td><span class="status-tag ${statusObj.color}">${statusObj.name}</span></td>
                     <td>
                         <button class="btn-icon view-order" data-id="${order.id}" title="Ver Detalhes">

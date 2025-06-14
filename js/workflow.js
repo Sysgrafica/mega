@@ -171,6 +171,53 @@ class WorkflowComponent {
     }
     
     // Renderiza a lista de pedidos para um status específico
+    // Formata a hora de um timestamp
+    formatTime(date) {
+        if (!date) return '-';
+        try {
+            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+            console.error('Erro ao formatar hora:', e);
+            return '-';
+        }
+    }
+    
+    // Calcula e formata a situação do pedido
+    getSituacaoHTML(order) {
+        if (order.toArrange) {
+            return '<span>A combinar</span>';
+        } else if (order.delivered) {
+            return '<span>Entregue</span>';
+        } else if (order.deliveryDate) {
+            const today = new Date();
+            let deliveryDate;
+            
+            if (order.deliveryDate.toDate) {
+                deliveryDate = order.deliveryDate.toDate();
+            } else if (order.deliveryDate instanceof Date) {
+                deliveryDate = order.deliveryDate;
+            } else {
+                deliveryDate = new Date(order.deliveryDate);
+            }
+            
+            // Calcula a diferença em minutos entre agora e a data de entrega
+            const minutesToDelivery = Math.floor((deliveryDate - today) / (1000 * 60));
+            
+            if (minutesToDelivery < 0) {
+                // Atrasado - vermelho
+                return '<span class="situacao-atrasado">Atrasado</span>';
+            } else if (minutesToDelivery <= 60) {
+                // Menos de 60 minutos - amarelo
+                return '<span class="situacao-apresse">Apresse</span>';
+            } else {
+                // Mais de 60 minutos - azul
+                return '<span class="situacao-no-prazo">No prazo</span>';
+            }
+        } else {
+            return '<span>Pendente</span>';
+        }
+    }
+    
     renderOrdersList(status) {
         const orders = this.statusBlocks[status];
         
@@ -183,12 +230,16 @@ class WorkflowComponent {
         orders.forEach(order => {
             // Formata a data de entrega
             let deliveryDate = order.deliveryDate;
+            let deliveryTimeDisplay = '-';
+            let deliverySituation = 'Pendente';
+            
             if (deliveryDate) {
                 if (deliveryDate.toDate) {
                     deliveryDate = deliveryDate.toDate();
                 } else if (!(deliveryDate instanceof Date)) {
                     deliveryDate = new Date(deliveryDate);
                 }
+                deliveryTimeDisplay = this.formatTime(deliveryDate);
             } else {
                 deliveryDate = new Date(); // Data padrão se não houver data de entrega
             }
@@ -206,16 +257,27 @@ class WorkflowComponent {
                 alertClass = 'order-urgent';
             }
             
+            // Define a situação
+            if (order.toArrange) {
+                deliverySituation = 'A combinar';
+            } else if (order.delivered) {
+                deliverySituation = 'Entregue';
+            }
+            
             // Cria o card do pedido
             html += `
                 <div class="workflow-order-item ${alertClass}" data-id="${order.id}">
-                    <div class="order-number">#${order.orderNumber}</div>
                     <div class="order-client">${order.clientName}</div>
                     <div class="order-date">
                         ${isLate ? '<i class="fas fa-exclamation-triangle warning-icon"></i>' : ''}
                         ${isCloseToDeadline ? '<i class="fas fa-clock warning-icon"></i>' : ''}
                         ${ui.formatDate(deliveryDate)}
                     </div>
+                    <div class="order-time">${deliveryTimeDisplay}</div>
+                    <div class="order-situation">
+                        ${this.getSituacaoHTML(order)}
+                    </div>
+                    <div class="order-status"><span class="status-tag-sm ${status}">${SYSTEM_CONFIG.orderStatus.find(s => s.id === status)?.name || 'Desconhecido'}</span></div>
                     <div class="workflow-order-actions">
                         <button class="btn-icon-sm view-order" data-id="${order.id}" title="Ver Detalhes">
                             <i class="fas fa-eye"></i>
@@ -237,14 +299,16 @@ class WorkflowComponent {
     
     // Mostra detalhes de um pedido selecionado
     showOrderDetails(orderId) {
-        // Redirect para a página de detalhes do pedido
-        if (window.OrdersComponent) {
-            // Salva o ID do pedido para a página de pedidos poder abri-lo
-            localStorage.setItem('viewOrderId', orderId);
-            
-            // Navega para a página de pedidos
-            ui.navigateTo('orders');
-        }
+        console.log(`Abrindo pedido do fluxo de trabalho: ${orderId}`);
+        
+        // Navega para a página de pedidos e abre o pedido diretamente
+        ui.navigateTo('orders', () => {
+            // Callback executado após carregar o componente de pedidos
+            if (window.currentComponent && window.currentComponent instanceof OrdersComponent) {
+                // Usa o método showDetailView diretamente no componente de pedidos
+                window.currentComponent.showDetailView(orderId);
+            }
+        });
     }
     
     // Mostra diálogo para alterar o status do pedido

@@ -532,8 +532,11 @@ class ClientsComponent {
                     // Oculta indicador de carregamento antes de executar o callback
                     ui.hideLoading();
                     
-                    // Executa o callback e fecha o modal
-                    this.createCallback();
+                    // Obtém o cliente completo do Firestore
+                    const createdClient = await this.getClientFromFirestore(this.currentClientId);
+                    
+                    // Executa o callback com o cliente criado e fecha o modal
+                    this.createCallback(createdClient);
                     ui.closeModal();
                     return;
                 }
@@ -733,10 +736,12 @@ class ClientsComponent {
             if (!docSnap.exists) return null;
             
             // Retorna um objeto cliente completo com todos os campos
-            return {
+            const client = {
                 id: docSnap.id,
                 ...docSnap.data()
             };
+            
+            return client;
         } catch (error) {
             console.error('Erro ao buscar cliente do Firestore:', error);
             return null;
@@ -744,5 +749,5 @@ class ClientsComponent {
     }
 }
 
-// Registra o componente globalmente
+// Registra o componente globalmente para que o sistema possa encontrá-lo
 window.ClientsComponent = ClientsComponent; 

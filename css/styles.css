@@ -7,6 +7,28 @@
     font-size: 0.9em;
 }
 
+/* Estilo para o título da imagem */
+.image-title {
+    margin: 20px 0 10px 0;
+    padding: 0 15px;
+    font-size: 1.3em;
+    color: #444;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Estilo para a descrição da imagem */
+.image-description {
+    margin: 5px 0 15px 0;
+    padding: 10px 15px;
+    font-size: 1em;
+    color: #555;
+    background-color: #f9f9f9;
+    border-left: 3px solid #4e73df;
+    line-height: 1.4;
+    font-style: italic;
+}
+
 /* Estilos para a seção de detalhes de pedido */
 .order-items {
     margin-bottom: 20px;

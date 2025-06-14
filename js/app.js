@@ -78,4 +78,31 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log("Sistema GrafSys inicializado com sucesso!");
     console.log("Firebase configurado para o projeto:", firebase.app().options.projectId);
-}); 
+    
+    // Inicializar a visibilidade do rodapé
+    updateFooterVisibility();
+});
+
+// Função para atualizar a visibilidade do rodapé
+function updateFooterVisibility() {
+    const authContainerActive = document.getElementById('auth-container').classList.contains('active');
+    const mainAppActive = document.getElementById('main-app').classList.contains('active');
+    const systemFooter = document.getElementById('system-footer');
+    
+    if (mainAppActive && !authContainerActive) {
+        systemFooter.classList.add('active');
+    } else {
+        systemFooter.classList.remove('active');
+    }
+}
+
+// Adicionar aos eventos de login/logout para atualizar a visibilidade do rodapé
+function showMainApp() {
+    // ... existing code ...
+    updateFooterVisibility();
+}
+
+function showAuthScreen() {
+    // ... existing code ...
+    updateFooterVisibility();
+} 
