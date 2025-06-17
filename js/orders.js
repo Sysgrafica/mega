@@ -2394,10 +2394,22 @@ class OrdersComponent {
                                             itemClasses.push("print-checked");
                                         }
                                         
+                                        // Extrair o nome do produto corretamente, lidando com o caso em que item.product é um objeto
+                                        let productName = 'Item sem nome';
+                                        if (item.product) {
+                                            if (typeof item.product === 'string') {
+                                                productName = item.product;
+                                            } else if (typeof item.product === 'object' && item.product.name) {
+                                                productName = item.product.name;
+                                            }
+                                        } else if (item.name) {
+                                            productName = item.name;
+                                        }
+                                        
                                         return `
                                         <div class="${itemClasses.join(' ')}" data-item-index="${index}">
                                             <div class="item-header">
-                                                <span>#${index + 1}: ${item.product || item.name || 'Item sem nome'}</span>
+                                                <span>#${index + 1}: ${productName}</span>
                                                 <span>${ui.formatCurrency(item.total || 0)}</span>
                                             </div>
                                             <div class="item-specs">
@@ -2427,6 +2439,28 @@ class OrdersComponent {
                                                         ${item.printChecked && item.printCheckedBy ? 
                                                           `Marcado por: ${item.printCheckedBy}<br>Em: ${item.printCheckedAt ? this.formatDateTime(item.printCheckedAt) : '-'}` : 
                                                           'Aguardando impressão'}
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Checkbox e indicador para controle de acabamento -->
+                                                <div class="finishing-checkbox-container">
+                                                    <input type="checkbox" id="finishing-check-${order.id}-${index}" 
+                                                           class="finishing-checkbox" 
+                                                           data-order-id="${order.id}" 
+                                                           data-item-index="${index}"
+                                                           ${item.finishingChecked ? 'checked' : ''}>
+                                                    <label for="finishing-check-${order.id}-${index}" class="finishing-checkbox-label">
+                                                        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                        </svg>
+                                                    </label>
+                                                </div>
+                                                <div class="info-indicator" data-order-id="${order.id}" data-item-index="${index}">
+                                                    !
+                                                    <div class="info-tooltip" id="finishing-tooltip-${order.id}-${index}">
+                                                        ${item.finishingChecked && item.finishingCheckedBy ? 
+                                                          `Marcado por: ${item.finishingCheckedBy}<br>Em: ${item.finishingCheckedAt ? this.formatDateTime(item.finishingCheckedAt) : '-'}` : 
+                                                          'Aguardando acabamento'}
                                                     </div>
                                                 </div>
                                             </div>
@@ -2589,6 +2623,7 @@ class OrdersComponent {
             setTimeout(() => {
                 try {
                     this.setupPrintCheckboxListeners(orderId);
+                    this.setupFinishingCheckboxListeners(orderId);
                 } catch (error) {
                     console.error('Erro ao configurar checkboxes:', error);
                 }
@@ -2599,10 +2634,22 @@ class OrdersComponent {
     
     // Renderiza os detalhes de um item de pedido em formato compacto
     renderOrderItemDetailsCompact(item, index) {
+        // Extrair o nome do produto corretamente, lidando com o caso em que item.product é um objeto
+        let productName = 'Item sem nome';
+        if (item.product) {
+            if (typeof item.product === 'string') {
+                productName = item.product;
+            } else if (typeof item.product === 'object' && item.product.name) {
+                productName = item.product.name;
+            }
+        } else if (item.name) {
+            productName = item.name;
+        }
+        
         return `
             <div class="order-item">
                 <div class="item-header">
-                    <div class="item-name">#${index}: ${item.product || item.name || 'Item sem nome'}</div>
+                    <div class="item-name">#${index}: ${productName}</div>
                     <div class="item-price">${ui.formatCurrency(item.total || 0)}</div>
                 </div>
                 <div class="item-details">
@@ -2717,17 +2764,36 @@ class OrdersComponent {
             clientEmail: this.formData.client.email || '',
             clientAddress: this.formData.client.address || '',
             orderNumber: this.formData.orderNumber || null,
-            items: this.formData.items.map(item => ({
-                product: item.product.name || 'Produto',
-                productId: item.product.id,
-                quantity: item.quantity || 1,
-                price: item.unitPrice || 0,
-                total: item.total || 0,
-                description: item.description || '',
-                width: item.width || null,
-                height: item.height || null,
-                area: item.area || null
-            })),
+            items: this.formData.items.map(item => {
+                // Garantir que o nome do produto seja extraído corretamente
+                let productName = 'Produto';
+                if (item.product) {
+                    if (typeof item.product === 'string') {
+                        productName = item.product;
+                    } else if (typeof item.product === 'object' && item.product.name) {
+                        productName = item.product.name;
+                    }
+                }
+                
+                return {
+                    product: productName,
+                    productId: item.product && item.product.id ? item.product.id : '',
+                    quantity: item.quantity || 1,
+                    price: item.unitPrice || 0,
+                    total: item.total || 0,
+                    description: item.description || '',
+                    width: item.width || null,
+                    height: item.height || null,
+                    area: item.area || null,
+                    // Preservar os status de marcação, se existirem
+                    printChecked: item.printChecked || false,
+                    printCheckedBy: item.printCheckedBy || null,
+                    printCheckedAt: item.printCheckedAt || null,
+                    finishingChecked: item.finishingChecked || false,
+                    finishingCheckedBy: item.finishingCheckedBy || null,
+                    finishingCheckedAt: item.finishingCheckedAt || null
+                };
+            }),
             payments: this.formData.payments.map(payment => {
                 // Recupera o valor considerando ambos os campos
                 const paymentAmount = payment.amount !== undefined ? payment.amount : (payment.value || 0);
@@ -3167,6 +3233,13 @@ class OrdersComponent {
             const checkboxes = document.querySelectorAll(`.print-checkbox[data-order-id="${orderId}"]`);
             console.log(`Configurando ${checkboxes.length} checkboxes para o pedido ${orderId}`);
             
+            // Obter o usuário atual para verificar permissões
+            const currentUser = window.auth.getCurrentUser();
+            const userRole = currentUser ? currentUser.role : null;
+            
+            // Verifica se o usuário tem permissão para marcar os checkboxes (apenas admin ou impressor)
+            const canMarkCheckbox = userRole === 'admin' || userRole === 'impressor';
+            
             // Remover listeners antigos primeiro para evitar duplicação
             checkboxes.forEach(checkbox => {
                 const clonedCheckbox = checkbox.cloneNode(true);
@@ -3177,7 +3250,21 @@ class OrdersComponent {
             const refreshedCheckboxes = document.querySelectorAll(`.print-checkbox[data-order-id="${orderId}"]`);
             
             refreshedCheckboxes.forEach(checkbox => {
+                // Desabilitar checkbox se o usuário não tiver permissão
+                if (!canMarkCheckbox) {
+                    checkbox.disabled = true;
+                    checkbox.title = "Apenas impressores e administradores podem marcar itens";
+                }
+                
                 checkbox.addEventListener('change', async (e) => {
+                    // Verificar novamente a permissão (segurança adicional)
+                    if (!canMarkCheckbox) {
+                        e.preventDefault();
+                        ui.showNotification('Apenas impressores e administradores podem marcar itens.', 'warning');
+                        e.target.checked = !e.target.checked; // Reverte a alteração
+                        return;
+                    }
+                    
                     const checked = e.target.checked;
                     const itemIndex = parseInt(e.target.dataset.itemIndex);
                     const orderId = e.target.dataset.orderId;
@@ -3207,7 +3294,6 @@ class OrdersComponent {
                         }
                         
                         // Obtém informações do usuário atual
-                        const currentUser = window.auth.getCurrentUser();
                         const userName = currentUser ? currentUser.name || currentUser.email || 'Usuário' : 'Usuário';
                         
                         // Atualiza o item no array
@@ -3245,12 +3331,129 @@ class OrdersComponent {
                         e.target.checked = !checked;
                     }
                     
-                    // Reabilita o checkbox após o processamento
-                    e.target.disabled = false;
+                    // Reabilita o checkbox após o processamento se o usuário tiver permissão
+                    if (canMarkCheckbox) {
+                        e.target.disabled = false;
+                    }
                 });
             });
         } catch (error) {
             console.error('Erro ao configurar checkboxes de impressão:', error);
+        }
+    }
+
+    // Configura os listeners para os checkboxes de acabamento
+    setupFinishingCheckboxListeners(orderId) {
+        try {
+            const checkboxes = document.querySelectorAll(`.finishing-checkbox[data-order-id="${orderId}"]`);
+            console.log(`Configurando ${checkboxes.length} checkboxes de acabamento para o pedido ${orderId}`);
+            
+            // Obter o usuário atual para verificar permissões
+            const currentUser = window.auth.getCurrentUser();
+            const userRole = currentUser ? currentUser.role : null;
+            
+            // Verifica se o usuário tem permissão para marcar os checkboxes (apenas admin ou acabamento)
+            const canMarkCheckbox = userRole === 'admin' || userRole === 'acabamento';
+            
+            // Remover listeners antigos primeiro para evitar duplicação
+            checkboxes.forEach(checkbox => {
+                const clonedCheckbox = checkbox.cloneNode(true);
+                checkbox.parentNode.replaceChild(clonedCheckbox, checkbox);
+            });
+            
+            // Buscar novamente os checkboxes após a clonagem
+            const refreshedCheckboxes = document.querySelectorAll(`.finishing-checkbox[data-order-id="${orderId}"]`);
+            
+            refreshedCheckboxes.forEach(checkbox => {
+                // Desabilitar checkbox se o usuário não tiver permissão
+                if (!canMarkCheckbox) {
+                    checkbox.disabled = true;
+                    checkbox.title = "Apenas funcionários do acabamento e administradores podem marcar itens";
+                }
+                
+                checkbox.addEventListener('change', async (e) => {
+                    // Verificar novamente a permissão (segurança adicional)
+                    if (!canMarkCheckbox) {
+                        e.preventDefault();
+                        ui.showNotification('Apenas funcionários do acabamento e administradores podem marcar itens.', 'warning');
+                        e.target.checked = !e.target.checked; // Reverte a alteração
+                        return;
+                    }
+                    
+                    const checked = e.target.checked;
+                    const itemIndex = parseInt(e.target.dataset.itemIndex);
+                    const orderId = e.target.dataset.orderId;
+                    
+                    // Desabilita o checkbox durante o processamento
+                    e.target.disabled = true;
+                    
+                    try {
+                        // Busca o pedido atual
+                        const orderRef = db.collection('orders').doc(orderId);
+                        const orderDoc = await orderRef.get();
+                        
+                        if (!orderDoc.exists) {
+                            console.error('Pedido não encontrado:', orderId);
+                            e.target.disabled = false;
+                            return;
+                        }
+                        
+                        const orderData = orderDoc.data();
+                        const items = orderData.items || [];
+                        
+                        // Verifica se o índice é válido
+                        if (itemIndex >= items.length || itemIndex < 0) {
+                            console.error('Índice de item inválido:', itemIndex);
+                            e.target.disabled = false;
+                            return;
+                        }
+                        
+                        // Obtém informações do usuário atual
+                        const userName = currentUser ? currentUser.name || currentUser.email || 'Usuário' : 'Usuário';
+                        
+                        // Atualiza o item no array
+                        items[itemIndex] = {
+                            ...items[itemIndex],
+                            finishingChecked: checked,
+                            finishingCheckedBy: checked ? userName : null,
+                            finishingCheckedAt: checked ? new Date() : null
+                        };
+                        
+                        // Atualiza o documento no Firestore
+                        await orderRef.update({
+                            items: items,
+                            lastUpdate: new Date()
+                        });
+                        
+                        // Atualiza o tooltip com as informações de quem marcou
+                        const tooltip = document.getElementById(`finishing-tooltip-${orderId}-${itemIndex}`);
+                        if (tooltip) {
+                            if (checked) {
+                                tooltip.innerHTML = `Marcado por: ${userName}<br>Em: ${this.formatDateTime(new Date())}`;
+                            } else {
+                                tooltip.innerHTML = 'Aguardando acabamento';
+                            }
+                        }
+                        
+                        // Mostra notificação de sucesso
+                        ui.showNotification(`Item ${checked ? 'marcado' : 'desmarcado'} como finalizado!`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Erro ao atualizar status de acabamento:', error);
+                        ui.showNotification('Erro ao atualizar status de acabamento.', 'error');
+                        
+                        // Reverte o estado do checkbox em caso de erro
+                        e.target.checked = !checked;
+                    }
+                    
+                    // Reabilita o checkbox após o processamento se o usuário tiver permissão
+                    if (canMarkCheckbox) {
+                        e.target.disabled = false;
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('Erro ao configurar checkboxes de acabamento:', error);
         }
     }
 }
