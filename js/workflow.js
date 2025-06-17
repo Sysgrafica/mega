@@ -61,8 +61,11 @@ class WorkflowComponent {
             });
             
             // Busca todos os pedidos ativos (não cancelados)
+            // Consulta otimizada utilizando índices compostos
             const snapshot = await db.collection('orders')
                 .where('status', 'in', this.workflowStatuses)
+                .orderBy('createdAt', 'desc') // Usando índice composto status + createdAt
+                .limit(200) // Limitando resultados para melhor performance
                 .get();
             
             snapshot.forEach(doc => {
@@ -299,15 +302,104 @@ class WorkflowComponent {
     
     // Mostra detalhes de um pedido selecionado
     showOrderDetails(orderId) {
-        console.log(`Abrindo pedido do fluxo de trabalho: ${orderId}`);
+        console.log(`Abrindo detalhes do pedido: ${orderId}`);
         
-        // Navega para a página de pedidos e abre o pedido diretamente
-        ui.navigateTo('orders', () => {
-            // Callback executado após carregar o componente de pedidos
-            if (window.currentComponent && window.currentComponent instanceof OrdersComponent) {
-                // Usa o método showDetailView diretamente no componente de pedidos
-                window.currentComponent.showDetailView(orderId);
+        // Exibe indicador de carregamento
+        ui.showLoading('Carregando detalhes do pedido...');
+        
+        // Busca os dados do pedido no Firestore
+        db.collection('orders').doc(orderId).get().then(async doc => {
+            if (doc.exists) {
+                const orderData = { id: doc.id, ...doc.data() };
+                
+                // Limpa o conteúdo atual
+                const mainContent = document.getElementById('main-content');
+                const originalContent = mainContent.innerHTML;
+                
+                // Cria um botão para voltar ao fluxo de trabalho
+                const backButton = document.createElement('div');
+                backButton.className = 'page-header no-print';
+                backButton.innerHTML = `
+                    <button class="btn btn-outline-secondary back-button" id="back-to-workflow">
+                        <i class="fas fa-arrow-left"></i> Voltar para Fluxo de Trabalho
+                    </button>
+                    <h1>Detalhes do Pedido</h1>
+                    <div class="header-actions">
+                        ${window.auth.hasFeaturePermission('edit_order') ? `
+                        <button class="btn btn-primary edit-order-btn" data-id="${orderId}">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        ` : ''}
+                        <button class="btn btn-outline-secondary print-button" onclick="window.print()">
+                            <i class="fas fa-print"></i> Imprimir
+                        </button>
+                    </div>
+                `;
+                
+                // Insere os detalhes do pedido diretamente na página atual
+                mainContent.innerHTML = '';
+                mainContent.appendChild(backButton);
+                
+                // Cria o container para os detalhes
+                const detailsContainer = document.createElement('div');
+                detailsContainer.className = 'order-details-container';
+                mainContent.appendChild(detailsContainer);
+                
+                try {
+                    // Instancia temporariamente um componente de pedidos para renderizar os detalhes
+                    const tempOrdersComponent = new OrdersComponent();
+                    
+                    // Carrega dados adicionais necessários
+                    // Busca cliente
+                    if (orderData.clientId) {
+                        const clientDoc = await db.collection('clients').doc(orderData.clientId).get();
+                        if (clientDoc.exists) {
+                            const clientData = { id: clientDoc.id, ...clientDoc.data() };
+                            // Adiciona cliente aos dados do pedido e à lista de clientes
+                            orderData.client = clientData;
+                            tempOrdersComponent.clients = [clientData];
+                        }
+                    }
+                    
+                    // Carrega os dados iniciais necessários e renderiza os detalhes
+                    tempOrdersComponent.orders = [orderData];
+                    tempOrdersComponent.renderOrderDetail(orderId, detailsContainer);
+                    
+                    // Adiciona evento para o botão voltar
+                    document.getElementById('back-to-workflow').addEventListener('click', () => {
+                        mainContent.innerHTML = originalContent;
+                        // Re-renderiza o fluxo de trabalho para atualizar os dados
+                        this.render(mainContent);
+                    });
+                    
+                    // Adiciona evento para o botão editar (se existir)
+                    const editButton = document.querySelector('.edit-order-btn');
+                    if (editButton) {
+                        editButton.addEventListener('click', () => {
+                            localStorage.setItem('editOrderId', orderId);
+                            ui.navigateTo('orders');
+                        });
+                    }
+                } catch (error) {
+                    console.error("Erro ao renderizar detalhes do pedido:", error);
+                    detailsContainer.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Ocorreu um erro ao renderizar os detalhes do pedido.</p>
+                        </div>
+                    `;
+                }
+                
+                // Esconde o loading
+                ui.hideLoading();
+            } else {
+                ui.hideLoading();
+                ui.showNotification('Pedido não encontrado.', 'error');
             }
+        }).catch(error => {
+            console.error("Erro ao carregar detalhes do pedido:", error);
+            ui.hideLoading();
+            ui.showNotification('Erro ao carregar detalhes do pedido.', 'error');
         });
     }
     

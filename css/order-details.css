@@ -1,5 +1,5 @@
 /* --- Reset Básico e Configurações Globais --- */
-* {
+.filter-row {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -200,6 +200,152 @@
     font-style: italic;
 }
 
+/* Classe para garantir que os itens fiquem sempre visíveis */
+.visible-item {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Estilo para itens com checkbox marcado */
+.print-checked {
+    border-left: 4px solid var(--green-500, #48bb78);
+}
+
+.dark-mode .print-checked {
+    border-left: 4px solid var(--green-600, #38a169);
+}
+
+/* --- Estilos para Checkbox e Indicador de Informação --- */
+.item-actions {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    gap: 8px;
+}
+
+.print-checkbox-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.print-checkbox {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.print-checkbox-label {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: var(--gray-700, #4a5568);
+    border: 2px solid var(--gray-500, #718096);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.print-checkbox:checked ~ .print-checkbox-label {
+    background-color: var(--green-500, #48bb78);
+    border-color: var(--green-500, #48bb78);
+}
+
+.print-checkbox-label .checkmark {
+    display: none;
+    color: white;
+    width: 16px;
+    height: 16px;
+}
+
+.print-checkbox:checked ~ .print-checkbox-label .checkmark {
+    display: block;
+}
+
+.print-checkbox-label:hover {
+    border-color: var(--indigo-400, #7f9cf5);
+}
+
+.info-indicator {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background-color: var(--blue-500, #3b82f6);
+    color: white;
+    font-weight: bold;
+    border-radius: 50%;
+    cursor: default;
+}
+
+.info-tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background-color: var(--gray-900, #1a202c);
+    color: white;
+    font-size: 12px;
+    white-space: nowrap;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.info-tooltip:after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--gray-900, #1a202c) transparent transparent transparent;
+}
+
+.info-indicator:hover .info-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Estilos para modo escuro */
+.dark-mode .print-checkbox-label {
+    background-color: var(--gray-800, #2d3748);
+    border-color: var(--gray-600, #4b5563);
+}
+
+.dark-mode .print-checkbox:checked ~ .print-checkbox-label {
+    background-color: var(--green-600, #38a169);
+    border-color: var(--green-600, #38a169);
+}
+
+.dark-mode .info-indicator {
+    background-color: var(--blue-600, #2563eb);
+}
+
+.dark-mode .info-tooltip {
+    background-color: var(--gray-800, #1a202c);
+}
+
+.dark-mode .info-tooltip:after {
+    border-color: var(--gray-800, #1a202c) transparent transparent transparent;
+}
+
+/* --- Referência de Imagem --- */
 .reference-image {
     width: 100%;
     margin-bottom: 30px;
@@ -252,7 +398,7 @@
 
 /* --- Detalhes de Pagamento --- */
 .payment-details {
-    margin-top: 35px;
+    margin-top: 1px;
 }
 
 .payment-item {
@@ -418,8 +564,9 @@
 }
 
 .dark-mode .payment-item {
-    background-color: #2a2a45;
-    border-color: #3a3a5a;
+    background-color: #ffffff;
+    border-color: #c8c8f3;
+    margin: -1px;
 }
 
 .dark-mode .payment-item p {
@@ -574,4 +721,201 @@
 
 .dark-mode .item-inline-value {
     color: #e1e1e1;
+}
+
+/* Estilos para o cabeçalho da empresa no modo escuro */
+.dark-mode .company-header {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .company-logo .logo-icon {
+    color: var(--primary-light);
+}
+
+.dark-mode .company-logo h2 {
+    color: var(--primary-light);
+}
+
+.dark-mode .company-info p {
+    color:rgb(0 0 0 / 87%);
+}
+
+.dark-mode .company-info p strong {
+    color: var(--text-light);
+}
+
+/* Estilo para o campo de descrição e checkbox de aplicação na mesma linha */
+.form-group.d-flex.align-items-center label {
+    min-width: 80px;
+    margin-bottom: 0;
+}
+
+.form-group.d-flex.align-items-center .form-control {
+    flex: 1;
+}
+
+.form-group.d-flex.align-items-center .custom-checkbox {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+/* Dark mode */
+.dark-mode .form-group.d-flex.align-items-center label,
+.dark-mode .form-group.d-flex.align-items-center .custom-control-label {
+    color: var(--text-light);
+}
+
+/* --- Estilos para Itens Concluídos --- */
+.order-item {
+    display: block !important; /* Garante que todos os itens sejam exibidos, independentemente de seu status */
+    visibility: visible !important;
+    opacity: 1 !important;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    position: relative; /* Para permitir posicionamento absoluto dos indicadores */
+    pointer-events: auto !important; /* Garante que o item possa receber eventos */
+    height: auto !important; /* Impede altura zero */
+    min-height: 100px; /* Altura mínima para garantir visibilidade */
+    overflow: visible !important; /* Garante que o conteúdo não seja cortado */
+}
+
+#order-items-section .order-item {
+    /* Garante que os itens dentro da seção de itens também sejam exibidos */
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#order-items-section::after {
+    /* Adiciona um pouco de espaço após a seção de itens para garantir que nada fique sobreposto */
+    content: "";
+    display: block;
+    height: 30px;
+    width: 100%;
+    clear: both;
+}
+
+.order-item.completed {
+    border-left: 4px solid #28a745; /* Borda verde para itens concluídos totalmente */
+    background-color: rgba(40, 167, 69, 0.05); /* Fundo verde muito claro */
+}
+
+/* Indicador para itens apenas impressos */
+.order-item.printed:not(.finished):after {
+    content: '✓ Impressão';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #007bff;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Indicador para itens apenas com acabamento */
+.order-item.finished:not(.printed):after {
+    content: '✓ Acabamento';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #fd7e14;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Indicador para itens completos (impressão e acabamento) */
+.order-item.printed.finished:after {
+    content: '✓ Completo';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #28a745;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.production-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 15px;
+}
+
+/* Compatibilidade com dark mode */
+.dark-mode .order-item {
+    border-color: #2d3748;
+}
+
+.dark-mode .order-item.completed {
+    border-left-color: #38b2ac; /* Cor mais suave para dark mode */
+    background-color: rgba(56, 178, 172, 0.05); /* Fundo verde-azulado muito claro */
+}
+
+.dark-mode .production-checkboxes {
+    border-top-color: #2d3748;
+}
+
+.dark-mode .order-item.printed:not(.finished):after,
+.dark-mode .order-item.finished:not(.printed):after,
+.dark-mode .order-item.printed.finished:after {
+    background-color: #1e4273; /* Cor mais escura no modo noturno para melhor contraste */
+}
+
+/* Garante que o status badge de impressão/acabamento seja visível */
+.status-badge.success {
+    background-color: #28a745;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.dark-mode .status-badge.success {
+    background-color: #38b2ac;
+}
+
+/* Rolagem vertical em contêiner de itens caso necessário */
+#order-items-section {
+    max-height: none; /* Certifica que não há limite de altura */
+    overflow: visible; /* Garante visibilidade */
+}
+
+/* Regras para garantir visibilidade de itens concluídos */
+.order-item,
+.order-item.printed,
+.order-item.finished,
+.order-item.completed {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    min-height: 100px !important;
+    overflow: visible !important;
+    margin-bottom: 20px !important;
+}
+
+/* Regras adicionais para tornar os itens mais destacados quando marcados */
+.order-item.printed {
+    border-left: 4px solid #007bff !important; /* Azul para impressão */
+}
+
+.order-item.finished {
+    border-left: 4px solid #28a745 !important; /* Verde para acabamento */
+}
+
+.order-item.printed.finished,
+.order-item.completed {
+    border-left: 4px solid #6f42c1 !important; /* Roxo para concluído total */
 } 

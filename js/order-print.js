@@ -135,7 +135,7 @@ class OrderPrintComponent {
         const deliveryTime = order.deliveryDate ? this.formatTime(order.deliveryDate) : '-';
         
         // Calcula o valor total do pedido
-        const subtotal = order.items ? order.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+        const subtotal = order.items && Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
         
         // Aplica desconto e serviços extras
         const discount = parseFloat(order.discount) || 0;
@@ -146,7 +146,7 @@ class OrderPrintComponent {
         const totalValue = subtotal + extraServices - discount;
         
         // Calcula o valor pago
-        const paidValue = order.payments ? order.payments.reduce((sum, payment) => sum + (parseFloat(payment.value || payment.amount) || 0), 0) : 0;
+        const paidValue = order.payments && Array.isArray(order.payments) ? order.payments.reduce((sum, payment) => sum + (parseFloat(payment.value || payment.amount) || 0), 0) : 0;
         
         // Calcula o saldo
         const balance = totalValue - paidValue;

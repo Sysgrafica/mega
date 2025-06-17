@@ -11,7 +11,6 @@ class DashboardComponent {
         };
         this.upcomingDeliveries = [];
         this.latestOrders = [];
-        this.deliveryOrders = []; // Pedidos para entregar
         
         // Pontos de Controle - adicionado
         this.controlPoints = {
@@ -93,37 +92,7 @@ class DashboardComponent {
                 aplicacao: 3,
                 prontoNaEntrega: 6,
                 entregue: 10
-            },
-            // Dados de demonstração para pedidos de entrega
-            deliveryOrders: [
-                {
-                    id: 'demo7',
-                    orderNumber: '1240',
-                    clientName: 'Empresa JKL',
-                    clientAddress: 'Rua das Oliveiras, 789, São Paulo - SP',
-                    deliveryDate: new Date(new Date().getTime() + 86400000), // Amanhã
-                    status: 'ready',
-                    deliveryCost: 25.00
-                },
-                {
-                    id: 'demo8',
-                    orderNumber: '1241',
-                    clientName: 'Loja de Roupas MNO',
-                    clientAddress: 'Av. Brasil, 456, São Paulo - SP', 
-                    deliveryDate: new Date(new Date().getTime() + 86400000 * 2), // Em 2 dias
-                    status: 'ready',
-                    deliveryCost: 35.00
-                },
-                {
-                    id: 'demo9',
-                    orderNumber: '1242',
-                    clientName: 'Restaurante PQR',
-                    clientAddress: 'Rua Augusta, 123, São Paulo - SP',
-                    deliveryDate: new Date(new Date().getTime() + 86400000 * 3), // Em 3 dias
-                    status: 'finishing',
-                    deliveryCost: 30.00
-                }
-            ]
+            }
         };
     }
     
@@ -145,8 +114,56 @@ class DashboardComponent {
         // Retorna uma Promise para sinalizar quando o carregamento completo terminar
         return new Promise(async (resolve, reject) => {
             try {
-                // Carrega dados do Firestore em segundo plano
-                await this.loadDataAsync();
+                // Primeiro verificar se há dados em cache e usá-los para renderização rápida
+                let renderizadoComCache = false;
+                
+                try {
+                    // Verifica se há dados em cache
+                    const hasStatsCache = localStorage.getItem('dashboardStats');
+                    const hasOrdersCache = localStorage.getItem('latestOrders');
+                    const hasControlPointsCache = localStorage.getItem('controlPoints');
+                    
+                    if (hasStatsCache && hasOrdersCache && hasControlPointsCache) {
+                        console.log("Renderizando dashboard com dados do cache");
+                        
+                        // Carrega dados do cache
+                        this.statsData = JSON.parse(localStorage.getItem('dashboardStats'));
+                        this.latestOrders = JSON.parse(localStorage.getItem('latestOrders'));
+                        this.controlPoints = JSON.parse(localStorage.getItem('controlPoints'));
+                        
+                        // Renderiza o dashboard com dados do cache
+                        this.renderDashboard();
+                        renderizadoComCache = true;
+                        
+                        // Configura listeners após renderizar com cache
+                        this.setupClickableRows();
+                    }
+                } catch (cacheError) {
+                    console.warn("Erro ao usar cache:", cacheError);
+                }
+                
+                // Carrega dados críticos primeiro (estatísticas e pontos de controle)
+                await this.loadStatistics();
+                await this.loadControlPoints();
+                
+                // Carrega dados secundários em paralelo
+                Promise.all([
+                    this.loadLatestOrders(),
+                    this.loadUpcomingDeliveries()
+                ]).then(() => {
+                    // Renderiza o dashboard completo após carregar todos os dados
+                    this.renderDashboard();
+                });
+                
+                // Se já renderizou com cache, não precisa renderizar novamente imediatamente
+                if (!renderizadoComCache) {
+                    // Renderiza o dashboard completo com o botão de Novo Pedido
+                    this.renderDashboard();
+                }
+                
+                // Configura listeners para atualização em tempo real
+                this.setupRealtimeListeners();
+                
                 resolve();
             } catch (error) {
                 console.error("Erro ao carregar dados do dashboard:", error);
@@ -196,14 +213,6 @@ class DashboardComponent {
                 <div class="loading-indicator">
                     <i class="fas fa-spinner fa-spin"></i>
                     <p>Carregando pontos de controle...</p>
-                </div>
-            </div>
-            
-            <div class="table-card">
-                <h3><i class="fas fa-truck"></i> Pedidos para Entregar</h3>
-                <div class="loading-indicator">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Carregando pedidos...</p>
                 </div>
             </div>
             
@@ -281,13 +290,17 @@ class DashboardComponent {
             
             // Carrega os últimos pedidos e atualiza a seção correspondente
             this.loadLatestOrders().then(() => {
-                const ordersSection = document.querySelector('.table-card .fa-clipboard-list').closest('.table-card');
-                if (ordersSection) {
-                    const header = ordersSection.querySelector('h3');
-                    if (header) {
-                        ordersSection.innerHTML = '';
-                        ordersSection.appendChild(header);
-                        ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
+                const clipboardListEl = document.querySelector('.table-card .fa-clipboard-list');
+                // Verificar se o elemento existe antes de chamar closest()
+                if (clipboardListEl) {
+                    const ordersSection = clipboardListEl.closest('.table-card');
+                    if (ordersSection) {
+                        const header = ordersSection.querySelector('h3');
+                        if (header) {
+                            ordersSection.innerHTML = '';
+                            ordersSection.appendChild(header);
+                            ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
+                        }
                     }
                 }
                 ui.updateLoadingToast('Pedidos carregados. Carregando pontos de controle...');
@@ -295,13 +308,16 @@ class DashboardComponent {
                 console.error("Erro ao carregar últimos pedidos:", error);
                 // Usa dados de demonstração em caso de erro
                 this.latestOrders = this.demoData.latestOrders;
-                const ordersSection = document.querySelector('.table-card .fa-clipboard-list').closest('.table-card');
-                if (ordersSection) {
-                    const header = ordersSection.querySelector('h3');
-                    if (header) {
-                        ordersSection.innerHTML = '';
-                        ordersSection.appendChild(header);
-                        ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
+                const clipboardListEl = document.querySelector('.table-card .fa-clipboard-list');
+                if (clipboardListEl) {
+                    const ordersSection = clipboardListEl.closest('.table-card');
+                    if (ordersSection) {
+                        const header = ordersSection.querySelector('h3');
+                        if (header) {
+                            ordersSection.innerHTML = '';
+                            ordersSection.appendChild(header);
+                            ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
+                        }
                     }
                 }
             });
@@ -317,7 +333,18 @@ class DashboardComponent {
                         controlPointsSection.insertAdjacentHTML('beforeend', this.renderControlPoints());
                     }
                 }
-                ui.updateLoadingToast('Pontos de controle carregados. Carregando pedidos para entrega...');
+                
+                // Oculta o toast quando todos os dados estiverem carregados
+                ui.hideLoadingToast();
+                ui.showNotification('Dashboard atualizado com sucesso!', 'success');
+                
+                // Configura listeners para atualização em tempo real
+                this.setupRealtimeListeners();
+                
+                // Reativa os event listeners para os pedidos clicáveis
+                this.setupClickableRows();
+                
+                this.isLoading = false;
             }).catch(error => {
                 console.error("Erro ao carregar pontos de controle:", error);
                 // Usa dados de demonstração em caso de erro
@@ -331,45 +358,17 @@ class DashboardComponent {
                         controlPointsSection.insertAdjacentHTML('beforeend', this.renderControlPoints());
                     }
                 }
-            });
-            
-            // Carrega os pedidos para entregar e atualiza a seção correspondente
-            this.loadDeliveryOrders().then(() => {
-                const deliverySection = document.querySelector('.table-card .fa-truck').closest('.table-card');
-                if (deliverySection) {
-                    const header = deliverySection.querySelector('h3');
-                    if (header) {
-                        deliverySection.innerHTML = '';
-                        deliverySection.appendChild(header);
-                        deliverySection.insertAdjacentHTML('beforeend', this.renderDeliveryOrders());
-                        
-                        // Reativa os event listeners para os pedidos clicáveis
-                        this.setupClickableRows();
-                    }
-                }
-                
-                // Oculta o toast quando todos os dados estiverem carregados
-                ui.hideLoadingToast();
-                ui.showNotification('Dashboard atualizado com sucesso!', 'success');
-            }).catch(error => {
-                console.error("Erro ao carregar pedidos para entregar:", error);
-                // Usa dados de demonstração em caso de erro
-                this.deliveryOrders = this.demoData.deliveryOrders;
-                const deliverySection = document.querySelector('.table-card .fa-truck').closest('.table-card');
-                if (deliverySection) {
-                    const header = deliverySection.querySelector('h3');
-                    if (header) {
-                        deliverySection.innerHTML = '';
-                        deliverySection.appendChild(header);
-                        deliverySection.insertAdjacentHTML('beforeend', this.renderDeliveryOrders());
-                        
-                        // Reativa os event listeners para os pedidos clicáveis
-                        this.setupClickableRows();
-                    }
-                }
                 
                 // Oculta o toast mesmo em caso de erro
                 ui.hideLoadingToast();
+                
+                // Configura listeners para atualização em tempo real
+                this.setupRealtimeListeners();
+                
+                // Reativa os event listeners para os pedidos clicáveis
+                this.setupClickableRows();
+                
+                this.isLoading = false;
             });
             
             // Configura listeners para atualização em tempo real
@@ -758,9 +757,6 @@ class DashboardComponent {
             // Carrega os pontos de controle
             await this.loadControlPoints();
             
-            // Carrega os pedidos para entregar
-            await this.loadDeliveryOrders();
-            
             this.isLoading = false;
         } catch (error) {
             console.error("Erro ao carregar dados do dashboard:", error);
@@ -771,6 +767,22 @@ class DashboardComponent {
     
     // Carrega estatísticas gerais
     async loadStatistics() {
+        console.log("Carregando estatísticas...");
+        
+        // Verificar cache primeiro
+        const cachedStats = localStorage.getItem('dashboardStats');
+        const cacheTime = localStorage.getItem('dashboardStatsTime');
+        
+        // Usar cache se tiver menos de 3 minutos
+        if (cachedStats && cacheTime) {
+            const agora = new Date().getTime();
+            if (agora - parseInt(cacheTime) < 3 * 60 * 1000) {
+                console.log("Usando cache para estatísticas do dashboard");
+                this.statsData = JSON.parse(cachedStats);
+                return;
+            }
+        }
+        
         // Obtém a data atual
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -778,27 +790,33 @@ class DashboardComponent {
         // Obtém o primeiro dia do mês atual
         const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         
-        // Pedidos do dia
-        const dailyOrdersSnapshot = await db.collection('orders')
-            .where('createdAt', '>=', today)
-            .get();
+        // Executar consultas em paralelo para melhorar o desempenho
+        const [dailyOrdersSnapshot, pendingOrdersSnapshot, monthlyOrdersSnapshot, clientsSnapshot] = 
+            await Promise.all([
+                // Pedidos do dia
+                db.collection('orders')
+                    .where('createdAt', '>=', today)
+                    .get(),
+                
+                // Pedidos pendentes
+                db.collection('orders')
+                    .where('status', 'in', ['pending', 'approved', 'production'])
+                    .get(),
+                
+                // Pedidos e faturamento do mês
+                db.collection('orders')
+                    .where('createdAt', '>=', firstDayOfMonth)
+                    .get(),
+                
+                // Total de clientes
+                db.collection('clients').get()
+            ]);
         
+        // Processa os resultados
         this.statsData.dailyOrders = dailyOrdersSnapshot.size;
-        
-        // Pedidos pendentes
-        const pendingOrdersSnapshot = await db.collection('orders')
-            .where('status', 'in', ['pending', 'approved', 'production'])
-            .get();
-        
         this.statsData.pendingOrders = pendingOrdersSnapshot.size;
-        
-        // Pedidos e faturamento do mês
-        const monthlyOrdersSnapshot = await db.collection('orders')
-            .where('createdAt', '>=', firstDayOfMonth)
-            .get();
-        
-        // Total de pedidos do mês
         this.statsData.monthlyOrders = monthlyOrdersSnapshot.size;
+        this.statsData.totalClients = clientsSnapshot.size;
         
         // Faturamento do mês
         let monthlyRevenue = 0;
@@ -809,63 +827,49 @@ class DashboardComponent {
         
         this.statsData.monthlyRevenue = monthlyRevenue;
         
-        // Total de clientes
-        const clientsSnapshot = await db.collection('clients').get();
-        this.statsData.totalClients = clientsSnapshot.size;
+        // Salvar no cache
+        try {
+            localStorage.setItem('dashboardStats', JSON.stringify(this.statsData));
+            localStorage.setItem('dashboardStatsTime', new Date().getTime().toString());
+        } catch (cacheError) {
+            console.warn("Erro ao salvar cache das estatísticas:", cacheError);
+        }
     }
     
     // Carrega entregas próximas
     async loadUpcomingDeliveries() {
         try {
+            console.log("Carregando entregas próximas...");
             const today = new Date();
             
             // Data limite (7 dias a partir de hoje)
             const limitDate = new Date();
             limitDate.setDate(today.getDate() + 7);
             
-            // Simplificando a consulta para evitar a necessidade de um índice composto
-            // Primeiro, obtenha todos os pedidos com status pendentes
+            // Usando o índice composto status+deliveryDate
             const snapshot = await db.collection('orders')
                 .where('status', 'in', ['pending', 'approved', 'production'])
+                .where('deliveryDate', '>=', today)
+                .where('deliveryDate', '<=', limitDate)
+                .orderBy('deliveryDate', 'asc')
+                .limit(10)
                 .get();
             
+            console.log(`Entregas próximas encontradas: ${snapshot.size}`);
             this.upcomingDeliveries = [];
             
-            // Depois, filtre manualmente por data de entrega e ordene
             snapshot.forEach(doc => {
                 const order = doc.data();
-                const deliveryDate = order.deliveryDate && order.deliveryDate.toDate ? 
-                    order.deliveryDate.toDate() : 
-                    new Date(order.deliveryDate);
-                
-                // Verifica se a data de entrega está dentro do intervalo desejado
-                if (deliveryDate >= today && deliveryDate <= limitDate) {
-                    this.upcomingDeliveries.push({
-                        id: doc.id,
-                        clientName: order.clientName,
-                        deliveryDate: order.deliveryDate,
-                        toArrange: order.toArrange || false,
-                        delivered: order.delivered || false,
-                        status: order.status
-                    });
-                }
+                this.upcomingDeliveries.push({
+                    id: doc.id,
+                    clientName: order.clientName,
+                    deliveryDate: order.deliveryDate,
+                    toArrange: order.toArrange || false,
+                    delivered: order.delivered || false,
+                    status: order.status
+                });
             });
             
-            // Ordena manualmente por data de entrega
-            this.upcomingDeliveries.sort((a, b) => {
-                const dateA = a.deliveryDate && a.deliveryDate.toDate ? 
-                    a.deliveryDate.toDate() : 
-                    new Date(a.deliveryDate);
-                
-                const dateB = b.deliveryDate && b.deliveryDate.toDate ? 
-                    b.deliveryDate.toDate() : 
-                    new Date(b.deliveryDate);
-                
-                return dateA - dateB;
-            });
-            
-            // Limita a 10 resultados
-            this.upcomingDeliveries = this.upcomingDeliveries.slice(0, 10);
         } catch (error) {
             console.error("Erro ao carregar entregas próximas:", error);
             this.upcomingDeliveries = [];
@@ -874,144 +878,165 @@ class DashboardComponent {
     
     // Carrega pedidos recentes
     async loadLatestOrders() {
-        const snapshot = await db.collection('orders')
-            .orderBy('createdAt', 'desc')
-            .limit(10)
-            .get();
-        
-        this.latestOrders = [];
-        
-        snapshot.forEach(doc => {
-            const order = doc.data();
-            this.latestOrders.push({
-                id: doc.id,
-                clientName: order.clientName,
-                deliveryDate: order.deliveryDate,
-                toArrange: order.toArrange || false,
-                delivered: order.delivered || false,
-                status: order.status,
-                createdAt: order.createdAt
+        try {
+            // Verificar cache primeiro
+            const cachedOrders = localStorage.getItem('latestOrders');
+            const cacheTime = localStorage.getItem('latestOrdersTime');
+            
+            // Usar cache se tiver menos de 2 minutos
+            if (cachedOrders && cacheTime) {
+                const agora = new Date().getTime();
+                if (agora - parseInt(cacheTime) < 2 * 60 * 1000) {
+                    console.log("Usando cache para últimos pedidos");
+                    this.latestOrders = JSON.parse(cachedOrders);
+                    return;
+                }
+            }
+            
+            // Se não houver cache válido, buscar do Firestore
+            console.log("Buscando últimos pedidos do Firestore");
+            
+            // Usando o índice simples de ordenação por createdAt
+            const snapshot = await db.collection('orders')
+                .orderBy('createdAt', 'desc')
+                .limit(10)
+                .get();
+            
+            console.log(`Últimos pedidos encontrados: ${snapshot.size}`);
+            this.latestOrders = [];
+            
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                
+                // Processa a data de entrega corretamente
+                let processedDeliveryDate = null;
+                
+                if (order.deliveryDate) {
+                    try {
+                        if (order.deliveryDate.toDate && typeof order.deliveryDate.toDate === 'function') {
+                            processedDeliveryDate = order.deliveryDate.toDate();
+                        } else if (order.deliveryDate instanceof Date) {
+                            processedDeliveryDate = order.deliveryDate;
+                        } else if (order.deliveryDate.seconds) {
+                            processedDeliveryDate = new Date(order.deliveryDate.seconds * 1000);
+                        } else {
+                            processedDeliveryDate = new Date(order.deliveryDate);
+                            
+                            // Verifica se a data é válida
+                            if (isNaN(processedDeliveryDate.getTime())) {
+                                console.error('Data de entrega inválida ao processar últimos pedidos:', order.deliveryDate);
+                                processedDeliveryDate = null;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Erro ao processar data de entrega nos últimos pedidos:', e, order.deliveryDate);
+                        processedDeliveryDate = null;
+                    }
+                }
+                
+                this.latestOrders.push({
+                    id: doc.id,
+                    clientName: order.clientName,
+                    deliveryDate: processedDeliveryDate,
+                    toArrange: order.toArrange || false,
+                    delivered: order.delivered || false,
+                    status: order.status,
+                    createdAt: order.createdAt
+                });
             });
-        });
+            
+            // Melhorar cache com TTL mais longo (5 minutos)
+            try {
+                localStorage.setItem('latestOrders', JSON.stringify(this.latestOrders));
+                localStorage.setItem('latestOrdersTime', new Date().getTime().toString());
+            } catch (cacheError) {
+                console.warn("Erro ao salvar cache dos últimos pedidos:", cacheError);
+            }
+        } catch (error) {
+            console.error("Erro ao carregar últimos pedidos:", error);
+            this.latestOrders = [];
+        }
     }
     
-    // Carrega os dados para os pontos de controle
+    // Carrega os dados dos pontos de controle
     async loadControlPoints() {
         try {
-            // Consulta para cada status dos pontos de controle
+            console.log("Carregando pontos de controle...");
+            
+            // Use cache se disponível e recente
+            const cachedData = localStorage.getItem('controlPoints');
+            const cacheTime = localStorage.getItem('controlPointsTime');
+            
+            // Usar cache se tiver menos de 5 minutos
+            if (cachedData && cacheTime) {
+                const agora = new Date().getTime();
+                if (agora - parseInt(cacheTime) < 5 * 60 * 1000) {
+                    console.log("Usando cache para pontos de controle");
+                    this.controlPoints = JSON.parse(cachedData);
+                    return;
+                }
+            }
+            
+            // Inicializa contagem
+            const contagem = {
+                orcamento: 0,
+                aguardando: 0,
+                impressao: 0,
+                cortesEspeciais: 0,
+                acabamento: 0,
+                aplicacao: 0, 
+                prontoNaEntrega: 0,
+                entregue: 0
+            };
+            
+            // Usar uma única consulta com contador em vez de múltiplas consultas
+            const snapshot = await db.collection('orders').get();
+            
+            // Conta os documentos por status
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                switch (order.status) {
+                    case 'budget': 
+                        contagem.orcamento++; 
+                        break;
+                    case 'pending': 
+                        contagem.aguardando++; 
+                        break;
+                    case 'printing': 
+                        contagem.impressao++; 
+                        break;
+                    case 'cutting': 
+                        contagem.cortesEspeciais++; 
+                        break;
+                    case 'finishing': 
+                        contagem.acabamento++; 
+                        break;
+                    case 'application': 
+                        contagem.aplicacao++; 
+                        break;
+                    case 'ready': 
+                        contagem.prontoNaEntrega++; 
+                        break;
+                    case 'delivered': 
+                        contagem.entregue++; 
+                        break;
+                }
+            });
+            
+            this.controlPoints = contagem;
+            console.log("Contagem de pedidos por status:", this.controlPoints);
+            
+            // Salvar no cache
             try {
-                // Busca todos os pedidos por status, sem filtrar por usuário
-                const queryOrcamento = await db.collection('orders')
-                    .where('status', '==', 'budget')
-                    .get();
-                    
-                const queryAguardando = await db.collection('orders')
-                    .where('status', '==', 'pending')
-                    .get();
-                    
-                const queryImpressao = await db.collection('orders')
-                    .where('status', '==', 'printing')
-                    .get();
-                    
-                const queryCortesEspeciais = await db.collection('orders')
-                    .where('status', '==', 'cutting')
-                    .get();
-                    
-                const queryAcabamento = await db.collection('orders')
-                    .where('status', '==', 'finishing')
-                    .get();
-                    
-                const queryAplicacao = await db.collection('orders')
-                    .where('status', '==', 'application')
-                    .get();
-                    
-                const queryProntoNaEntrega = await db.collection('orders')
-                    .where('status', '==', 'ready')
-                    .get();
-                    
-                const queryEntregue = await db.collection('orders')
-                    .where('status', '==', 'delivered')
-                    .get();
-                    
-                // Atualiza os contadores de pontos de controle
-                this.controlPoints = {
-                    orcamento: queryOrcamento.size,
-                    aguardando: queryAguardando.size,
-                    impressao: queryImpressao.size,
-                    cortesEspeciais: queryCortesEspeciais.size,
-                    acabamento: queryAcabamento.size,
-                    aplicacao: queryAplicacao.size,
-                    prontoNaEntrega: queryProntoNaEntrega.size,
-                    entregue: queryEntregue.size
-                };
-                
-                console.log("Contagem de pedidos por status:", this.controlPoints);
-            } catch (queryError) {
-                console.error("Erro nas consultas dos pontos de controle:", queryError);
-                this.controlPoints = this.demoData.controlPoints;
+                localStorage.setItem('controlPoints', JSON.stringify(this.controlPoints));
+                localStorage.setItem('controlPointsTime', new Date().getTime().toString());
+            } catch (cacheError) {
+                console.warn("Erro ao salvar cache dos pontos de controle:", cacheError);
             }
         } catch (error) {
             console.error("Erro ao carregar dados dos pontos de controle:", error);
             // Em caso de erro, use os dados de demonstração
             this.controlPoints = this.demoData.controlPoints;
-        }
-    }
-    
-    // Carrega os pedidos para entregar
-    async loadDeliveryOrders() {
-        try {
-            // Busca pedidos marcados como "needsDelivery" e não entregues ainda
-            const query = await db.collection('orders')
-                .where('needsDelivery', '==', true)
-                .where('status', 'in', ['ready', 'finishing', 'printing', 'cutting', 'application'])
-                .orderBy('deliveryDate', 'asc')
-                .limit(10)
-                .get();
-                
-            this.deliveryOrders = [];
-            
-            if (!query.empty) {
-                query.forEach(doc => {
-                    const order = doc.data();
-                    
-                    this.deliveryOrders.push({
-                        id: doc.id,
-                        orderNumber: order.orderNumber || 'S/N',
-                        clientName: order.clientName || 'Cliente não identificado',
-                        clientAddress: order.clientAddress || 'Endereço não informado',
-                        deliveryDate: order.deliveryDate ? order.deliveryDate.toDate() : null,
-                        toArrange: order.toArrange || false,
-                        status: order.status,
-                        deliveryCost: order.deliveryCost || 0
-                    });
-                });
-                
-                // Ordena por data de entrega (os com data não definida ficam no final)
-                this.deliveryOrders.sort((a, b) => {
-                    if (a.toArrange && !b.toArrange) return 1;
-                    if (!a.toArrange && b.toArrange) return -1;
-                    if (!a.deliveryDate && !b.deliveryDate) return 0;
-                    if (!a.deliveryDate) return 1;
-                    if (!b.deliveryDate) return -1;
-                    return a.deliveryDate - b.deliveryDate;
-                });
-                
-                console.log("Pedidos para entregar carregados:", this.deliveryOrders.length);
-            } else {
-                console.log("Nenhum pedido para entregar encontrado");
-                
-                // Se não houver dados reais, use os dados de demonstração
-                if (!window.PRODUCTION_MODE) {
-                    this.deliveryOrders = this.demoData.deliveryOrders;
-                }
-            }
-        } catch (error) {
-            console.error("Erro ao carregar pedidos para entregar:", error);
-            
-            // Em caso de erro, use dados de demonstração
-            if (!window.PRODUCTION_MODE) {
-                this.deliveryOrders = this.demoData.deliveryOrders;
-            }
         }
     }
     
@@ -1023,7 +1048,7 @@ class DashboardComponent {
         // Flag para controlar se o componente está ativo
         this.isActive = true;
         
-        console.log("Configurando listeners do dashboard");
+        console.log("Configurando listeners do dashboard (otimizado)");
         
         // Listener para novos pedidos com menos frequência de atualização
         this.ordersListener = db.collection('orders')
@@ -1053,10 +1078,27 @@ class DashboardComponent {
                     this.updateTimeout = setTimeout(() => {
                         // Verifica novamente se o componente ainda está ativo
                         if (this.isActive) {
-                            // Recarrega os dados e atualiza a UI
-                            this.loadData().then(() => this.renderDashboard());
+                            // Recarrega apenas os últimos pedidos em vez de todos os dados
+                            this.loadLatestOrders().then(() => {
+                                const clipboardListEl = document.querySelector('.table-card .fa-clipboard-list');
+                                // Verificar se o elemento existe antes de chamar closest()
+                                if (clipboardListEl) {
+                                    const ordersSection = clipboardListEl.closest('.table-card');
+                                    if (ordersSection) {
+                                        const header = ordersSection.querySelector('h3');
+                                        if (header) {
+                                            ordersSection.innerHTML = '';
+                                            ordersSection.appendChild(header);
+                                            ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
+                                            
+                                            // Reativa os event listeners para os pedidos clicáveis
+                                            this.setupClickableRows();
+                                        }
+                                    }
+                                }
+                            });
                         }
-                    }, 2000); // Espera 2 segundos antes de atualizar
+                    }, 5000); // Aumentado para 5 segundos antes de atualizar
                 }
             }, error => {
                 console.error("Erro no listener de pedidos:", error);
@@ -1098,29 +1140,7 @@ class DashboardComponent {
                                 }
                             }
                         });
-                        
-                        // Atualiza também os pedidos para entregar
-                        this.loadDeliveryOrders().then(() => {
-                            if (!this.isActive) return;
-                            
-                            const truckIcon = document.querySelector('.table-card h3 i.fa-truck');
-                            if (truckIcon) {
-                                const deliverySection = truckIcon.closest('.table-card');
-                                if (deliverySection) {
-                                    // Mantém o cabeçalho e substitui o conteúdo
-                                    const header = deliverySection.querySelector('h3');
-                                    if (header) {
-                                        deliverySection.innerHTML = '';
-                                        deliverySection.appendChild(header);
-                                        deliverySection.insertAdjacentHTML('beforeend', this.renderDeliveryOrders());
-                                        
-                                        // Reativa os event listeners para os pedidos clicáveis
-                                        this.setupClickableRows();
-                                    }
-                                }
-                            }
-                        });
-                    }, 3000); // Espera 3 segundos antes de atualizar
+                    }, 10000); // Aumentado para 10 segundos antes de atualizar
                 }, error => {
                     console.error("Erro no listener de pontos de controle:", error);
                 });
@@ -1139,7 +1159,12 @@ class DashboardComponent {
         
         this.container.innerHTML = `
             <h1>Dashboard</h1>
-            
+            <!-- Botão de Novo Pedido -->
+            <div class="new-order-button-container">
+                <button id="new-order-btn" class="btn-dashboard-new-order" onclick="localStorage.setItem('createNewOrder', 'true'); ui.navigateTo('orders')">
+                    <i class="fas fa-plus-circle"></i> Novo Pedido
+                </button>
+            </div>
             <div class="dashboard-stats">
                 ${this.renderStatsCards()}
             </div>
@@ -1147,18 +1172,6 @@ class DashboardComponent {
             <div class="table-card control-points-card">
                 <h3><i class="fas fa-tasks"></i> Ponto de Controle</h3>
                 ${this.renderControlPoints()}
-            </div>
-            
-            <!-- Botão de Novo Pedido -->
-            <div class="new-order-button-container">
-                <button id="new-order-btn" class="btn-dashboard-new-order" onclick="localStorage.setItem('createNewOrder', 'true'); ui.navigateTo('orders')">
-                    <i class="fas fa-plus-circle"></i> Novo Pedido
-                </button>
-            </div>
-            
-            <div class="table-card">
-                <h3><i class="fas fa-truck"></i> Pedidos para Entregar</h3>
-                ${this.renderDeliveryOrders()}
             </div>
             
             <div class="dashboard-tables">
@@ -1338,8 +1351,8 @@ class DashboardComponent {
             html += `
                 <tr data-id="${order.id}" class="clickable-row">
                     <td>${order.clientName}</td>
-                    <td>${order.deliveryDate ? ui.formatDate(order.deliveryDate) : 'A combinar'}</td>
-                    <td>${order.deliveryDate ? (order.deliveryDate.toDate ? this.formatTime(order.deliveryDate.toDate()) : this.formatTime(new Date(order.deliveryDate))) : '-'}</td>
+                    <td>${order.toArrange ? 'A combinar' : (order.deliveryDate ? ui.formatDate(order.deliveryDate) : '-')}</td>
+                    <td>${order.toArrange ? '-' : (order.deliveryDate ? this.formatTime(order.deliveryDate) : '-')}</td>
                     <td>
                         ${this.getSituacaoHTML(order)}
                     </td>
@@ -1415,9 +1428,34 @@ class DashboardComponent {
     formatTime(date) {
         if (!date) return '-';
         try {
-            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            let jsDate;
+            
+            if (date instanceof Date) {
+                // Se já for um objeto Date
+                jsDate = date;
+            } else if (date.seconds) {
+                // Se for um timestamp do Firestore
+                jsDate = new Date(date.seconds * 1000);
+            } else if (date.toDate && typeof date.toDate === 'function') {
+                // Se for um Timestamp do Firestore
+                jsDate = date.toDate();
+            } else if (typeof date === 'string' || typeof date === 'number') {
+                // Se for uma string ou número
+                jsDate = new Date(date);
+            } else {
+                // Formato desconhecido
+                return '-';
+            }
+            
+            // Verifica se a data é válida
+            if (isNaN(jsDate.getTime())) {
+                console.error('Data inválida em formatTime:', date);
+                return '-';
+            }
+            
+            return jsDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         } catch (e) {
-            console.error('Erro ao formatar hora:', e);
+            console.error('Erro ao formatar hora:', e, date);
             return '-';
         }
     }
@@ -1429,128 +1467,46 @@ class DashboardComponent {
         } else if (order.delivered) {
             return '<span>Entregue</span>';
         } else if (order.deliveryDate) {
-            const today = new Date();
-            let deliveryDate;
-            
-            if (order.deliveryDate.toDate) {
-                deliveryDate = order.deliveryDate.toDate();
-            } else if (order.deliveryDate instanceof Date) {
-                deliveryDate = order.deliveryDate;
-            } else {
-                deliveryDate = new Date(order.deliveryDate);
-            }
-            
-            // Calcula a diferença em minutos entre agora e a data de entrega
-            const minutesToDelivery = Math.floor((deliveryDate - today) / (1000 * 60));
-            
-            if (minutesToDelivery < 0) {
-                // Atrasado - vermelho
-                return '<span class="situacao-atrasado">Atrasado</span>';
-            } else if (minutesToDelivery <= 60) {
-                // Menos de 60 minutos - amarelo
-                return '<span class="situacao-apresse">Apresse</span>';
-            } else {
-                // Mais de 60 minutos - azul
-                return '<span class="situacao-no-prazo">No prazo</span>';
+            try {
+                const today = new Date();
+                let deliveryDate;
+                
+                if (order.deliveryDate.toDate && typeof order.deliveryDate.toDate === 'function') {
+                    deliveryDate = order.deliveryDate.toDate();
+                } else if (order.deliveryDate instanceof Date) {
+                    deliveryDate = order.deliveryDate;
+                } else if (order.deliveryDate.seconds) {
+                    deliveryDate = new Date(order.deliveryDate.seconds * 1000);
+                } else {
+                    deliveryDate = new Date(order.deliveryDate);
+                }
+                
+                // Verifica se a data é válida
+                if (isNaN(deliveryDate.getTime())) {
+                    console.error('Data de entrega inválida:', order.deliveryDate);
+                    return '<span>Data inválida</span>';
+                }
+                
+                // Calcula a diferença em minutos entre agora e a data de entrega
+                const minutesToDelivery = Math.floor((deliveryDate - today) / (1000 * 60));
+                
+                if (minutesToDelivery < 0) {
+                    // Atrasado - vermelho
+                    return '<span class="situacao-atrasado">Atrasado</span>';
+                } else if (minutesToDelivery <= 60) {
+                    // Menos de 60 minutos - amarelo
+                    return '<span class="situacao-apresse">Apresse</span>';
+                } else {
+                    // Mais de 60 minutos - azul
+                    return '<span class="situacao-no-prazo">No prazo</span>';
+                }
+            } catch (e) {
+                console.error('Erro ao calcular situação:', e, order.deliveryDate);
+                return '<span>Erro na data</span>';
             }
         } else {
             return '<span>Pendente</span>';
         }
-    }
-    
-    // Renderiza os pedidos para entregar
-    renderDeliveryOrders() {
-        if (this.deliveryOrders.length === 0) {
-            return '<p class="no-data-message">Não há pedidos para entrega no momento.</p>';
-        }
-        
-        let html = `
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Cliente</th>
-                        <th>Data de Entrega</th>
-                        <th>Hora</th>
-                        <th>Situação</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        this.deliveryOrders.forEach(order => {
-            // Obtém informações do status
-            const statusObj = SYSTEM_CONFIG.orderStatus.find(s => s.id === order.status) || {
-                name: 'Status Desconhecido',
-                color: '#999'
-            };
-            
-            // Formata data e hora de entrega
-            let deliveryDateDisplay = '-';
-            let deliveryTimeDisplay = '-';
-            let deliverySituation = '';
-            let situacaoClass = '';
-            
-            if (order.toArrange) {
-                deliveryDateDisplay = 'A combinar';
-                deliverySituation = 'A combinar';
-            } else if (order.deliveryDate) {
-                const dateObj = order.deliveryDate instanceof Date ? order.deliveryDate : new Date(order.deliveryDate.seconds * 1000);
-                deliveryDateDisplay = dateObj.toLocaleDateString('pt-BR');
-                deliveryTimeDisplay = this.formatTime(dateObj);
-                
-                if (order.delivered) {
-                    deliverySituation = 'Entregue';
-                } else {
-                    // Calcula a diferença em minutos entre agora e a data de entrega
-                    const today = new Date();
-                    const minutesToDelivery = Math.floor((dateObj - today) / (1000 * 60));
-                    
-                    if (minutesToDelivery < 0) {
-                        // Atrasado - vermelho
-                        deliverySituation = 'Atrasado';
-                        situacaoClass = 'situacao-atrasado';
-                    } else if (minutesToDelivery <= 60) {
-                        // Menos de 60 minutos - amarelo
-                        deliverySituation = 'Apresse';
-                        situacaoClass = 'situacao-apresse';
-                    } else {
-                        // Mais de 60 minutos - azul
-                        deliverySituation = 'No prazo';
-                        situacaoClass = 'situacao-no-prazo';
-                    }
-                }
-            }
-            
-            html += `
-                <tr data-id="${order.id}" class="clickable-row">
-                    <td>${order.clientName}</td>
-                    <td>${deliveryDateDisplay}</td>
-                    <td>${deliveryTimeDisplay}</td>
-                    <td>${this.getSituacaoHTML(order)}</td>
-                    <td><span class="status-tag ${statusObj.color}">${statusObj.name}</span></td>
-                    <td>
-                        <button class="btn-icon view-order" data-id="${order.id}" title="Ver Detalhes">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn-icon edit-order" data-id="${order.id}" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-icon change-status" data-id="${order.id}" title="Alterar Status">
-                            <i class="fas fa-exchange-alt"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                </tbody>
-            </table>
-        `;
-        
-        return html;
     }
     
     // Configura os eventos para as linhas de tabelas clicáveis

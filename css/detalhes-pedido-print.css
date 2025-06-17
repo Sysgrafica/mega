@@ -1,304 +1,568 @@
 /**
  * detalhes-pedido-print.css
- * Estilos específicos para visualização e impressão da página de Detalhes do Pedido
- * Otimizado para formato A4 com espaços minimizados
+ * Estilos para visualização e impressão da página de Detalhes do Pedido
+ * Design moderno, intuitivo e responsivo com otimização para impressão A4
  */
 
-/* Configurações de Impressão */
-@media print {
-    @page {
-        size: A4;
-        margin: 10mm; /* Margens reduzidas para maximizar o uso do espaço */
-    }
-    
-    /* Oculta elementos desnecessários para impressão */
-    .no-print,
-    .top-bar,
-    .header-actions,
-    .back-button,
-    #notification-area,
-    .action-panel,
-    button:not(.status-btn) {
-        display: none !important;
-    }
-    
-    /* Estilos básicos para impressão */
-    body {
-        background-color: white !important;
-        font-family: 'Poppins', 'Segoe UI', sans-serif;
-        font-size: 11pt;
-        line-height: 1.3;
-        color: #000;
-    }
-    
-    /* Container principal */
-    .order-detail-content {
-        padding: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-    }
-    
-    /* Cabeçalho do pedido */
-    .order-header {
-        display: flex;
-        justify-content: space-between;
-        border-bottom: 1px solid #ddd;
-        padding-bottom: 6px;
-        margin-bottom: 8px;
-    }
-    
-    /* Título do pedido */
-    .order-title h2 {
-        font-size: 16pt;
-        margin: 0 0 4px 0;
-    }
-    
-    /* Badge de status */
-    .order-status-badge {
-        font-size: 9pt;
-        padding: 2px 5px;
-        margin: 0;
-    }
-    
-    /* Metadados do pedido (data, entrega, etc.) */
-    .order-meta {
-        display: flex;
-        flex-wrap: wrap;
-        font-size: 9pt;
-        column-gap: 12px;
-        row-gap: 2px;
-    }
-    
-    .meta-item {
-        margin-bottom: 2px;
-    }
-    
-    .meta-label {
-        font-weight: bold;
-        margin-right: 4px;
-        display: inline-block;
-    }
-    
-    /* Seções do pedido */
-    .order-section {
-        margin-bottom: 8px;
-        page-break-inside: avoid;
-    }
-    
-    .order-section h3 {
-        font-size: 12pt;
-        border-bottom: 1px solid #ddd;
-        padding-bottom: 3px;
-        margin: 8px 0 6px 0;
-    }
-    
-    /* Informações do cliente */
-    .client-info {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 4px;
-    }
-    
-    .info-group {
-        font-size: 9pt;
-        margin-bottom: 3px;
-    }
-    
-    .info-label {
-        font-weight: bold;
-        display: inline-block;
-        min-width: 80px;
-    }
-    
-    /* Itens do pedido */
-    .order-items {
-        margin-bottom: 8px;
-    }
-    
-    .order-item {
-        border: 1px solid #ddd;
-        padding: 5px 8px;
-        margin-bottom: 5px;
-        border-radius: 3px;
-        page-break-inside: avoid;
-    }
-    
-    .item-header {
-        display: flex;
-        justify-content: space-between;
-        border-bottom: 1px dotted #eee;
-        padding-bottom: 3px;
-        margin-bottom: 4px;
-    }
-    
-    .item-name {
-        font-weight: bold;
-        font-size: 10pt;
-    }
-    
-    .item-price {
-        font-weight: bold;
-    }
-    
-    .item-details {
-        font-size: 9pt;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    .item-detail {
-        margin-bottom: 2px;
-    }
-    
-    .item-detail-label {
-        font-weight: bold;
-        margin-right: 4px;
-    }
-    
-    .item-description {
-        grid-column: 1 / -1;
-        font-style: italic;
-        margin-top: 3px;
-        padding-top: 3px;
-        border-top: 1px dotted #eee;
-    }
-    
-    /* Pagamentos */
-    .payment-items {
-        margin-bottom: 8px;
-    }
-    
-    .payment-item {
-        border: 1px solid #eee;
-        padding: 5px 8px;
-        margin-bottom: 4px;
-        display: flex;
-        justify-content: space-between;
-        border-radius: 3px;
-        font-size: 9pt;
-    }
-    
-    /* Resumo do pedido */
-    .order-summary {
-        margin-top: 6px;
-        border-top: 1px solid #ddd;
-        padding-top: 5px;
-        text-align: right;
-        page-break-inside: avoid;
-    }
-    
-    .summary-item {
-        margin-bottom: 2px;
-        font-size: 9pt;
-    }
-    
-    .summary-label {
-        font-weight: bold;
-        margin-right: 20px;
-        display: inline-block;
-        min-width: 80px;
-    }
-    
-    .summary-value {
-        font-weight: normal;
-        display: inline-block;
-        min-width: 80px;
-    }
-    
-    .order-summary .total {
-        font-size: 11pt;
-        font-weight: bold;
-        border-top: 1px solid #ddd;
-        padding-top: 3px;
-        margin-top: 4px;
-    }
-    
-    /* Observações */
-    .order-notes {
-        margin-top: 10px;
-        padding-top: 5px;
-        border-top: 1px solid #ddd;
-        font-size: 9pt;
-        page-break-inside: avoid;
-    }
-    
-    .notes-title {
-        font-weight: bold;
-        margin-bottom: 3px;
-    }
-    
-    /* Imagens do pedido */
-    .order-images {
-        text-align: center;
-        margin-top: 10px;
-    }
-    
-    .order-image {
-        max-width: 100%;
-        max-height: 180mm;
-        margin-bottom: 10px;
-        page-break-inside: avoid;
-    }
-    
-    .order-image img {
-        max-width: 100%;
-        max-height: 160mm;
-        border: 1px solid #ddd;
-    }
-    
-    /* Assinatura */
-    .signature-area {
-        margin-top: 20px;
-        display: flex;
-        justify-content: space-between;
-        page-break-inside: avoid;
-    }
-    
-    .signature-block {
-        width: 45%;
-        text-align: center;
-    }
-    
-    .signature-line {
-        border-top: 1px solid #000;
-        margin-top: 30px;
-        padding-top: 5px;
-    }
+/* ---- RESET BÁSICO E CONFIGURAÇÕES GLOBAIS ---- */
+:root {
+    --primary-color: #3b82f6;
+    --primary-light: #dbeafe;
+    --primary-dark: #2563eb;
+    --success-color: #10b981;
+    --success-light: #d1fae5;
+    --warning-color: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger-color: #ef4444;
+    --danger-light: #fee2e2;
+    --surface-color: #ffffff;
+    --background-color: #f8fafc;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-light: #94a3b8;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-full: 9999px;
 }
 
-/* Estilos para visualização em tela */
-.order-detail-container {
-    max-width: 210mm;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 2rem;
+}
+
+/* ---- CONTAINER PRINCIPAL ---- */
+.container {
+    max-width: 1100px;
+    width: 100%;
     margin: 0 auto;
-    background: white;
-    padding: 15mm;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    background-color: var(--surface-color);
+    padding: 2.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
 }
 
-/* Botão de impressão (visível apenas na tela) */
-.print-button {
+/* ---- CABEÇALHO ---- */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.company-info .company-name {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 2rem;
+    line-height: 1.2;
+}
+
+.company-info .company-slogan {
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: -2px;
+    font-size: 0.9rem;
+}
+
+.company-info .company-details {
+    font-size: 0.8rem;
+    margin-top: 1rem;
+    color: var(--text-light);
+}
+
+.order-title {
+    text-align: right;
+    min-width: 250px;
+}
+
+.order-title h2 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+.order-title h2 strong {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+.order-title p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+/* ---- COMPONENTES GENÉRICOS ---- */
+.card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.5rem;
+    margin-bottom: 0.2rem;
+    box-shadow: var(--shadow-sm);
+    HEIGHT: AUTO;
+}
+
+.card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.25rem;
+}
+
+.info-item .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.info-item .value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.info-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.status-badge {
     display: inline-block;
-    background-color: #0d6efd;
-    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.ontime {
+    background-color: var(--success-light);
+    color: var(--success-color);
+}
+
+.status-badge.urgent {
+    background-color: var(--warning-light);
+    color: var(--warning-color);
+}
+
+.status-badge.late {
+    background-color: var(--danger-light);
+    color: var(--danger-color);
+}
+
+/* ---- SEÇÕES PRINCIPAIS ---- */
+.main-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.content-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* -- Detalhes do Cliente e Entrega -- */
+.customer-details .info-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.delivery-details {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+.delivery-details strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* -- Itens do Pedido -- */
+.order-item {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.order-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.item-specs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.item-specs strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.item-notes {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background-color: var(--primary-light);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    margin-top: 0.5rem;
+}
+
+.item-notes strong {
+    color: var(--primary-dark);
+}
+
+/* -- Pagamentos -- */
+.payment-item {
+    display: flex;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.payment-item:last-child {
+    border-bottom: none;
+    padding-bottom: 9px;
+}
+
+.payment-item .payment-amount {
+    font-weight: 700;
+    color: var(--success-color);
+    font-size: 1.1rem;
+}
+
+/* -- Resumo Financeiro -- */
+.financial-summary {
+    position: sticky;
+    top: 2rem;
+}
+
+.summary-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    color: black;
+}
+
+.summary-line span:last-child {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.summary-line.discount span:last-child {
+    color: var(--danger-color);
+}
+
+.summary-divider {
     border: none;
-    padding: 10px 15px;
-    border-radius: 4px;
+    border-top: 1px solid var(--border-color);
+    margin: 1rem 0;
+}
+
+.summary-line.total {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.summary-line.paid span:last-child {
+    color: var(--success-color);
+}
+
+.summary-line.balance {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    margin-top: 0.5rem;
+    font-weight: 700;
+}
+
+/* ---- RODAPÉ ---- */
+.footer {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.signature-line p:first-child {
+    margin-bottom: 0.5rem;
+    color: var(--text-light);
+}
+
+/* ---- BOTÕES E AÇÕES ---- */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.5rem;
+    color: #ffffff;
+}
+
+.back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
     cursor: pointer;
-    font-size: 14px;
-    margin: 10px 0;
-    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.back-button:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.print-button, .edit-order-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.print-button {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
 }
 
 .print-button:hover {
-    background-color: #0b5ed7;
+    background-color: var(--border-color);
+    color: var(--text-primary);
 }
 
-@media (max-width: 210mm) {
-    .order-detail-container {
+.edit-order-btn {
+    background-color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    color: white;
+}
+
+.edit-order-btn:hover {
+    background-color: var(--primary-dark);
+}
+
+/* ---- RESPONSIVIDADE ---- */
+@media (max-width: 900px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .financial-summary {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    body {
+        padding: 1rem;
+    }
+    
+    .container {
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+    }
+    
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .order-title {
+        text-align: left;
         width: 100%;
-        padding: 10px;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .footer {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* ---- OTIMIZAÇÃO PARA IMPRESSÃO A4 ---- */
+@media print {
+    @page {
+        size: A4;
+        margin: 15mm;
+    }
+    
+    body {
+        background-color: white !important;
+        padding: 0 !important;
+        font-size: 12pt;
+        line-height: 1.3;
+        color: black !important;
+    }
+    
+    .container {
+        max-width: 100%;
+        width: 100%;
+        padding: 0;
         box-shadow: none;
+        border-radius: 0;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: none;
+        padding: 0.5rem 0;
+        page-break-inside: avoid;
+    }
+    
+    .main-layout {
+        display: block;
+    }
+    
+    .financial-summary {
+        margin-top: 1.5rem;
+        border-top: 1px solid #000;
+        padding-top: 1rem;
+    }
+    
+    .summary-line.balance {
+        background-color: transparent;
+        border: 1px solid #000;
+    }
+    
+    .page-header,
+    .back-button,
+    .edit-order-btn,
+    .print-button,
+    .no-print {
+        display: none !important;
+    }
+    
+    .header {
+        border-bottom: 1px solid #000;
+    }
+    
+    .card-title {
+        border-bottom: 1px solid #000;
+    }
+    
+    .order-item {
+        border-bottom: 1px dashed #000;
+    }
+    
+    .item-notes {
+        background-color: transparent;
+        border: 1px solid #000;
+    }
+    
+    .footer {
+        border-top: 1px solid #000;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        padding: 1rem 0;
+        margin-top: 2rem;
+    }
+    
+    .status-badge {
+        border: 1px solid #000;
+        background-color: transparent !important;
+        color: black !important;
+    }
+    
+    .summary-line.total,
+    .summary-line.paid span:last-child,
+    .summary-line.balance,
+    .payment-amount,
+    .company-name,
+    .order-title h2 strong,
+    .item-header,
+    .info-item .value,
+    .item-specs strong,
+    .delivery-details strong {
+        color: black !important;
+    }
+    
+    .summary-divider {
+        border-top: 1px solid #000;
     }
 } 

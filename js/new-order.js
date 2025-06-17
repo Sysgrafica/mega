@@ -26,13 +26,86 @@ class NewOrderComponent {
     }
     
     // Renderiza o componente
-    async render(container) {
+    async render(container, orderData = null) {
         try {
             this.container = container;
+            
+            // Se orderData foi fornecido, estamos editando um pedido existente
+            const isEditing = orderData !== null;
+            
+            // Log para debug
+            console.log("NewOrderComponent.render - isEditing:", isEditing);
+            if (isEditing) {
+                console.log("Dados do pedido para edição:", orderData);
+                
+                // Garante que items e payments sejam arrays antes de usar o spread operator
+                const itemsArray = Array.isArray(orderData.items) ? orderData.items : [];
+                const paymentsArray = Array.isArray(orderData.payments) ? orderData.payments : [];
+                
+                // Preenche os dados do formulário com os dados do pedido existente
+                this.formData = {
+                    client: orderData.client,
+                    items: [...itemsArray],
+                    payments: [...paymentsArray],
+                    notes: orderData.notes || '',
+                    deliveryDate: null, // Será definido abaixo após validação
+                    status: orderData.status || 'pending',
+                    deliveryType: orderData.deliveryType || 'retirada',
+                    deliveryAddress: orderData.deliveryAddress || '',
+                    title: orderData.title || '',
+                    imageUrl: orderData.imageUrl || '',
+                    imageTitle: orderData.imageTitle || '',
+                    sellerName: orderData.sellerName || 'Sistema',
+                    sellerId: orderData.sellerId || '',
+                    discount: orderData.discount || 0,
+                    deliveryCost: orderData.deliveryCost || null,
+                    extraServices: orderData.extraServices || 0,
+                    clientId: orderData.clientId,
+                    orderNumber: orderData.orderNumber,
+                    id: orderData.id
+                };
+                
+                // Verifica e define a data de entrega
+                if (orderData.deliveryDate) {
+                    try {
+                        // Tenta converter para um objeto Date válido
+                        let deliveryDate;
+                        
+                        if (typeof orderData.deliveryDate === 'object' && 'seconds' in orderData.deliveryDate) {
+                            // Timestamp do Firestore
+                            deliveryDate = new Date(orderData.deliveryDate.seconds * 1000);
+                        } else if (orderData.deliveryDate instanceof Date) {
+                            deliveryDate = orderData.deliveryDate;
+                        } else {
+                            deliveryDate = new Date(orderData.deliveryDate);
+                        }
+                        
+                        // Verifica se a data é válida
+                        if (!isNaN(deliveryDate.getTime())) {
+                            this.formData.deliveryDate = deliveryDate;
+                        } else {
+                            console.warn("Data de entrega inválida:", orderData.deliveryDate);
+                            this.formData.deliveryDate = new Date(); // Usa a data atual como fallback
+                            this.formData.deliveryDate.setDate(this.formData.deliveryDate.getDate() + 1); // Adiciona 1 dia
+                        }
+                    } catch (error) {
+                        console.error("Erro ao processar data de entrega:", error);
+                        this.formData.deliveryDate = new Date();
+                        this.formData.deliveryDate.setDate(this.formData.deliveryDate.getDate() + 1); // Adiciona 1 dia
+                    }
+                } else {
+                    // Se não tiver data de entrega, define para o dia seguinte
+                    this.formData.deliveryDate = new Date();
+                    this.formData.deliveryDate.setDate(this.formData.deliveryDate.getDate() + 1); // Adiciona 1 dia
+                }
+                
+                console.log("Data de entrega definida:", this.formData.deliveryDate);
+            }
             
             // Adiciona estilos específicos para os pagamentos
             const styleElement = document.createElement('style');
             styleElement.textContent = `
+                
                 .payment-item {
                     margin-bottom: 10px;
                     border-bottom: 1px solid #eee;
@@ -54,7 +127,10 @@ class NewOrderComponent {
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                    width: 27px;
+                    margin-bottom: 10px;
                 }
+            
             `;
             document.head.appendChild(styleElement);
             
@@ -65,10 +141,83 @@ class NewOrderComponent {
             await this.loadInitialData();
             
             // Renderiza o formulário
-            this.renderOrderForm();
+            this.renderOrderForm(isEditing);
+            
+            // Se estiver editando, assegura que os detalhes do cliente serão exibidos
+            if (isEditing && orderData.clientId) {
+                // Garante que os dados completos do cliente estão disponíveis
+                if (!this.formData.client || !this.formData.client.name) {
+                    const clienteObj = this.clients.find(c => c.id === orderData.clientId);
+                    if (clienteObj) {
+                        console.log("Atualizando dados do cliente para:", clienteObj.name);
+                        this.formData.client = clienteObj;
+                        this.formData.clientId = clienteObj.id;
+                        this.formData.clientName = clienteObj.name;
+                        
+                        // Atualiza a interface com os dados do cliente
+                        setTimeout(() => {
+                            const searchInput = document.getElementById('client-search');
+                            const clientIdInput = document.getElementById('client-id');
+                            
+                            if (searchInput) searchInput.value = clienteObj.name || '';
+                            if (clientIdInput) clientIdInput.value = clienteObj.id || '';
+                            
+                            this.updateClientDetails(clienteObj);
+                        }, 500);
+                    }
+                }
+                
+                // Garante que o status do pedido seja corretamente selecionado
+                if (orderData.status) {
+                    setTimeout(() => {
+                        const statusSelect = document.getElementById('order-status');
+                        if (statusSelect) {
+                            // Define o status atual do pedido no select
+                            statusSelect.value = orderData.status;
+                            console.log("Status do pedido atualizado para:", orderData.status);
+                        }
+                    }, 500);
+                }
+                
+                // Garante que o tipo de entrega seja corretamente selecionado
+                if (orderData.deliveryType) {
+                    setTimeout(() => {
+                        const deliveryTypeSelect = document.getElementById('delivery-type');
+                        if (deliveryTypeSelect) {
+                            // Define o tipo de entrega atual do pedido no select
+                            deliveryTypeSelect.value = orderData.deliveryType;
+                            console.log("Tipo de entrega atualizado para:", orderData.deliveryType);
+                            
+                            // Dispara o evento de change para atualizar a visibilidade dos campos relacionados
+                            const event = new Event('change');
+                            deliveryTypeSelect.dispatchEvent(event);
+                            
+                            // Se for entrega, preenche o endereço de entrega
+                            if (orderData.deliveryType === 'entrega' && orderData.deliveryAddress) {
+                                const deliveryAddressInput = document.getElementById('delivery-address');
+                                if (deliveryAddressInput) {
+                                    deliveryAddressInput.value = orderData.deliveryAddress;
+                                    console.log("Endereço de entrega preenchido:", orderData.deliveryAddress);
+                                }
+                            }
+                        }
+                    }, 500);
+                }
+                
+                // Garante que as informações da imagem sejam corretamente preenchidas
+                if (orderData.imageTitle) {
+                    setTimeout(() => {
+                        const imageTitleInput = document.getElementById('image-title');
+                        if (imageTitleInput) {
+                            imageTitleInput.value = orderData.imageTitle;
+                            console.log("Informações da imagem preenchidas:", orderData.imageTitle);
+                        }
+                    }, 500);
+                }
+            }
             
         } catch (error) {
-            console.error('Erro ao renderizar formulário de novo pedido:', error);
+            console.error('Erro ao renderizar formulário de pedido:', error);
             this.renderError('Não foi possível carregar o formulário. Por favor, tente novamente.');
         }
     }
@@ -139,7 +288,7 @@ class NewOrderComponent {
     }
     
     // Renderiza o formulário de pedido
-    async renderOrderForm() {
+    async renderOrderForm(isEditing = false) {
         // Data e hora atual no fuso horário de São Paulo
         const now = new Date();
         
@@ -174,31 +323,41 @@ class NewOrderComponent {
         spDate.setDate(day);
         spDate.setHours(hour, minute, 0, 0);
         
-        // Data de entrega (24 horas depois)
-        const entregaDate = new Date(spDate);
-        entregaDate.setDate(entregaDate.getDate() + 1); // Adiciona 1 dia
+        // Se não estiver editando, define valores padrão
+        if (!isEditing) {
+            // Data de entrega (24 horas depois)
+            const entregaDate = new Date(spDate);
+            entregaDate.setDate(entregaDate.getDate() + 1); // Adiciona 1 dia
+            
+            // Atualiza os dados do formulário
+            this.formData.orderDate = now;
+            this.formData.deliveryDate = entregaDate;
+            
+            // Busca o próximo número de pedido
+            const nextOrderNumber = await this.getNextOrderNumber();
+            this.formData.orderNumber = nextOrderNumber;
+        }
         
-        // Atualiza os dados do formulário
-        this.formData.orderDate = now;
-        this.formData.deliveryDate = entregaDate;
-        
-        // Busca o próximo número de pedido
-        const nextOrderNumber = await this.getNextOrderNumber();
-        this.formData.orderNumber = nextOrderNumber;
+        const headerText = isEditing ? 'Editar Pedido' : 'Novo Pedido';
         
         // Template com o layout correto usando as classes do CSS específico
         const html = `
             <div class="order-container">
                 <!-- CABEÇALHO -->
                 <header class="page-header">
-                    <h2><i class="fas fa-plus-circle"></i> Novo Pedido</h2>
+                   
                     <div class="header-actions">
                         <button id="cancel-order-btn" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Cancelar
                         </button>
                         <button id="save-order-btn" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Salvar Pedido
+                            <i class="fas fa-save"></i> ${isEditing ? 'Atualizar' : 'Salvar'} Pedido
                         </button>
+                        ${isEditing ? `
+                        <button id="delete-order-btn" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                        ` : ''}
                     </div>
                 </header>
 
@@ -210,7 +369,8 @@ class NewOrderComponent {
                             <div class="form-group">
                                 <label for="client-search" class="required">Cliente</label>
                                 <div class="input-with-button">
-                                    <input type="search" id="client-search" class="form-control" placeholder="Pesquisar cliente..." autocomplete="off" required>
+                                    <input type="search" id="client-search" class="form-control" placeholder="Pesquisar cliente..." autocomplete="off" required value="${this.formData.client ? this.formData.client.name || '' : ''}">
+                                    <input type="hidden" id="client-id" value="${this.formData.client ? this.formData.client.id || '' : ''}">
                                     <button type="button" id="new-client-btn" class="btn-icon">
                                         <i class="fas fa-plus"></i>
                                     </button>
@@ -222,6 +382,12 @@ class NewOrderComponent {
                                 <select id="seller" class="form-control" required>
                                     <option value="">Selecione um vendedor</option>
                                     ${this.renderSellerOptions ? this.renderSellerOptions() : ''}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="order-status">Status do Pedido</label>
+                                <select id="order-status" class="form-control">
+                                    ${this.renderOrderStatusOptions()}
                                 </select>
                             </div>
                         </div>
@@ -238,7 +404,7 @@ class NewOrderComponent {
                             <!-- Número do Pedido -->
                             <div class="col-md-3">
                                 <label for="order-number" class="form-label required">Nº do Pedido</label>
-                                <input type="text" id="order-number" class="form-control" value="${nextOrderNumber}" readonly>
+                                <input type="text" id="order-number" class="form-control" value="${this.formData.orderNumber}" readonly>
                             </div>
                             <div class="col-md-3">
                                 <label for="order-date" class="form-label required">Data do Pedido</label>
@@ -250,21 +416,10 @@ class NewOrderComponent {
                             <div class="col-md-3">
                                 <label for="expected-date" class="form-label required">Previsão de Entrega</label>
                                 <div class="d-flex">
-                                    <input type="date" id="expected-date" class="form-control" value="${this.formatDateForInput(entregaDate)}" required style="width: 65%;">
-                                    <input type="time" id="expected-time" class="form-control ms-1" value="${this.formatTimeForInput(entregaDate)}" style="width: 35%;">
+                                    <input type="date" id="expected-date" class="form-control" value="${this.formatDateForInput(this.formData.deliveryDate)}" required style="width: 65%;">
+                                    <input type="time" id="expected-time" class="form-control ms-1" value="${this.formatTimeForInput(this.formData.deliveryDate)}" style="width: 35%;">
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <label for="priority" class="form-label">Prioridade</label>
-                                <select id="priority" class="form-control">
-                                    <option value="normal">Normal</option>
-                                    <option value="baixa">Baixa</option>
-                                    <option value="alta">Alta</option>
-                                    <option value="urgente">Urgente</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
                             <div class="col-md-3">
                                 <label for="delivery-type" class="form-label">Tipo de Entrega</label>
                                 <select id="delivery-type" class="form-control">
@@ -272,25 +427,24 @@ class NewOrderComponent {
                                     <option value="entrega">Entrega</option>
                                 </select>
                             </div>
+                        </div>
+                        <div class="row mb-3">
                             <div id="delivery-cost-container" class="col-md-3" style="display: none;">
                                 <label for="delivery-cost" class="form-label">Custo de Entrega</label>
                                 <div class="input-group">
                                     <div class="input-group-prepend">
                                         <span class="input-group-text">R$</span>
                                     </div>
-                                    <input type="text" id="delivery-cost" class="form-control" placeholder="0,00" value="${this.formData.deliveryCost ? this.formData.deliveryCost.toFixed(2).replace('.', ',') : ''}">
+                                    <input type="text" id="delivery-cost" class="form-control" placeholder="0,00" value="${this.formData.deliveryCost || '0,00'}">
                                 </div>
                             </div>
-                            <div class="col-md-6" id="notes-container-normal">
-                                <label for="notes" class="form-label">Observações</label>
-                                <textarea id="notes" class="form-control" rows="1" placeholder="Observações gerais sobre o pedido">${this.formData.notes || ''}</textarea>
-                            </div>
-                        </div>
-                        <div class="row mb-3" id="delivery-address-row" style="display: none;">
-                            <div class="col-md-12">
+                            <div id="delivery-address-container" class="col-md-6" style="display: none;">
                                 <label for="delivery-address" class="form-label">Endereço de Entrega</label>
                                 <input type="text" id="delivery-address" class="form-control" placeholder="Endereço completo para entrega">
                             </div>
+                        </div>
+                        <div class="row mb-3">
+                            
                         </div>
                     </section>
                     
@@ -316,14 +470,14 @@ class NewOrderComponent {
                                 <span class="label">Desconto:</span>
                                 <div class="discount-wrapper">
                                     <span>R$</span>
-                                    <input type="number" id="order-discount" value="${this.formData.discount || 0}" min="0" class="form-input">
+                                    <input type="number" class="form-control ms-1" id="order-discount" value="${this.formData.discount || 0}" min="0" class="form-input">
                                 </div>
                             </div>
                             <div class="total-line">
                                 <span class="label">Serviços Extras:</span>
                                 <div class="discount-wrapper">
                                     <span>R$</span>
-                                    <input type="number" id="order-extras" value="${this.formData.extraServices || 0}" min="0" class="form-input">
+                                    <input type="number" class="form-control ms-1" id="order-extras" value="${this.formData.extraServices || 0}" min="0" class="form-input">
                                 </div>
                             </div>
                             <div class="total-line grand-total">
@@ -363,6 +517,10 @@ class NewOrderComponent {
                                 <span class="label">Saldo:</span>
                                 <span class="value" id="payment-balance">${window.ui ? window.ui.formatCurrency(Math.max(0, this.calculateOrderTotal() - this.calculatePaymentsTotal())) : 'R$ 0,00'}</span>
                             </div>
+                            <div class="col-md-6" id="notes-container-normal">
+                                <label for="notes" class="form-label">Observações</label>
+                                <textarea id="notes" class="form-control" rows="1" placeholder="Observações gerais sobre o pedido">${this.formData.notes || ''}</textarea>
+                            </div>
                         </div>
                     </section>
                     
@@ -395,8 +553,13 @@ class NewOrderComponent {
                             <i class="fas fa-times"></i> Cancelar
                         </button>
                         <button type="button" id="save-order-bottom" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Salvar Pedido
+                            <i class="fas fa-save"></i> ${isEditing ? 'Atualizar' : 'Salvar'} Pedido
                         </button>
+                        ${isEditing ? `
+                        <button type="button" id="delete-order-bottom" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                        ` : ''}
                     </footer>
                 </form>
             </div>
@@ -472,6 +635,32 @@ class NewOrderComponent {
         }
         
         return options;
+    }
+    
+    // Renderiza as opções de status do pedido
+    renderOrderStatusOptions() {
+        if (!SYSTEM_CONFIG || !SYSTEM_CONFIG.orderStatus) {
+            return '<option value="pending">Aguardando</option>';
+        }
+        
+        let html = '';
+        
+        // Adiciona opções para cada status disponível
+        SYSTEM_CONFIG.orderStatus.forEach(status => {
+            // Verifica se o status atual do pedido corresponde a este status
+            // Se sim, marca como selecionado; caso contrário, usa 'pending' como padrão para novos pedidos
+            let selected = '';
+            
+            if (this.formData && this.formData.status) {
+                selected = status.id === this.formData.status ? 'selected' : '';
+            } else {
+                selected = status.id === 'pending' ? 'selected' : '';
+            }
+            
+            html += `<option value="${status.id}" ${selected}>${status.name}</option>`;
+        });
+        
+        return html;
     }
     
     // Renderiza os itens do pedido
@@ -595,14 +784,12 @@ class NewOrderComponent {
                             </div>
                         </div>
                         <div class="form-row mt-3">
-                            <div class="form-group col-md-10">
+                            <div class="form-group col-md-10 d-flex align-items-center">
                                 <label>Descrição</label>
-                                <input type="text" class="form-control item-description" value="${item.description || ''}" placeholder="Descrição do item">
-                            </div>
-                            <div class="form-group col-md-2 d-flex align-items-end">
-                                <div class="custom-control custom-checkbox mb-2 ml-2">
-                                    <input type="checkbox" class="custom-control-input item-com-aplicacao" id="com-aplicacao-${index}" data-index="${index}" ${hasAplicacao ? 'checked' : ''}>
-                                    <label class="custom-control-label" for="com-aplicacao-${index}">Com aplicação</label>
+                                <input type="text" class="form-control item-description mx-2" value="${item.description || ''}" placeholder="Descrição do item">
+                                <div class="custom-control custom-checkbox ml-2">
+                                    <input type="checkbox" class="custom-control-input item-com-aplicacao" id="com-aplicacao-0" data-index="${index}" ${hasAplicacao ? 'checked' : ''}>
+                                    <label class="custom-control-label" for="com-aplicacao-0">Com aplicação</label>
                                 </div>
                             </div>
                         </div>
@@ -636,6 +823,9 @@ class NewOrderComponent {
                 }
             }
             
+            // Usa amount se disponível, caso contrário usa value (para compatibilidade)
+            const paymentValue = payment.amount !== undefined ? payment.amount : (payment.value || 0);
+            
             html += `
                 <div class="payment-item" data-index="${index}">
                     <div class="payment-details">
@@ -654,7 +844,7 @@ class NewOrderComponent {
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label>Valor</label>
-                            <input type="number" class="form-control payment-value" value="${payment.value || 0}" min="0" step="0.01">
+                            <input type="number" class="form-control payment-value" value="${paymentValue}" min="0" step="0.01">
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label>Data</label>
@@ -691,6 +881,11 @@ class NewOrderComponent {
             total += parseFloat(this.formData.extraServices);
         }
         
+        // Adiciona o custo de entrega, se existir
+        if (this.formData.deliveryCost) {
+            total += parseFloat(this.formData.deliveryCost);
+        }
+        
         return total;
     }
     
@@ -701,7 +896,9 @@ class NewOrderComponent {
         // Soma o valor de todos os pagamentos
         if (this.formData.payments && Array.isArray(this.formData.payments)) {
             total = this.formData.payments.reduce((sum, payment) => {
-                return sum + (parseFloat(payment.value) || 0);
+                // Verifica primeiro amount, depois value para retrocompatibilidade
+                const paymentAmount = payment.amount !== undefined ? payment.amount : payment.value;
+                return sum + (parseFloat(paymentAmount) || 0);
             }, 0);
         }
         
@@ -712,39 +909,88 @@ class NewOrderComponent {
     formatDateForInput(date) {
         if (!date) return '';
         
-        // Converte para data no fuso horário de São Paulo (GMT-3)
-        const formatter = new Intl.DateTimeFormat('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-        
-        const parts = formatter.formatToParts(new Date(date));
-        const day = parts.find(part => part.type === 'day').value;
-        const month = parts.find(part => part.type === 'month').value;
-        const year = parts.find(part => part.type === 'year').value;
-        
-        return `${year}-${month}-${day}`;
+        try {
+            // Verifica se a data é válida antes de formatar
+            let dateObj;
+            
+            // Verifica se é um timestamp do Firestore (objeto com seconds e nanoseconds)
+            if (date && typeof date === 'object' && 'seconds' in date && 'nanoseconds' in date) {
+                // Converte timestamp do Firestore para Date
+                dateObj = new Date(date.seconds * 1000);
+            } else if (date instanceof Date) {
+                dateObj = date;
+            } else if (date && typeof date === 'object' && date.toDate) {
+                dateObj = date.toDate();
+            } else {
+                dateObj = new Date(date);
+            }
+            
+            // Verifica se a data é válida
+            if (isNaN(dateObj.getTime())) {
+                console.warn('Data inválida recebida em formatDateForInput:', date);
+                // Retorna data atual em caso de data inválida
+                dateObj = new Date();
+            }
+            
+            // Formata a data manualmente para evitar problemas com o DateTimeFormat
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        } catch (error) {
+            console.error('Erro ao formatar data para input:', error);
+            // Retorna data atual em caso de erro
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        }
     }
     
     // Formata hora para input tipo time (HH:MM)
     formatTimeForInput(date) {
         if (!date) return '';
         
-        // Converte para hora no fuso horário de São Paulo (GMT-3)
-        const formatter = new Intl.DateTimeFormat('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-        });
-        
-        const parts = formatter.formatToParts(new Date(date));
-        const hour = parts.find(part => part.type === 'hour').value;
-        const minute = parts.find(part => part.type === 'minute').value;
-        
-        return `${hour}:${minute}`;
+        try {
+            // Verifica se a data é válida antes de formatar
+            let dateObj;
+            
+            // Verifica se é um timestamp do Firestore (objeto com seconds e nanoseconds)
+            if (date && typeof date === 'object' && 'seconds' in date && 'nanoseconds' in date) {
+                // Converte timestamp do Firestore para Date
+                dateObj = new Date(date.seconds * 1000);
+            } else if (date instanceof Date) {
+                dateObj = date;
+            } else if (date && typeof date === 'object' && date.toDate) {
+                dateObj = date.toDate();
+            } else {
+                dateObj = new Date(date);
+            }
+            
+            // Verifica se a data é válida
+            if (isNaN(dateObj.getTime())) {
+                console.warn('Data inválida recebida em formatTimeForInput:', date);
+                // Retorna hora atual em caso de data inválida
+                dateObj = new Date();
+            }
+            
+            // Formata a hora manualmente para evitar problemas com o DateTimeFormat
+            const hours = String(dateObj.getHours()).padStart(2, '0');
+            const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+            
+            return `${hours}:${minutes}`;
+        } catch (error) {
+            console.error('Erro ao formatar hora para input:', error);
+            // Retorna hora atual em caso de erro
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            return `${hours}:${minutes}`;
+        }
     }
     
     // Configurar o handler para o checkbox "A combinar"
@@ -773,19 +1019,20 @@ class NewOrderComponent {
     // Configurar o handler para tipo de entrega
     setupDeliveryTypeHandler() {
         const deliveryTypeSelect = document.getElementById('delivery-type');
-        const deliveryAddressRow = document.getElementById('delivery-address-row');
+        const deliveryAddressContainer = document.getElementById('delivery-address-container');
         const deliveryCostContainer = document.getElementById('delivery-cost-container');
-        const notesContainer = document.getElementById('notes-container-normal');
+        const deliveryAddressInput = document.getElementById('delivery-address');
         
         if (deliveryTypeSelect) {
             // Handler para alternar entre retirada e entrega
             const handleDeliveryTypeChange = () => {
                 const isDelivery = deliveryTypeSelect.value === 'entrega';
                 this.formData.needsDelivery = isDelivery;
+                this.formData.deliveryType = deliveryTypeSelect.value;
                 
                 // Atualiza a visualização do campo de endereço de entrega
-                if (deliveryAddressRow) {
-                    deliveryAddressRow.style.display = isDelivery ? 'flex' : 'none';
+                if (deliveryAddressContainer) {
+                    deliveryAddressContainer.style.display = isDelivery ? 'block' : 'none';
                 }
                 
                 // Atualiza a visualização do campo de custo de entrega
@@ -793,10 +1040,12 @@ class NewOrderComponent {
                     deliveryCostContainer.style.display = isDelivery ? 'block' : 'none';
                 }
                 
-                // Ajusta o tamanho do container de observações
-                if (notesContainer) {
-                    notesContainer.className = isDelivery ? 'col-md-9' : 'col-md-12';
+                // Se for entrega e já temos um endereço salvo, garantimos que ele apareça
+                if (isDelivery && this.formData.deliveryAddress && deliveryAddressInput) {
+                    deliveryAddressInput.value = this.formData.deliveryAddress;
                 }
+                
+                console.log("Tipo de entrega alterado para:", this.formData.deliveryType);
             };
             
             // Adiciona o event listener
@@ -819,6 +1068,32 @@ class NewOrderComponent {
             // Adicionar novo event listener
             newAddItemBtn.addEventListener('click', () => {
                 this.showProductSelectionModal();
+            });
+        }
+        
+        // Botão de excluir pedido (cabeçalho)
+        const deleteOrderBtn = document.getElementById('delete-order-btn');
+        if (deleteOrderBtn) {
+            // Remover todos os event listeners existentes
+            const newDeleteOrderBtn = deleteOrderBtn.cloneNode(true);
+            deleteOrderBtn.parentNode.replaceChild(newDeleteOrderBtn, deleteOrderBtn);
+            
+            // Adicionar novo event listener
+            newDeleteOrderBtn.addEventListener('click', () => {
+                this.deleteOrder();
+            });
+        }
+        
+        // Botão de excluir pedido (rodapé)
+        const deleteOrderBottomBtn = document.getElementById('delete-order-bottom');
+        if (deleteOrderBottomBtn) {
+            // Remover todos os event listeners existentes
+            const newDeleteOrderBottomBtn = deleteOrderBottomBtn.cloneNode(true);
+            deleteOrderBottomBtn.parentNode.replaceChild(newDeleteOrderBottomBtn, deleteOrderBottomBtn);
+            
+            // Adicionar novo event listener
+            newDeleteOrderBottomBtn.addEventListener('click', () => {
+                this.deleteOrder();
             });
         }
         
@@ -867,6 +1142,42 @@ class NewOrderComponent {
         if (extrasInput) {
             extrasInput.addEventListener('input', () => {
                 this.updateOrderTotals();
+            });
+        }
+        
+        // Event listener para o campo de custo de entrega
+        const deliveryCostInput = document.getElementById('delivery-cost');
+        if (deliveryCostInput) {
+            deliveryCostInput.addEventListener('input', () => {
+                const costValue = deliveryCostInput.value.replace(',', '.').trim();
+                this.formData.deliveryCost = costValue ? parseFloat(costValue) : null;
+                this.updateOrderTotals();
+            });
+        }
+        
+        // Event listener para o campo de tipo de entrega
+        const deliveryTypeSelect = document.getElementById('delivery-type');
+        if (deliveryTypeSelect) {
+            deliveryTypeSelect.addEventListener('change', () => {
+                this.updateOrderTotals();
+            });
+        }
+        
+        // Event listener para o campo de endereço de entrega
+        const deliveryAddressInput = document.getElementById('delivery-address');
+        if (deliveryAddressInput) {
+            deliveryAddressInput.addEventListener('input', () => {
+                this.formData.deliveryAddress = deliveryAddressInput.value;
+                console.log("Endereço de entrega atualizado:", this.formData.deliveryAddress);
+            });
+        }
+        
+        // Event listener para o campo de informações da imagem
+        const imageTitleInput = document.getElementById('image-title');
+        if (imageTitleInput) {
+            imageTitleInput.addEventListener('input', () => {
+                this.formData.imageTitle = imageTitleInput.value;
+                console.log("Informações da imagem atualizadas:", this.formData.imageTitle);
             });
         }
         
@@ -983,7 +1294,7 @@ class NewOrderComponent {
             const quantityInput = itemElement.querySelector('.item-quantity');
             const priceInput = itemElement.querySelector('.item-price');
             const productSelect = itemElement.querySelector('.item-product');
-            const removeButton = itemElement.querySelector('.remove-item');
+            const removeButton = itemElement.querySelector('.item-remove-btn');
             const descriptionInput = itemElement.querySelector('.item-description');
             const comAplicacaoCheckbox = itemElement.querySelector('.item-com-aplicacao');
             
@@ -1005,16 +1316,8 @@ class NewOrderComponent {
                             }
                         }
                     } else {
-                        // Se o checkbox foi desmarcado, não remove o texto (conforme solicitado)
-                        // Mas marcamos o checkbox novamente, pois não deve ser possível remover
-                        comAplicacaoCheckbox.checked = true;
-                        
-                        // Alerta o usuário que não é possível remover
-                        if (window.ui && window.ui.showNotification) {
-                            window.ui.showNotification("Não é possível remover 'Com aplicação' uma vez adicionado", "warning");
-                        } else {
-                            alert("Não é possível remover 'Com aplicação' uma vez adicionado");
-                        }
+                        // Se o checkbox foi desmarcado, removemos "Com aplicação" da descrição
+                        descriptionInput.value = descriptionInput.value.replace(/Com aplicação\.?\s*/i, '');
                     }
                     
                     // Atualiza os dados do formulário
@@ -1025,15 +1328,9 @@ class NewOrderComponent {
             // EVENT LISTENER PARA O CAMPO DE DESCRIÇÃO
             if (descriptionInput) {
                 descriptionInput.addEventListener('input', () => {
-                    // Verifica se o campo tinha "Com aplicação" e foi removido manualmente
-                    if (comAplicacaoCheckbox && comAplicacaoCheckbox.checked && !descriptionInput.value.includes("Com aplicação")) {
-                        // Adiciona novamente "Com aplicação" no início
-                        descriptionInput.value = "Com aplicação. " + descriptionInput.value;
-                        
-                        // Alerta o usuário que não é possível remover
-                        if (window.ui && window.ui.showNotification) {
-                            window.ui.showNotification("Não é possível remover 'Com aplicação' uma vez adicionado", "warning");
-                        }
+                    // Verifica se o texto contém "Com aplicação" e atualiza o checkbox
+                    if (comAplicacaoCheckbox) {
+                        comAplicacaoCheckbox.checked = descriptionInput.value.includes("Com aplicação");
                     }
                     
                     // Atualiza os dados do formulário
@@ -1472,7 +1769,8 @@ class NewOrderComponent {
             // Cria um novo pagamento vazio
             const newPayment = {
                 method: 'pendente',
-                value: 0,
+                amount: 0,
+                value: 0, // Para compatibilidade
                 date: new Date(),
                 status: 'pendente'
             };
@@ -1748,6 +2046,7 @@ class NewOrderComponent {
     setupClientAutocomplete() {
         const searchInput = document.getElementById('client-search');
         const suggestionsContainer = document.getElementById('client-suggestions');
+        const clientIdInput = document.getElementById('client-id');
         
         if (!searchInput || !suggestionsContainer) return;
         
@@ -1762,7 +2061,7 @@ class NewOrderComponent {
             }
             
             const filteredClients = this.clients.filter(client => 
-                client.name.toLowerCase().includes(searchText)
+                client.name && client.name.toLowerCase().includes(searchText)
             );
             
             if (filteredClients.length > 0) {
@@ -1778,10 +2077,13 @@ class NewOrderComponent {
                     
                     item.addEventListener('click', () => {
                         searchInput.value = client.name;
+                        if (clientIdInput) clientIdInput.value = client.id;
                         suggestionsContainer.style.display = 'none';
                         
                         // Atualiza os detalhes do cliente
                         this.formData.client = client;
+                        this.formData.clientId = client.id;
+                        this.formData.clientName = client.name;
                         this.updateClientDetails(client);
                     });
                     
@@ -1803,6 +2105,12 @@ class NewOrderComponent {
         // Verifica se o cliente já foi selecionado (para edição)
         if (this.formData.client) {
             searchInput.value = this.formData.client.name;
+            if (clientIdInput) clientIdInput.value = this.formData.client.id;
+            
+            // Atualiza os detalhes do cliente também para exibi-los
+            setTimeout(() => {
+                this.updateClientDetails(this.formData.client);
+            }, 300);
         }
     }
     
@@ -1965,72 +2273,139 @@ class NewOrderComponent {
         });
     }
     
-    // Salvar o pedido
+    // Salva o pedido no banco de dados
     async saveOrder() {
-        const ordersComponent = new OrdersComponent();
-        
-        // Capturar dados do formulário para garantir que temos a data de entrega atualizada
-        this.captureFormData();
-        
-        // Verificar se a data de entrega foi definida e fazer um log
-        if (this.formData.deliveryDate) {
-            console.log('Data de entrega a ser salva (antes da cópia):', 
-                this.formData.deliveryDate,
-                this.formatDateForInput(this.formData.deliveryDate),
-                this.formatTimeForInput(this.formData.deliveryDate)
-            );
-        }
-        
-        // Verifica se o número do pedido foi definido
-        if (this.formData.orderNumber) {
-            console.log('Número do pedido a ser salvo:', this.formData.orderNumber);
-        } else {
-            // Se por algum motivo não tivermos um número de pedido, tenta obter um novo
-            try {
-                this.formData.orderNumber = await this.getNextOrderNumber();
-                console.log('Número de pedido gerado:', this.formData.orderNumber);
-            } catch (error) {
-                console.error('Erro ao gerar número de pedido:', error);
-            }
-        }
-        
-        // Validar
-        if (!ordersComponent.validateOrderForm || typeof ordersComponent.validateOrderForm !== 'function') {
-            console.error('Função de validação não encontrada no componente de pedidos');
-            window.ui.showNotification('Erro ao validar o formulário de pedido.', 'error');
-            return;
-        }
-        
-        // Passamos os dados do formulário para o componente de pedidos
-        // Garantimos que a data de entrega seja copiada corretamente
-        ordersComponent.formData = JSON.parse(JSON.stringify(this.formData));
-        
-        // Convertemos novamente a data de entrega para objeto Date (o JSON.stringify converte para string)
-        if (this.formData.deliveryDate) {
-            ordersComponent.formData.deliveryDate = new Date(this.formData.deliveryDate);
-            console.log('Data de entrega após cópia para ordersComponent:', 
-                ordersComponent.formData.deliveryDate,
-                this.formatDateForInput(ordersComponent.formData.deliveryDate),
-                this.formatTimeForInput(ordersComponent.formData.deliveryDate)
-            );
-        }
-        
-        if (!ordersComponent.validateOrderForm()) {
-            return;
-        }
-        
         try {
-            // Salvar no Firebase usando o componente de pedidos com nossos dados
-            const result = await ordersComponent.saveOrder(false);
+            // Captura os dados do formulário
+            const formData = this.captureFormData();
             
-            // Se salvou com sucesso, redirecionar para a lista de pedidos
-            if (result) {
-                window.ui.showNotification('Pedido criado com sucesso!', 'success');
-                window.ui.navigateTo('orders');
+            // Verifica se temos um ID de pedido (edição)
+            const isEditing = this.formData.id !== undefined;
+            console.log("Salvando pedido - isEditing:", isEditing, "ID:", this.formData.id);
+            
+            // Validação básica
+            if (!formData.client || !formData.client.id) {
+                if (window.ui) {
+                    window.ui.showNotification('Selecione um cliente para o pedido', 'error');
+                } else {
+                    alert('Selecione um cliente para o pedido');
+                }
+                return;
             }
+            
+            if (formData.items.length === 0) {
+                if (window.ui) {
+                    window.ui.showNotification('Adicione pelo menos um item ao pedido', 'error');
+                } else {
+                    alert('Adicione pelo menos um item ao pedido');
+                }
+                return;
+            }
+            
+            // Mostra loader
+            if (window.ui) {
+                window.ui.showLoading('Salvando pedido...');
+            }
+            
+            // Prepara os dados para salvar
+            const orderData = {
+                clientId: formData.client.id,
+                clientName: formData.client.name,
+                clientDocument: formData.client.document,
+                clientPhone: formData.client.phone,
+                clientEmail: formData.client.email,
+                clientAddress: formData.client.address,
+                clientCategory: formData.client.category,
+                items: formData.items,
+                payments: formData.payments,
+                notes: formData.notes,
+                status: formData.status,
+                orderNumber: formData.orderNumber,
+                createdAt: isEditing && this.formData.createdAt ? this.formData.createdAt : new Date(),
+                updatedAt: new Date(),
+                deliveryDate: formData.deliveryDate,
+                deliveryType: formData.deliveryType,
+                deliveryAddress: formData.deliveryAddress,
+                deliveryCost: formData.deliveryCost,
+                totalValue: formData.totalValue,
+                sellerName: formData.sellerName,
+                sellerId: formData.sellerId,
+                discount: formData.discount,
+                extraServices: formData.extraServices,
+                imageUrl: formData.imageUrl,
+                imageTitle: formData.imageTitle || ''
+            };
+            
+            // Referência para a coleção de pedidos
+            const ordersRef = db.collection('orders');
+            
+            let result;
+            
+            if (isEditing) {
+                // Verifica se o pedido existe e obtém dados atuais se necessário
+                try {
+                    const orderDoc = await ordersRef.doc(this.formData.id).get();
+                    if (orderDoc.exists && !orderData.createdAt) {
+                        const existingData = orderDoc.data();
+                        // Usa o createdAt existente se o nosso estiver undefined
+                        orderData.createdAt = existingData.createdAt || new Date();
+                    }
+                } catch (error) {
+                    console.warn("Erro ao verificar pedido existente:", error);
+                    // Garante que createdAt tenha um valor válido
+                    orderData.createdAt = orderData.createdAt || new Date();
+                }
+                
+                // Atualiza o pedido existente
+                await ordersRef.doc(this.formData.id).update(orderData);
+                result = { id: this.formData.id };
+                console.log(`Pedido atualizado com sucesso: ${this.formData.id}`);
+                if (window.ui) {
+                    window.ui.showNotification('Pedido atualizado com sucesso!', 'success');
+                } else {
+                    alert('Pedido atualizado com sucesso!');
+                }
+            } else {
+                // Cria um novo pedido
+                result = await ordersRef.add(orderData);
+                console.log(`Novo pedido criado com sucesso: ${result.id}`);
+                if (window.ui) {
+                    window.ui.showNotification('Pedido criado com sucesso!', 'success');
+                } else {
+                    alert('Pedido criado com sucesso!');
+                }
+            }
+            
+            // Esconde o loader
+            if (window.ui) {
+                window.ui.hideLoading();
+            }
+            
+            // Redireciona para a lista de pedidos ou para os detalhes do pedido
+            // Verifica se existe um componente de pedidos global
+            if (window.ordersComponent) {
+                if (isEditing) {
+                    // Volta para a visualização de detalhes do pedido
+                    window.ordersComponent.showDetailView(this.formData.id);
+                } else {
+                    // Volta para a lista de pedidos
+                    window.ordersComponent.showListView();
+                }
+            } else {
+                // Recarrega a página se não houver componente de pedidos
+                location.reload();
+            }
+            
+            return result.id;
         } catch (error) {
             console.error('Erro ao salvar pedido:', error);
-            window.ui.showNotification('Erro ao salvar o pedido. Por favor, tente novamente.', 'error');
+            if (window.ui) {
+                window.ui.hideLoading();
+                window.ui.showNotification('Erro ao salvar pedido. Por favor, tente novamente.', 'error');
+            } else {
+                alert('Erro ao salvar pedido. Por favor, tente novamente.');
+            }
+            return null;
         }
     }
     
@@ -2038,8 +2413,38 @@ class NewOrderComponent {
     captureFormData() {
         // Recupera dados do cliente
         const clientSearch = document.getElementById('client-search');
-        if (clientSearch && clientSearch.dataset.clientId) {
-            // Mantenha o cliente já selecionado
+        const clientIdInput = document.getElementById('client-id');
+        
+        // Verifica se temos um cliente selecionado
+        if (clientIdInput && clientIdInput.value) {
+            const clientId = clientIdInput.value;
+            // Busca o cliente pelo ID
+            const client = this.clients.find(c => c.id === clientId);
+            
+            if (client) {
+                this.formData.client = client;
+                this.formData.clientId = clientId;
+            } else {
+                console.warn('Cliente não encontrado com ID:', clientId);
+            }
+        } else if (clientSearch && clientSearch.dataset.clientId) {
+            const clientId = clientSearch.dataset.clientId;
+            // Busca o cliente pelo ID
+            const client = this.clients.find(c => c.id === clientId);
+            
+            if (client) {
+                this.formData.client = client;
+                this.formData.clientId = clientId;
+            } else {
+                console.warn('Cliente não encontrado com ID:', clientId);
+            }
+        } else {
+            console.warn('Nenhum cliente selecionado');
+        }
+        
+        // Garante que o cliente exista no formData
+        if (!this.formData.client) {
+            this.formData.client = null;
         }
         
         // Recupera número do pedido
@@ -2048,146 +2453,127 @@ class NewOrderComponent {
             this.formData.orderNumber = orderNumberInput.value;
         }
         
-        // Recupera dados do vendedor
+        // Captura valores dos pagamentos diretamente dos inputs
+        document.querySelectorAll('.payment-item').forEach((item, index) => {
+            if (index < this.formData.payments.length) {
+                const valueInput = item.querySelector('.payment-value');
+                if (valueInput) {
+                    const value = parseFloat(valueInput.value.replace(',', '.')) || 0;
+                    this.formData.payments[index].amount = value;
+                    this.formData.payments[index].value = value; // Para compatibilidade
+                }
+                
+                const methodSelect = item.querySelector('.payment-method');
+                if (methodSelect) {
+                    this.formData.payments[index].method = methodSelect.value;
+                }
+                
+                const dateInput = item.querySelector('.payment-date');
+                if (dateInput && dateInput.value) {
+                    this.formData.payments[index].date = new Date(dateInput.value);
+                }
+            }
+        });
+        
+        // Recupera observações
+        const notesInput = document.getElementById('notes');
+        if (notesInput) {
+            this.formData.notes = notesInput.value;
+        }
+        
+        // Recupera status
+        const statusSelect = document.getElementById('order-status');
+        if (statusSelect) {
+            this.formData.status = statusSelect.value;
+        }
+        
+        // Recupera vendedor
         const sellerSelect = document.getElementById('seller');
         if (sellerSelect) {
             this.formData.sellerId = sellerSelect.value;
             
-            // Se temos a lista de usuários, recupera o nome do vendedor
-            if (this.users && Array.isArray(this.users)) {
-                const seller = this.users.find(u => u.id === sellerSelect.value);
-                if (seller) {
-                    this.formData.sellerName = seller.name || 'Vendedor';
-                }
+            if (sellerSelect.selectedOptions && sellerSelect.selectedOptions[0]) {
+                this.formData.sellerName = sellerSelect.selectedOptions[0].dataset.name || sellerSelect.selectedOptions[0].textContent;
             }
         }
         
-        // Captura data e hora do pedido
-        const orderDateInput = document.getElementById('order-date');
-        const orderTimeInput = document.getElementById('order-time');
-        
-        if (orderDateInput && orderDateInput.value) {
-            try {
-                // Cria uma nova data com a data escolhida pelo usuário no fuso horário de São Paulo
-                const [year, month, day] = orderDateInput.value.split('-').map(Number);
-                let hours = 0, minutes = 0;
-                
-                // Se temos hora definida, adiciona à data
-                if (orderTimeInput && orderTimeInput.value) {
-                    [hours, minutes] = orderTimeInput.value.split(':').map(Number);
-                } else {
-                    // Mantém a hora atual se não foi especificada
-                    const currentTime = new Date();
-                    // Obtém a hora atual no fuso horário de São Paulo
-                    const formatter = new Intl.DateTimeFormat('pt-BR', {
-                        timeZone: 'America/Sao_Paulo',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                    });
-                    const parts = formatter.formatToParts(currentTime);
-                    hours = parseInt(parts.find(part => part.type === 'hour').value);
-                    minutes = parseInt(parts.find(part => part.type === 'minute').value);
-                }
-                
-                // Cria uma string ISO com o fuso horário de São Paulo (GMT-3)
-                const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-03:00`;
-                const orderDate = new Date(dateString);
-                
-                // Atualiza a data do pedido no objeto de dados
-                this.formData.orderDate = orderDate;
-                console.log('Data do pedido capturada (São Paulo):', orderDate.toISOString());
-            } catch (error) {
-                console.error('Erro ao processar data do pedido:', error);
-            }
-        }
-        
-        // Captura data e hora de entrega previstos
-        const expectedDateInput = document.getElementById('expected-date');
-        const expectedTimeInput = document.getElementById('expected-time');
-        
-        if (expectedDateInput && expectedDateInput.value) {
-            try {
-                // Cria uma nova data com a data escolhida pelo usuário no fuso horário de São Paulo
-                const [year, month, day] = expectedDateInput.value.split('-').map(Number);
-                let hours = 0, minutes = 0;
-                
-                // Se temos hora definida, adiciona à data
-                if (expectedTimeInput && expectedTimeInput.value) {
-                    [hours, minutes] = expectedTimeInput.value.split(':').map(Number);
-                } else {
-                    // Mantém a hora atual se não foi especificada
-                    const currentTime = new Date();
-                    // Obtém a hora atual no fuso horário de São Paulo
-                    const formatter = new Intl.DateTimeFormat('pt-BR', {
-                        timeZone: 'America/Sao_Paulo',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                    });
-                    const parts = formatter.formatToParts(currentTime);
-                    hours = parseInt(parts.find(part => part.type === 'hour').value);
-                    minutes = parseInt(parts.find(part => part.type === 'minute').value);
-                }
-                
-                // Cria uma string ISO com o fuso horário de São Paulo (GMT-3)
-                const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-03:00`;
-                const expectedDate = new Date(dateString);
-                
-                // Atualiza a data de entrega no objeto de dados
-                this.formData.deliveryDate = expectedDate;
-                
-                console.log('Data entrada pelo usuário:', expectedDateInput.value, 
-                            'Data capturada (São Paulo):', expectedDate, 
-                            'ISO:', expectedDate.toISOString());
-            } catch (error) {
-                console.error('Erro ao processar data de entrega:', error);
-            }
-        }
-        
-        // Pega observações
-        const notesTextarea = document.getElementById('notes');
-        if (notesTextarea) {
-            this.formData.notes = notesTextarea.value;
-        }
-        
-        // Prioridade
-        const prioritySelect = document.getElementById('priority');
-        if (prioritySelect) {
-            this.formData.priority = prioritySelect.value;
-        }
-        
-        // Tipo de entrega
+        // Recupera tipo de entrega
         const deliveryTypeSelect = document.getElementById('delivery-type');
         if (deliveryTypeSelect) {
             this.formData.deliveryType = deliveryTypeSelect.value;
         }
         
-        // Endereço de entrega
+        // Recupera endereço de entrega
         const deliveryAddressInput = document.getElementById('delivery-address');
         if (deliveryAddressInput) {
             this.formData.deliveryAddress = deliveryAddressInput.value;
         }
         
-        // Custo de entrega (informativo)
+        // Recupera custo de entrega
         const deliveryCostInput = document.getElementById('delivery-cost');
         if (deliveryCostInput) {
-            // Converte o valor para número, considerando o formato brasileiro (vírgula como separador decimal)
             const costValue = deliveryCostInput.value.replace(',', '.').trim();
             this.formData.deliveryCost = costValue ? parseFloat(costValue) : null;
         }
         
-        // Serviços extras
-        const extrasInput = document.getElementById('order-extras');
-        if (extrasInput) {
-            this.formData.extraServices = parseFloat(extrasInput.value) || 0;
+        // Recupera desconto
+        const discountInput = document.getElementById('order-discount');
+        if (discountInput) {
+            const discountValue = discountInput.value.replace(',', '.').trim();
+            this.formData.discount = discountValue ? parseFloat(discountValue) : 0;
         }
         
-        // Informações da imagem
+        // Recupera serviços extras
+        const extrasInput = document.getElementById('order-extras');
+        if (extrasInput) {
+            const extrasValue = extrasInput.value.replace(',', '.').trim();
+            this.formData.extraServices = extrasValue ? parseFloat(extrasValue) : 0;
+        }
+        
+        // Recupera data de entrega
+        const deliveryDateInput = document.getElementById('expected-date');
+        const deliveryTimeInput = document.getElementById('expected-time');
+        
+        if (deliveryDateInput && deliveryDateInput.value) {
+            try {
+                // Cria uma nova data com a data escolhida pelo usuário
+                const [year, month, day] = deliveryDateInput.value.split('-').map(Number);
+                let hours = 0, minutes = 0;
+                
+                // Adiciona hora se disponível
+                if (deliveryTimeInput && deliveryTimeInput.value) {
+                    [hours, minutes] = deliveryTimeInput.value.split(':').map(Number);
+                }
+                
+                // Cria uma data diretamente sem usar string de fuso horário
+                const deliveryDate = new Date();
+                deliveryDate.setFullYear(year);
+                deliveryDate.setMonth(month - 1); // Mês em JavaScript é baseado em zero (0-11)
+                deliveryDate.setDate(day);
+                deliveryDate.setHours(hours, minutes, 0, 0);
+                
+                this.formData.deliveryDate = deliveryDate;
+                console.log('Data de entrega capturada:', deliveryDate);
+            } catch (error) {
+                console.error('Erro ao processar data de entrega:', error);
+                // Usa a data atual como fallback
+                this.formData.deliveryDate = new Date();
+            }
+        }
+        
+        // Recupera informações da imagem
         const imageTitleInput = document.getElementById('image-title');
         if (imageTitleInput) {
             this.formData.imageTitle = imageTitleInput.value;
         }
+        
+        // Calcula o valor total do pedido
+        this.formData.totalValue = this.calculateOrderTotal();
+        
+        // Log dos dados capturados
+        console.log('Dados do formulário capturados:', JSON.stringify(this.formData));
+        
+        return this.formData;
     }
     
     // Renderiza o loader
@@ -2461,6 +2847,13 @@ class NewOrderComponent {
             // Listener para mudanças no valor do pagamento
             if (valueInput) {
                 valueInput.addEventListener('input', () => {
+                    // Atualiza o valor no objeto do pagamento
+                    if (index < this.formData.payments.length) {
+                        // Converte para número e garante que seja um valor válido
+                        const value = parseFloat(valueInput.value) || 0;
+                        this.formData.payments[index].amount = value;
+                        this.formData.payments[index].value = value; // Para compatibilidade
+                    }
                     this.updateOrderTotals();
                 });
             }
@@ -2686,12 +3079,15 @@ class NewOrderComponent {
         const paymentsTotal = this.calculatePaymentsTotal();
         const discountInput = document.getElementById('order-discount');
         const extrasInput = document.getElementById('order-extras');
+        const deliveryCostInput = document.getElementById('delivery-cost');
         const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
         const extras = extrasInput ? parseFloat(extrasInput.value) || 0 : 0;
+        const deliveryCost = deliveryCostInput ? parseFloat(deliveryCostInput.value.replace(',', '.')) || 0 : 0;
         
-        // Atualiza o desconto e serviços extras no objeto de dados
+        // Atualiza o desconto, serviços extras e custo de entrega no objeto de dados
         this.formData.discount = discount;
         this.formData.extraServices = extras;
+        this.formData.deliveryCost = deliveryCost;
         
         // Atualiza os elementos na interface
         const updateElement = (id, value) => {
@@ -2701,9 +3097,11 @@ class NewOrderComponent {
             }
         };
         
-        // Calcula o total final (subtotal + extras - desconto)
-        const subtotal = this.calculateOrderTotal() - extras; // Subtotal sem os extras
-        const finalTotal = subtotal + extras - discount;
+        // Calcula o subtotal (apenas itens)
+        const subtotal = this.formData.items && Array.isArray(this.formData.items) ? this.formData.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+        
+        // Calcula o total final (subtotal + extras + custo de entrega - desconto)
+        const finalTotal = subtotal + extras + deliveryCost - discount;
         
         updateElement('order-subtotal', subtotal);
         updateElement('order-total', finalTotal);
@@ -2789,7 +3187,7 @@ class NewOrderComponent {
         
         if (expectedDateInput && expectedDateInput.value) {
             try {
-                // Cria uma nova data com a data escolhida pelo usuário no fuso horário de São Paulo
+                // Cria uma nova data com a data escolhida pelo usuário
                 const [year, month, day] = expectedDateInput.value.split('-').map(Number);
                 let hours = 0, minutes = 0;
                 
@@ -2799,27 +3197,23 @@ class NewOrderComponent {
                 } else {
                     // Mantém a hora atual se não foi especificada
                     const currentTime = new Date();
-                    // Obtém a hora atual no fuso horário de São Paulo
-                    const formatter = new Intl.DateTimeFormat('pt-BR', {
-                        timeZone: 'America/Sao_Paulo',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                    });
-                    const parts = formatter.formatToParts(currentTime);
-                    hours = parseInt(parts.find(part => part.type === 'hour').value);
-                    minutes = parseInt(parts.find(part => part.type === 'minute').value);
+                    hours = currentTime.getHours();
+                    minutes = currentTime.getMinutes();
                 }
                 
-                // Cria uma string ISO com o fuso horário de São Paulo (GMT-3)
-                const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-03:00`;
-                const expectedDate = new Date(dateString);
+                // Cria uma data diretamente sem usar string de fuso horário
+                // Isso evita o problema de ajuste de fuso horário que pode reduzir um dia
+                const expectedDate = new Date();
+                expectedDate.setFullYear(year);
+                expectedDate.setMonth(month - 1); // Mês em JavaScript é baseado em zero (0-11)
+                expectedDate.setDate(day);
+                expectedDate.setHours(hours, minutes, 0, 0);
                 
                 // Verifica se a data é válida antes de armazenar
                 if (!isNaN(expectedDate.getTime())) {
                     // Atualiza a data de entrega no objeto de dados
                     this.formData.deliveryDate = expectedDate;
-                    console.log('Data/hora de entrega atualizada (São Paulo):', expectedDate);
+                    console.log('Data/hora de entrega atualizada:', expectedDate);
                     console.log('Formato ISO:', expectedDate.toISOString());
                     console.log('Formato local:', expectedDate.toString());
                 } else {
@@ -2979,6 +3373,71 @@ class NewOrderComponent {
             // Em caso de erro, gera um número baseado no timestamp atual
             const timestamp = Math.floor(Date.now() / 1000) % 10000;
             return `OS-${timestamp}`;
+        }
+    }
+    
+    // Exclui o pedido atual
+    async deleteOrder() {
+        if (!this.formData || !this.formData.id) {
+            console.error('Não é possível excluir: ID do pedido não encontrado');
+            if (window.ui) {
+                window.ui.showNotification('Erro: Pedido não encontrado', 'error');
+            } else {
+                alert('Erro: Pedido não encontrado');
+            }
+            return;
+        }
+        
+        const confirmMessage = `Tem certeza que deseja excluir o pedido #${this.formData.orderNumber}? Esta ação não pode ser desfeita.`;
+        
+        // Verifica se temos o ui.confirmModal disponível
+        if (window.ui && window.ui.confirmModal) {
+            window.ui.confirmModal(
+                'Excluir Pedido', 
+                confirmMessage,
+                async () => {
+                    await this.performDeleteOrder();
+                }
+            );
+        } else {
+            // Fallback para confirm padrão
+            if (confirm(confirmMessage)) {
+                await this.performDeleteOrder();
+            }
+        }
+    }
+    
+    // Executa a exclusão do pedido
+    async performDeleteOrder() {
+        try {
+            if (window.ui) {
+                window.ui.showLoading('Excluindo pedido...');
+            }
+            
+            // Exclui o pedido do banco de dados
+            const db = firebase.firestore();
+            await db.collection('orders').doc(this.formData.id).delete();
+            
+            if (window.ui) {
+                window.ui.hideLoading();
+                // Aguarda um pequeno intervalo antes de mostrar a notificação
+                setTimeout(() => {
+                    window.ui.showNotification('Pedido excluído com sucesso!', 'success');
+                }, 100);
+            } else {
+                alert('Pedido excluído com sucesso!');
+            }
+            
+            // Redireciona para a lista de pedidos
+            window.location.hash = '#orders';
+        } catch (error) {
+            console.error('Erro ao excluir pedido:', error);
+            if (window.ui) {
+                window.ui.hideLoading();
+                window.ui.showNotification('Erro ao excluir pedido.', 'error');
+            } else {
+                alert('Erro ao excluir pedido.');
+            }
         }
     }
 }

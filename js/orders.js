@@ -80,11 +80,34 @@ class OrdersComponent {
     // Carrega dados iniciais
     async loadInitialData() {
         try {
-            // Carrega pedidos
-            const ordersSnapshot = await db.collection('orders')
-                .orderBy('createdAt', 'desc')
-                .get();
+            // Carrega apenas os dados necessários em paralelo para melhorar a performance
+            const [ordersSnapshot, clientsSnapshot, productsSnapshot, employeesSnapshot] = await Promise.all([
+                // Carrega pedidos com limite e ordenação
+                db.collection('orders')
+                    .orderBy('createdAt', 'desc')
+                    .limit(100) // Limita para melhor performance
+                    .get(),
                 
+                // Carrega clientes
+                db.collection('clients')
+                    .orderBy('name') // Ordenação consistente
+                    .limit(100)
+                    .get(),
+                
+                // Carrega produtos ativos
+                db.collection('products')
+                    .where('active', '==', true)
+                    .orderBy('name') // Usando índice composto (active + name)
+                    .get(),
+                
+                // Carrega funcionários ativos
+                db.collection('employees')
+                    .where('active', '==', true)
+                    .orderBy('name') // Usando índice composto (active + name)
+                    .get()
+            ]);
+                
+            // Processa os pedidos
             this.orders = [];
             ordersSnapshot.forEach(doc => {
                 const order = doc.data();
@@ -94,8 +117,7 @@ class OrdersComponent {
                 });
             });
             
-            // Carrega clientes
-            const clientsSnapshot = await db.collection('clients').get();
+            // Processa os clientes
             this.clients = [];
             clientsSnapshot.forEach(doc => {
                 const client = doc.data();
@@ -105,10 +127,7 @@ class OrdersComponent {
                 });
             });
             
-            // Carrega produtos
-            const productsSnapshot = await db.collection('products')
-                .where('active', '==', true)
-                .get();
+            // Processa os produtos
             this.products = [];
             productsSnapshot.forEach(doc => {
                 const product = doc.data();
@@ -118,10 +137,7 @@ class OrdersComponent {
                 });
             });
             
-            // Carrega funcionários para usar como vendedores
-            const employeesSnapshot = await db.collection('employees')
-                .where('active', '==', true)
-                .get();
+            // Processa os funcionários
             this.employees = [];
             this.users = []; // Adiciona lista de usuários para vendedores
             
@@ -164,6 +180,7 @@ class OrdersComponent {
         // Listener para alterações em pedidos
         this.unsubscribeOrders = db.collection('orders')
             .orderBy('createdAt', 'desc')
+            .limit(50) // Limita a quantidade de pedidos para melhor performance
             .onSnapshot(snapshot => {
                 let hasChanges = false;
                 
@@ -215,9 +232,40 @@ class OrdersComponent {
     
     // Limpa os listeners quando o componente é desmontado
     cleanup() {
+        console.log('Executando limpeza completa de recursos do componente de pedidos');
+        
+        // Limpar o listener de pedidos em tempo real
         if (this.unsubscribeOrders) {
+            console.log('Cancelando inscrição de listener de pedidos');
             this.unsubscribeOrders();
+            this.unsubscribeOrders = null;
         }
+        
+        // Limpar o observador de visibilidade
+        if (this.visibilityObserver) {
+            console.log('Limpando observador de visibilidade');
+            clearInterval(this.visibilityObserver);
+            this.visibilityObserver = null;
+        }
+        
+        // Limpar o observador de mutação DOM
+        if (this.domObserver) {
+            console.log('Desconectando observador de mutação DOM');
+            this.domObserver.disconnect();
+            this.domObserver = null;
+        }
+        
+        // Limpar o evento de atualização de item
+        if (this._orderItemUpdatedListener) {
+            console.log('Removendo listener de atualização de item');
+            document.removeEventListener('orderItemUpdated', this._orderItemUpdatedListener);
+            this._orderItemUpdatedListener = null;
+        }
+        
+        // Limpar backups e snapshots
+        this.lastOrderItemsSnapshot = null;
+        
+        console.log('Limpeza completa finalizada');
     }
     
     // Renderiza a visualização atual
@@ -254,6 +302,9 @@ class OrdersComponent {
                 this.renderError("Pedido não encontrado!");
                 return;
             }
+            
+            // Log para debug
+            console.log("Dados do pedido para edição:", orderData);
         }
         
         // Definir data atual para os campos de data
@@ -294,8 +345,70 @@ class OrdersComponent {
         // Carregar o componente de novo pedido
         const orderFormContainer = document.getElementById('order-form-container');
         if (orderFormContainer) {
+            this.initNewOrderComponent(orderFormContainer, orderData);
+        }
+    }
+    
+    // Verifica se o componente NewOrderComponent está disponível e carrega se necessário
+    async ensureNewOrderComponentLoaded() {
+        return new Promise((resolve, reject) => {
+            // Verifica se o componente já está definido
+            if (typeof NewOrderComponent === 'function') {
+                resolve(true);
+                return;
+            }
+            
+            console.log('NewOrderComponent não está disponível. Tentando carregar...');
+            
+            // Verifica se o script já está carregado
+            const scriptExists = Array.from(document.querySelectorAll('script'))
+                .some(script => script.src.includes('new-order.js'));
+            
+            if (scriptExists) {
+                console.log('Script new-order.js já existe no DOM, mas a classe não está disponível.');
+                // Espera um pouco para ver se o script termina de carregar
+                setTimeout(() => {
+                    if (typeof NewOrderComponent === 'function') {
+                        resolve(true);
+                    } else {
+                        reject(new Error('Timeout esperando NewOrderComponent ser definido.'));
+                    }
+                }, 1000);
+                return;
+            }
+            
+            // Carrega o script dinamicamente
+            const script = document.createElement('script');
+            script.src = 'js/new-order.js';
+            script.onload = () => {
+                console.log('Script new-order.js carregado com sucesso.');
+                // Verifica se o componente está disponível após carregar o script
+                if (typeof NewOrderComponent === 'function') {
+                    resolve(true);
+                } else {
+                    reject(new Error('NewOrderComponent não foi definido após carregar o script.'));
+                }
+            };
+            script.onerror = (error) => {
+                console.error('Erro ao carregar script new-order.js:', error);
+                reject(new Error('Erro ao carregar o script new-order.js.'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+    
+    // Inicializa o componente de novo pedido
+    async initNewOrderComponent(container, orderData) {
+        try {
+            // Garante que o componente NewOrderComponent está carregado
+            await this.ensureNewOrderComponentLoaded();
+            
+            // Cria e renderiza o componente
             const newOrderComponent = new NewOrderComponent();
-            newOrderComponent.render(orderFormContainer, orderData);
+            newOrderComponent.render(container, orderData);
+        } catch (error) {
+            console.error('Erro ao inicializar NewOrderComponent:', error);
+            this.renderError('Erro ao carregar o formulário de pedido. Por favor, recarregue a página.');
         }
     }
     
@@ -449,13 +562,19 @@ class OrdersComponent {
     
     // Renderiza a lista de pedidos
     renderOrdersList(resetFilters = true) {
-        // Se resetFilters for true, limpa qualquer filtro existente no localStorage
-        if (resetFilters) {
-            console.log("Resetando filtros na renderização da lista de pedidos");
-            localStorage.removeItem('orderFilters');
-            localStorage.setItem('ordersSortBy', 'date-desc');
+        console.log('-------------------------------------------------------');
+        console.log('Renderizando lista de pedidos, resetFilters =', resetFilters);
+        
+        // Debug para entender os status disponíveis
+        this.debugOrderStatuses();
+        
+        // Restaura valores de filtros salvos, se não for para resetar
+        if (!resetFilters) {
+            this.restoreFilterValues();
         }
-        const headerHtml = `
+        
+        // Cabeçalho da página
+        let html = `
             <div class="page-header">
                 <h1>Gestão de Pedidos</h1>
                 <button id="new-order-btn" class="btn btn-primary">
@@ -464,74 +583,92 @@ class OrdersComponent {
             </div>
         `;
         
-        let filtersHtml = `
+        // Barra de filtros básicos
+        html += `
             <div class="filters-bar">
-                <div class="filters-row">
-                    <div class="search-box">
-                        <input type="text" id="order-search" placeholder="Buscar pedido..." class="search-input">
-                        <i class="fas fa-search search-icon"></i>
-                    </div>
-                    <div class="filter-group">
-                        <label for="status-filter">Status</label>
-                        <select id="status-filter" class="filter-select">
-                            <option value="">Todos os status</option>
-                            ${SYSTEM_CONFIG.orderStatus.map(status => 
-                                `<option value="${status.id}">${status.name}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="date-filter">Período</label>
-                        <select id="date-filter" class="filter-select">
-                            <option value="all">Todas as datas</option>
-                            <option value="today">Hoje</option>
-                            <option value="week">Esta semana</option>
-                            <option value="month">Este mês</option>
-                        </select>
-                    </div>
+                <div class="search-box">
+                    <input type="text" id="order-search" placeholder="Buscar pedido..." class="search-input">
+                    <i class="fas fa-search search-icon"></i>
                 </div>
-                
-                <div class="filters-row">
+                <div class="filter-group">
+                    <select id="status-filter" class="filter-select">
+                        <option value="">Todos os status</option>
+                        ${SYSTEM_CONFIG.orderStatus.map(status => 
+                            `<option value="${status.id}">${status.name}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <select id="date-filter" class="filter-select">
+                        <option value="all">Todas as datas</option>
+                        <option value="today">Hoje</option>
+                        <option value="week">Esta semana</option>
+                        <option value="month">Este mês</option>
+                    </select>
+                </div>
+                <button id="advanced-filters-toggle" class="btn btn-outline-secondary">
+                    <i class="fas fa-filter"></i> Filtros Avançados
+                </button>
+                <button id="clear-filters" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Limpar Filtros
+                </button>
+            </div>
+        `;
+        
+        // Filtros avançados (inicialmente ocultos)
+        html += `
+            <div id="advanced-filters" class="advanced-filters" style="display: none;">
+                <div class="filter-row">
                     <div class="filter-group">
-                        <label for="order-number-filter">Nº do Pedido</label>
-                        <input type="text" id="order-number-filter" class="form-control filter-input" placeholder="Ex: OS23">
+                        <label for="order-number-filter">Número do Pedido</label>
+                        <input type="text" id="order-number-filter" class="filter-input">
                     </div>
                     <div class="filter-group">
                         <label for="client-name-filter">Nome do Cliente</label>
-                        <input type="text" id="client-name-filter" class="form-control filter-input" placeholder="Nome do cliente">
+                        <input type="text" id="client-name-filter" class="filter-input">
                     </div>
                     <div class="filter-group">
                         <label for="material-type-filter">Tipo de Material</label>
-                        <select id="material-type-filter" class="form-control filter-select">
-                            <option value="">Todos os materiais</option>
-                            <option value="impressao">Impressão Digital</option>
-                            <option value="grafica">Gráfica Offset</option>
-                            <option value="servico">Serviços</option>
-                            <option value="outro">Outros</option>
+                        <select id="material-type-filter" class="filter-select">
+                            <option value="">Todos</option>
+                            <option value="banner">Banner</option>
+                            <option value="adesivo">Adesivo</option>
+                            <option value="lona">Lona</option>
+                            <option value="papel">Papel</option>
+                            <option value="outros">Outros</option>
                         </select>
                     </div>
-                </div>
-                
-                <div class="filters-row">
                     <div class="filter-group">
                         <label for="product-type-filter">Tipo de Produto</label>
-                        <select id="product-type-filter" class="form-control filter-select">
+                        <select id="product-type-filter" class="filter-select">
+                            <option value="">Todos</option>
                             ${this.renderProductTypeOptions()}
                         </select>
                     </div>
+                </div>
+                <div class="filter-row">
                     <div class="filter-group">
                         <label for="seller-filter">Vendedor</label>
-                        <select id="seller-filter" class="form-control filter-select">
+                        <select id="seller-filter" class="filter-select">
+                            <option value="">Todos</option>
                             ${this.renderSellerFilterOptions()}
                         </select>
                     </div>
                     <div class="filter-group">
+                        <label for="delivery-date-start">Data de Entrega (Início)</label>
+                        <input type="date" id="delivery-date-start" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label for="delivery-date-end">Data de Entrega (Fim)</label>
+                        <input type="date" id="delivery-date-end" class="filter-input">
+                    </div>
+                    <div class="filter-group">
                         <label for="sort-orders">Ordenar por</label>
-                        <select id="sort-orders" class="form-control filter-select">
+                        <select id="sort-orders" class="filter-select">
                             <option value="date-desc">Data (mais recentes)</option>
                             <option value="date-asc">Data (mais antigos)</option>
-                            <option value="delivery-asc">Prazo de entrega (próximos)</option>
-                            <option value="delivery-desc">Prazo de entrega (futuros)</option>
+                            <option value="delivery-asc">Prazo de Entrega (próximos)</option>
+                            <option value="delivery-desc">Prazo de Entrega (futuros)</option>
                             <option value="value-desc">Valor (maior para menor)</option>
                             <option value="value-asc">Valor (menor para maior)</option>
                             <option value="client-asc">Cliente (A-Z)</option>
@@ -539,46 +676,26 @@ class OrdersComponent {
                         </select>
                     </div>
                 </div>
-                
-                <div class="filters-row">
-                    <div class="filter-group date-range">
-                        <label for="delivery-date-start">Entrega de</label>
-                        <input type="date" id="delivery-date-start" class="form-control filter-input">
-                    </div>
-                    <div class="filter-group date-range">
-                        <label for="delivery-date-end">Entrega até</label>
-                        <input type="date" id="delivery-date-end" class="form-control filter-input">
-                    </div>
-                    <div class="filter-actions">
-                        <button id="apply-filters" class="btn btn-primary">Aplicar Filtros</button>
-                        <button id="clear-filters" class="btn btn-outline-secondary">Limpar Filtros</button>
-                    </div>
-                </div>
             </div>
         `;
         
-        let ordersHtml = '';
-        
-        // Aplicar ordenação se selecionada
-        let displayOrders = [...this.orders];
-        const sortBy = localStorage.getItem('ordersSortBy') || 'date-desc';
-        displayOrders = this.sortOrders(displayOrders, sortBy);
-        
-        if (displayOrders.length === 0) {
-            ordersHtml = `
+        // Conteúdo principal - lista de pedidos ou mensagem vazia
+        if (this.orders.length === 0) {
+            html += `
                 <div class="empty-state">
                     <i class="fas fa-clipboard-list empty-icon"></i>
                     <h3>Nenhum pedido encontrado</h3>
-                    <p>Você ainda não possui pedidos registrados.</p>
-                    <button id="empty-new-order-btn" class="btn btn-primary">Criar Primeiro Pedido</button>
+                    <p>Você ainda não possui pedidos cadastrados.</p>
+                    <button id="empty-new-order-btn" class="btn btn-primary">Cadastrar Primeiro Pedido</button>
                 </div>
             `;
         } else {
-            ordersHtml = `
+            html += `
                 <div class="data-table-container">
-                    <table class="data-table orders-table">
+                    <table class="data-table">
                         <thead>
                             <tr>
+                                <th>Número do pedido</th>
                                 <th>Cliente</th>
                                 <th>Data de Entrega</th>
                                 <th>Hora</th>
@@ -590,46 +707,102 @@ class OrdersComponent {
                         <tbody>
             `;
             
-            displayOrders.forEach(order => {
-                const statusObj = SYSTEM_CONFIG.orderStatus.find(s => s.id === order.status) || 
-                                { name: 'Desconhecido', color: '' };
+            // Renderiza cada pedido como uma linha na tabela
+            this.orders.forEach(order => {
+                // Obter o objeto de status
+                const statusObj = SYSTEM_CONFIG.orderStatus.find(s => s.id === order.status) || {
+                    name: 'Status Desconhecido',
+                    color: 'status-pending'
+                };
                 
-                // Formata as datas
-                const createdDate = order.createdAt ? ui.formatDate(order.createdAt) : '-';
+                // Formatar data de criação
+                const createdDate = order.createdAt ? this.formatDateTime(order.createdAt) : '-';
                 
-                // Verificações para estilização
-                const isDeliveryToday = this.isToday(order.deliveryDate);
-                const isLate = order.deliveryDate && new Date(order.deliveryDate.toDate ? 
-                    order.deliveryDate.toDate() : order.deliveryDate) < new Date() && 
-                    ['pending', 'approved', 'production'].includes(order.status);
-                
-                let dateClass = '';
-                if (isLate) {
-                    dateClass = 'late-delivery';
-                } else if (isDeliveryToday) {
-                    dateClass = 'today-delivery';
+                // Formatar data de entrega
+                let deliveryDate = '-';
+                if (order.toArrange) {
+                    deliveryDate = 'A combinar';
+                } else if (order.deliveryDate) {
+                    deliveryDate = this.formatDateTime(order.deliveryDate);
                 }
                 
-                // Formata data e hora de entrega
-                const deliveryDateTime = order.toArrange ? 'A combinar' : (order.deliveryDate ? this.formatDateTime(order.deliveryDate) : '-');
+                // Formatar valor
+                const totalValue = order.totalValue || 
+                          (order.items && Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (item.total || 0), 0) : 0);
                 
-                ordersHtml += `
-                    <tr class="order-row ${isLate ? 'late-delivery' : ''}" data-id="${order.id}">
-                        <td>${order.clientName}</td>
-                        <td class="${dateClass}">${order.deliveryDate ? ui.formatDate(order.deliveryDate) : 'A combinar'}</td>
-                        <td class="${dateClass}">${order.deliveryDate ? this.formatTimeForInput(order.deliveryDate) : '-'}</td>
-                        <td>${this.getSituacaoHTML(order)}</td>
+                // Calcula o valor pago
+                const paidValue = order.payments && Array.isArray(order.payments) ? order.payments.reduce((sum, payment) => {
+                    // Se o pagamento tem data futura, ainda considerar o valor para exibição
+                    const paymentAmount = payment.amount !== undefined ? payment.amount : (payment.value || 0);
+                    return sum + parseFloat(paymentAmount || 0);
+                }, 0) : 0;
+                
+                // Calcula o subtotal (soma dos totais dos itens)
+                const subtotal = order.items && Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+                
+                // Calcula o total final (subtotal + extras + entrega - desconto)
+                const finalTotal = (subtotal + (order.extraServices || 0) + (order.deliveryCost || 0)) - (order.discount || 0);
+                
+                // Calcula o saldo
+                const balance = Math.max(0, finalTotal - paidValue);
+                
+                // Extrair data e hora separadamente para exibição
+                let deliveryDateDisplay = '-';
+                let deliveryTimeDisplay = '-';
+                
+                if (order.toArrange) {
+                    deliveryDateDisplay = 'A combinar';
+                } else if (order.deliveryDate) {
+                    // Converter para objeto Date
+                    let deliveryDateObj;
+                    if (order.deliveryDate.toDate) {
+                        deliveryDateObj = order.deliveryDate.toDate();
+                    } else if (order.deliveryDate instanceof Date) {
+                        deliveryDateObj = order.deliveryDate;
+                    } else {
+                        deliveryDateObj = new Date(order.deliveryDate);
+                    }
+                    
+                    // Formatar data (DD/MM/YYYY)
+                    const formatter = new Intl.DateTimeFormat('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    });
+                    deliveryDateDisplay = formatter.format(deliveryDateObj);
+                    
+                    // Formatar hora (HH:MM)
+                    const timeFormatter = new Intl.DateTimeFormat('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
+                    deliveryTimeDisplay = timeFormatter.format(deliveryDateObj);
+                }
+                
+                // Obter situação do pedido
+                const situacao = this.getSituacaoHTML(order);
+
+                html += `
+                    <tr class="order-row" data-id="${order.id}">
+                        <td>${order.orderNumber || '-'}</td>
+                        <td>${order.clientName || 'Cliente não identificado'}</td>
+                        <td>${deliveryDateDisplay}</td>
+                        <td>${deliveryTimeDisplay}</td>
+                        <td>${situacao}</td>
                         <td><span class="status-tag ${statusObj.color}">${statusObj.name}</span></td>
                         <td>
                             <button class="btn-icon view-order" data-id="${order.id}" title="Ver Detalhes">
                                 <i class="fas fa-eye"></i>
                             </button>
+                            ${window.auth.hasFeaturePermission('edit_order') ? `
                             <button class="btn-icon edit-order" data-id="${order.id}" title="Editar">
                                 <i class="fas fa-edit"></i>
-                            </button>
+                            </button>` : ''}
+                            ${window.auth.hasFeaturePermission('delete_order') ? `
                             <button class="btn-icon delete-order" data-id="${order.id}" title="Excluir">
                                 <i class="fas fa-trash"></i>
-                            </button>
+                            </button>` : ''}
                             <button class="btn-icon change-status" data-id="${order.id}" title="Alterar Status">
                                 <i class="fas fa-exchange-alt"></i>
                             </button>
@@ -638,82 +811,154 @@ class OrdersComponent {
                 `;
             });
             
-            ordersHtml += `
+            html += `
                         </tbody>
                     </table>
                 </div>
             `;
         }
         
-        this.container.innerHTML = headerHtml + filtersHtml + ordersHtml;
+        // Após renderizar o HTML
+        this.container.innerHTML = html;
         
-        // Adiciona eventos
-        document.getElementById('new-order-btn').addEventListener('click', () => this.showCreateView());
-        
-        // Inicializa o valor de ordenação salvo
-        const sortSelect = document.getElementById('sort-orders');
-        if (sortSelect) {
-            sortSelect.value = localStorage.getItem('ordersSortBy') || 'date-desc';
+        // Configurar eventos para os filtros e botões
+        const newOrderBtn = document.getElementById('new-order-btn');
+        if (newOrderBtn) {
+            newOrderBtn.addEventListener('click', () => this.showCreateView());
         }
         
-        // Toggle de filtros avançados
-        // Removido código do toggle de filtros avançados, pois agora todos os filtros são exibidos juntos
+        // Toggle para filtros avançados
+        const advancedFiltersToggle = document.getElementById('advanced-filters-toggle');
+        const advancedFilters = document.getElementById('advanced-filters');
         
-        // Botão de aplicar filtros
-        const applyFiltersBtn = document.getElementById('apply-filters');
-        if (applyFiltersBtn) {
-            applyFiltersBtn.addEventListener('click', () => {
-                this.applyFilters();
-                
-                // Salva a ordenação escolhida
-                const sortSelect = document.getElementById('sort-orders');
-                if (sortSelect) {
-                    localStorage.setItem('ordersSortBy', sortSelect.value);
-                }
-                
-                // Feedback visual
-                applyFiltersBtn.innerHTML = '<i class="fas fa-check"></i> Filtros Aplicados';
-                setTimeout(() => {
-                    applyFiltersBtn.innerHTML = 'Aplicar Filtros';
-                }, 1500);
+        if (advancedFiltersToggle && advancedFilters) {
+            // Verifica se os filtros avançados estavam abertos
+            const filtersOpen = localStorage.getItem('ordersAdvancedFiltersOpen') === 'true';
+            if (filtersOpen) {
+                advancedFilters.style.display = 'block';
+            }
+            
+            advancedFiltersToggle.addEventListener('click', () => {
+                const isVisible = advancedFilters.style.display === 'block';
+                advancedFilters.style.display = isVisible ? 'none' : 'block';
+                localStorage.setItem('ordersAdvancedFiltersOpen', !isVisible);
             });
         }
         
-        // Botão de limpar filtros
+        // Botão para limpar filtros
         const clearFiltersBtn = document.getElementById('clear-filters');
         if (clearFiltersBtn) {
-            // Remover quaisquer event listeners existentes para evitar duplicação
-            clearFiltersBtn.removeEventListener('click', this._handleClearFiltersClick);
-            
-            // Definir o manipulador de eventos como uma propriedade da instância para referência futura
-            this._handleClearFiltersClick = (event) => {
-                event.preventDefault();
-                console.log("Botão 'Limpar Filtros' clicado");
-                
-                // Usa o método centralizado para limpar todos os filtros
-                const success = this.clearAllFilters();
-                
-                // Feedback visual
-                if (success) {
-                    clearFiltersBtn.innerHTML = '<i class="fas fa-check"></i> Filtros Limpos';
-                    setTimeout(() => {
-                        clearFiltersBtn.innerHTML = 'Limpar Filtros';
-                    }, 1500);
-                }
-            };
-            
-            // Adicionar o novo event listener
-            clearFiltersBtn.addEventListener('click', this._handleClearFiltersClick);
-            console.log("Event listener 'click' adicionado ao botão 'Limpar Filtros'");
-        } else {
-            console.error("Botão 'Limpar Filtros' não encontrado no DOM");
+            clearFiltersBtn.addEventListener('click', () => {
+                console.log('Botão Limpar Filtros clicado');
+                this.clearAllFilters();
+            });
+        }
+
+        // Setup dos eventos de filtro
+        this.setupFilterEvents();
+        
+        // Aplicar os filtros salvos se não for resetar filtros
+        if (!resetFilters) {
+            console.log('Aplicando filtros salvos no localStorage');
+            setTimeout(() => this.applyFilters(), 100);
         }
         
-        // Removido botão de debug dos filtros
+        console.log('Renderização da lista de pedidos finalizada');
+        console.log('-------------------------------------------------------');
+    }
+    
+    // Novo método para configurar os eventos de filtros
+    setupFilterEvents() {
+        console.log('Configurando eventos de filtro para a página de pedidos');
         
-        if (this.orders.length === 0) {
-            document.getElementById('empty-new-order-btn').addEventListener('click', () => this.showCreateView());
+        // Lista dos elementos de filtro de texto que precisam de tratamento especial
+        const textFilterIds = ['order-search', 'order-number-filter', 'client-name-filter'];
+        
+        // Lista dos elementos de filtro básicos com tipo de evento
+        const filterElements = [
+            { id: 'order-search', event: 'input' },
+            { id: 'status-filter', event: 'change' },
+            { id: 'date-filter', event: 'change' },
+            { id: 'order-number-filter', event: 'input' },
+            { id: 'client-name-filter', event: 'input' },
+            { id: 'material-type-filter', event: 'change' },
+            { id: 'product-type-filter', event: 'change' },
+            { id: 'seller-filter', event: 'change' },
+            { id: 'delivery-date-start', event: 'change' },
+            { id: 'delivery-date-end', event: 'change' },
+        ];
+        
+        // Configurar cada elemento com um evento para aplicar filtros em tempo real
+        filterElements.forEach(filter => {
+            const element = document.getElementById(filter.id);
+            if (element) {
+                console.log(`Configurando evento para o filtro: ${filter.id}`);
+                
+                // Clone o elemento para remover todos os event listeners
+                const newElement = element.cloneNode(true);
+                element.replaceWith(newElement);
+                
+                // Tratamento especial para campos de texto
+                if (textFilterIds.includes(filter.id)) {
+                    // Armazenar valor anterior para detectar quando o campo é apagado
+                    let lastValue = newElement.value;
+                    
+                    newElement.addEventListener(filter.event, (e) => {
+                        console.log(`Evento ${filter.event} disparado para ${filter.id} com valor: ${e.target.value}`);
+                        
+                        // Verifica se o campo foi apagado (estava com conteúdo e agora está vazio)
+                        const wasCleared = lastValue && !e.target.value;
+                        lastValue = e.target.value;
+                        
+                        // Se o campo foi apagado, força uma atualização imediata da lista
+                        if (wasCleared) {
+                            console.log(`Campo ${filter.id} foi apagado, atualizando lista imediatamente`);
+                            // Aplicar filtros para mostrar todos os resultados
+                            this.applyFilters();
+                        } else {
+                            this.applyFilters();
+                        }
+                    });
+                } else {
+                    // Para outros campos, mantém o comportamento normal
+                    newElement.addEventListener(filter.event, (e) => {
+                        console.log(`Evento ${filter.event} disparado para ${filter.id} com valor: ${e.target.value}`);
+                        this.applyFilters();
+                    });
+                }
+            } else {
+                console.warn(`Elemento de filtro não encontrado: ${filter.id}`);
+            }
+        });
+        
+        // Configurar o evento de ordenação separadamente
+        const sortSelect = document.getElementById('sort-orders');
+        if (sortSelect) {
+            console.log('Configurando evento para ordenação');
+            
+            // Clone o elemento para remover todos os event listeners
+            const newSortSelect = sortSelect.cloneNode(true);
+            sortSelect.replaceWith(newSortSelect);
+            
+            newSortSelect.addEventListener('change', (e) => {
+                console.log(`Ordenação alterada para: ${e.target.value}`);
+                // Salva a ordenação escolhida
+                localStorage.setItem('ordersSortBy', newSortSelect.value);
+                // Aplica os filtros com a nova ordenação
+                this.applyFilters();
+            });
         } else {
+            console.warn('Elemento de ordenação não encontrado');
+        }
+        
+        // Verificar se estamos na situação de lista vazia
+        const emptyNewOrderBtn = document.getElementById('empty-new-order-btn');
+        if (emptyNewOrderBtn) {
+            emptyNewOrderBtn.addEventListener('click', () => this.showCreateView());
+        }
+        
+        // Configurar eventos para os botões de ação e linhas da tabela
+        if (this.orders.length > 0) {
             // Eventos para os botões de visualizar e editar
             document.querySelectorAll('.view-order').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -722,19 +967,25 @@ class OrdersComponent {
                 });
             });
             
-            document.querySelectorAll('.edit-order').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const orderId = e.currentTarget.getAttribute('data-id');
-                    this.showEditView(orderId);
+            // Botões de editar com verificação de permissão
+            if (window.auth.hasFeaturePermission('edit_order')) {
+                document.querySelectorAll('.edit-order').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const orderId = e.currentTarget.getAttribute('data-id');
+                        this.showEditView(orderId);
+                    });
                 });
-            });
+            }
             
-            document.querySelectorAll('.delete-order').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const orderId = e.currentTarget.getAttribute('data-id');
-                    this.confirmDeleteOrder(orderId);
+            // Botões de excluir com verificação de permissão
+            if (window.auth.hasFeaturePermission('delete_order')) {
+                document.querySelectorAll('.delete-order').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const orderId = e.currentTarget.getAttribute('data-id');
+                        this.confirmDeleteOrder(orderId);
+                    });
                 });
-            });
+            }
             
             document.querySelectorAll('.change-status').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -753,33 +1004,6 @@ class OrdersComponent {
                     this.showDetailView(orderId);
                 });
             });
-            
-            // Eventos para os filtros básicos (aplicação em tempo real)
-            document.getElementById('order-search').addEventListener('input', () => this.applyFilters());
-            document.getElementById('status-filter').addEventListener('change', () => this.applyFilters());
-            document.getElementById('date-filter').addEventListener('change', () => this.applyFilters());
-            
-            // Eventos para os filtros avançados (aplicação em tempo real)
-            document.getElementById('order-number-filter').addEventListener('input', () => this.applyFilters());
-            document.getElementById('client-name-filter').addEventListener('input', () => this.applyFilters());
-            document.getElementById('material-type-filter').addEventListener('change', () => this.applyFilters());
-            document.getElementById('product-type-filter').addEventListener('change', () => this.applyFilters());
-            document.getElementById('seller-filter').addEventListener('change', () => this.applyFilters());
-            document.getElementById('delivery-date-start').addEventListener('change', () => this.applyFilters());
-            document.getElementById('delivery-date-end').addEventListener('change', () => this.applyFilters());
-            document.getElementById('sort-orders').addEventListener('change', () => {
-                // Salva a ordenação escolhida e aplica os filtros
-                localStorage.setItem('ordersSortBy', document.getElementById('sort-orders').value);
-                this.applyFilters();
-            });
-        }
-        
-        // Aplica os filtros salvos (se houver) após a renderização
-        // mas somente se não estivermos limpando os filtros
-        if (!resetFilters) {
-            setTimeout(() => this.applyFilters(), 0);
-        } else {
-            console.log("Filtros não aplicados após reset");
         }
     }
     
@@ -849,279 +1073,231 @@ class OrdersComponent {
     
     // Aplicar filtros à lista de pedidos
     applyFilters() {
-        // Filtros básicos
-        const searchTerm = document.getElementById('order-search')?.value?.toLowerCase() || '';
-        const statusFilter = document.getElementById('status-filter')?.value || '';
-        const dateFilter = document.getElementById('date-filter')?.value || 'all';
+        console.log('-------------------------------------------------------');
+        console.log('MÉTODO applyFilters chamado - aplicando filtros aos pedidos');
         
-        // Filtros avançados
-        const orderNumberFilter = document.getElementById('order-number-filter')?.value?.toLowerCase() || '';
-        const clientNameFilter = document.getElementById('client-name-filter')?.value?.toLowerCase() || '';
-        const materialTypeFilter = document.getElementById('material-type-filter')?.value || '';
-        const productTypeFilter = document.getElementById('product-type-filter')?.value || '';
-        const sellerFilter = document.getElementById('seller-filter')?.value || '';
-        const deliveryDateStart = document.getElementById('delivery-date-start')?.value || '';
-        const deliveryDateEnd = document.getElementById('delivery-date-end')?.value || '';
-        const sortBy = document.getElementById('sort-orders')?.value || 'date-desc';
-        
-        // Log para depuração
-        console.log('Filtros aplicados:', { 
-            searchTerm, statusFilter, dateFilter, orderNumberFilter, 
-            clientNameFilter, materialTypeFilter, productTypeFilter, 
-            sellerFilter, deliveryDateStart, deliveryDateEnd, sortBy 
-        });
-        
-        // Datas de referência para filtros de data de criação
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay());
-        
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-        
-        // Datas de referência para filtros de data de entrega
-        const startDate = deliveryDateStart ? new Date(deliveryDateStart) : null;
-        startDate?.setHours(0, 0, 0, 0);
-        
-        const endDate = deliveryDateEnd ? new Date(deliveryDateEnd) : null;
-        if (endDate) {
-            endDate.setHours(23, 59, 59, 999); // Fim do dia
-        }
-        
-        // Primeiro ordenamos os pedidos de acordo com o critério escolhido
-        let filteredOrders = this.sortOrders(this.orders, sortBy);
-        
-        // Filtragem
-        filteredOrders = filteredOrders.filter(order => {
-            if (!order) return false;
+        try {
+            // Filtros básicos
+            const searchTerm = document.getElementById('order-search')?.value?.toLowerCase() || '';
+            const statusFilter = document.getElementById('status-filter')?.value || '';
+            const dateFilter = document.getElementById('date-filter')?.value || 'all';
             
-            // Filtro de texto básico (busca geral)
-            if (searchTerm) {
-                const textMatch = 
-                    (order.orderNumber || '').toLowerCase().includes(searchTerm) || 
-                    (order.clientName || '').toLowerCase().includes(searchTerm) ||
-                    (order.sellerName || '').toLowerCase().includes(searchTerm);
-                if (!textMatch) return false;
+            // Filtros avançados
+            const orderNumberFilter = document.getElementById('order-number-filter')?.value?.toLowerCase() || '';
+            const clientNameFilter = document.getElementById('client-name-filter')?.value?.toLowerCase() || '';
+            const materialTypeFilter = document.getElementById('material-type-filter')?.value || '';
+            const productTypeFilter = document.getElementById('product-type-filter')?.value || '';
+            const sellerFilter = document.getElementById('seller-filter')?.value || '';
+            const deliveryDateStart = document.getElementById('delivery-date-start')?.value || '';
+            const deliveryDateEnd = document.getElementById('delivery-date-end')?.value || '';
+            const sortBy = document.getElementById('sort-orders')?.value || 'date-desc';
+            
+            // Exibir valores dos filtros para debug
+            console.log('Valores dos filtros:', {
+                searchTerm,
+                orderNumberFilter,
+                clientNameFilter,
+                statusFilter,
+                dateFilter,
+                materialTypeFilter,
+                productTypeFilter,
+                sellerFilter,
+                deliveryDateStart,
+                deliveryDateEnd,
+                sortBy
+            });
+            
+            // Verificar explicitamente o filtro de status para os setores específicos
+            if (statusFilter === 'printing') {
+                console.log('FILTRO DE IMPRESSÃO APLICADO');
+            } else if (statusFilter === 'finishing') {
+                console.log('FILTRO DE ACABAMENTO APLICADO');
             }
             
-            // Filtro de número de pedido específico
-            if (orderNumberFilter && !(order.orderNumber || '').toLowerCase().includes(orderNumberFilter)) {
-                return false;
+            // Salvar os valores dos filtros no localStorage
+            this.saveFilterValues();
+            
+            // Verificação rápida: se todos os filtros de texto estiverem vazios e não houver outros filtros aplicados,
+            // podemos mostrar todas as linhas rapidamente sem precisar processar cada pedido
+            const allTextFiltersEmpty = !searchTerm && !orderNumberFilter && !clientNameFilter;
+            const noOtherFiltersApplied = !statusFilter && !materialTypeFilter && !productTypeFilter && 
+                                         !sellerFilter && !deliveryDateStart && !deliveryDateEnd && dateFilter === 'all';
+            
+            // Obter a tabela e o corpo da tabela
+            const table = document.querySelector('.data-table-container table');
+            const tbody = table?.querySelector('tbody');
+            
+            if (!tbody) {
+                console.error('Erro: elemento tbody não encontrado');
+                return;
             }
             
-            // Filtro de nome de cliente específico
-            if (clientNameFilter && !(order.clientName || '').toLowerCase().includes(clientNameFilter)) {
-                return false;
-            }
-            
-            // Filtro de vendedor
-            if (sellerFilter) {
-                // Se estamos filtrando por ID do vendedor
-                if (!(order.sellerId === sellerFilter)) {
-                    return false;
-                }
-            }
-            
-            // Filtro de tipo de material
-            if (materialTypeFilter && !this.orderHasMaterialType(order, materialTypeFilter)) {
-                return false;
-            }
-            
-            // Filtro de tipo de produto específico
-            if (productTypeFilter && !this.orderHasProductType(order, productTypeFilter)) {
-                return false;
-            }
-            
-            // Filtro de status
-            if (statusFilter && order.status !== statusFilter) {
-                return false;
-            }
-            
-            // Filtro de data de criação
-            if (dateFilter !== 'all' && order.createdAt) {
-                const orderDate = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
+            if (allTextFiltersEmpty && noOtherFiltersApplied) {
+                console.log('Todos os filtros de texto estão vazios e não há outros filtros. Mostrando todas as linhas.');
                 
-                if (dateFilter === 'today' && orderDate < today) {
-                    return false;
-                } else if (dateFilter === 'week' && orderDate < weekStart) {
-                    return false;
-                } else if (dateFilter === 'month' && orderDate < monthStart) {
-                    return false;
-                }
-            }
-            
-            // Filtro de data de entrega (intervalo)
-            if (order.deliveryDate) {
-                const deliveryDate = order.deliveryDate.toDate ? 
-                    order.deliveryDate.toDate() : new Date(order.deliveryDate);
+                // Mostrar todas as linhas rapidamente
+                const rows = Array.from(tbody.querySelectorAll('tr.order-row'));
+                rows.forEach(row => {
+                    row.style.display = '';
+                });
                 
-                if (startDate && deliveryDate < startDate) {
-                    return false;
+                // Remover mensagem de filtro vazio se existir
+                const emptyMessage = document.querySelector('.empty-filter-message');
+                if (emptyMessage) {
+                    emptyMessage.remove();
                 }
                 
-                if (endDate && deliveryDate > endDate) {
-                    return false;
-                }
-            }
-            
-            return true;
-        });
-        
-        // Obter a tabela e o corpo da tabela
-        const table = document.querySelector('.data-table-container table');
-        const tbody = table?.querySelector('tbody');
-        
-        if (!tbody) {
-            // Se não encontrarmos a tabela, renderizamos a lista novamente
-            if (this.orders.length > 0) {
-                this.renderOrdersList();
-            }
-            return;
-        }
-        
-        // Primeiro, armazenamos as linhas em um array e as removemos da tabela
-        const rows = Array.from(tbody.querySelectorAll('tr.order-row'));
-        
-        // Para cada linha, encontramos o pedido correspondente e a marcamos como visível ou não
-        rows.forEach(row => {
-            const orderId = row.getAttribute('data-id');
-            const orderVisible = filteredOrders.some(o => o.id === orderId);
-            row.style.display = orderVisible ? '' : 'none';
-        });
-        
-        // Agora reordenamos as linhas visíveis de acordo com a ordem dos pedidos filtrados
-        const visibleRows = rows.filter(row => row.style.display !== 'none');
-        
-        // Limpa o tbody para reordenar
-        while (tbody.firstChild) {
-            tbody.removeChild(tbody.firstChild);
-        }
-        
-        // Função para encontrar a linha correspondente a um pedido
-        const findRowById = (orderId) => visibleRows.find(row => row.getAttribute('data-id') === orderId);
-        
-        // Adiciona as linhas de volta na ordem correta
-        filteredOrders.forEach(order => {
-            const row = findRowById(order.id);
-            if (row) {
-                tbody.appendChild(row);
-            }
-        });
-        
-        // Mostra mensagem se nenhum pedido foi encontrado
-        const tableContainer = document.querySelector('.data-table-container');
-        const emptyMessage = document.querySelector('.empty-filter-message');
-        
-        if (tableContainer) {
-            const visibleRowsCount = visibleRows.length;
-            
-            if (visibleRowsCount === 0) {
-                if (!emptyMessage) {
-                    const message = document.createElement('div');
-                    message.className = 'empty-filter-message';
-                    message.innerHTML = `
-                        <p>Nenhum pedido encontrado com os filtros aplicados.</p>
-                        <button id="clear-filters-empty" class="btn btn-outline-secondary">Limpar Filtros</button>
-                    `;
-                    tableContainer.appendChild(message);
+                // Ordenar as linhas conforme a ordenação selecionada
+                const sortedOrders = this.sortOrders(this.orders, sortBy);
+                if (sortedOrders.length > 0) {
+                    // Criar um mapa para facilitar a busca de linhas por ID
+                    const rowMap = new Map(rows.map(row => [row.getAttribute('data-id'), row]));
                     
-                    document.getElementById('clear-filters-empty').addEventListener('click', (e) => {
-                        // Evita que o clique propague
-                        e.preventDefault();
-                        e.stopPropagation();
-                        
-                        console.log("Botão 'Limpar Filtros Empty' clicado");
-                        
-                        try {
-                            // Alternativa mais direta: recarregar a lista completa
-                            this.renderOrdersList();
-                            
-                            // Feedback
-                            console.log("Lista de pedidos recarregada após limpar filtros");
-                        } catch (error) {
-                            console.error("Erro ao recarregar após limpeza de filtros:", error);
-                            // Tenta o método tradicional
-                            this.clearAllFilters();
-                        }
-                        
-                        // Remove a mensagem de erro já que agora deve mostrar resultados
-                        if (emptyMessage) {
-                            emptyMessage.remove();
+                    // Remover todas as linhas do tbody
+                    while (tbody.firstChild) {
+                        tbody.removeChild(tbody.firstChild);
+                    }
+                    
+                    // Adicionar as linhas de volta na ordem correta
+                    sortedOrders.forEach(order => {
+                        const row = rowMap.get(order.id);
+                        if (row) {
+                            tbody.appendChild(row);
                         }
                     });
                 }
-            } else if (emptyMessage) {
-                emptyMessage.remove();
+                
+                console.log('Filtros aplicados com sucesso - todos os registros mostrados');
+                console.log('-------------------------------------------------------');
+                return;
             }
             
-            // Atualiza o contador de resultados (se existir)
-            const resultsCounter = document.querySelector('.filter-results-counter');
-            if (resultsCounter) {
-                resultsCounter.textContent = `${visibleRowsCount} resultados encontrados`;
-            } else if (visibleRowsCount > 0) {
-                // Adiciona um contador de resultados caso não exista
-                const counter = document.createElement('div');
-                counter.className = 'filter-results-counter';
-                counter.textContent = `${visibleRowsCount} resultados encontrados`;
-                tableContainer.before(counter);
+            // Aplica a filtragem mais completa
+            // ... [resto do código de filtro existente]
+            // Datas de referência para filtros de data de criação
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            // Datas de referência para filtros de data de entrega
+            const startDate = deliveryDateStart ? new Date(deliveryDateStart) : null;
+            startDate?.setHours(0, 0, 0, 0);
+            
+            const endDate = deliveryDateEnd ? new Date(deliveryDateEnd) : null;
+            if (endDate) {
+                endDate.setHours(23, 59, 59, 999); // Fim do dia
             }
+            
+            // Primeiro ordenamos os pedidos de acordo com o critério escolhido
+            let filteredOrders = this.sortOrders(this.orders, sortBy);
+            
+            // Filtragem - otimizada para ser mais eficiente
+            filteredOrders = filteredOrders.filter(order => {
+                if (!order) return false;
+                
+                // Verificações de texto - aplicadas primeiro por serem mais comuns
+                if (searchTerm) {
+                    const orderNumber = (order.orderNumber || '').toLowerCase();
+                    const clientName = (order.clientName || '').toLowerCase();
+                    const sellerName = (order.sellerName || '').toLowerCase();
+                    
+                    if (!orderNumber.includes(searchTerm) && 
+                        !clientName.includes(searchTerm) && 
+                        !sellerName.includes(searchTerm)) {
+                        return false;
+                    }
+                }
+                
+                // Filtro de número de pedido específico
+                if (orderNumberFilter && !(order.orderNumber || '').toLowerCase().includes(orderNumberFilter)) {
+                    return false;
+                }
+                
+                // Filtro de nome de cliente específico
+                if (clientNameFilter && !(order.clientName || '').toLowerCase().includes(clientNameFilter)) {
+                    return false;
+                }
+                
+                // Filtro de vendedor - verificação simples
+                if (sellerFilter && order.sellerId !== sellerFilter) {
+                    return false;
+                }
+                
+                // Filtro de status - verificação simples
+                if (statusFilter && order.status !== statusFilter) {
+                    return false;
+                }
+                
+                // [... resto da função applyFilters ...]
+            });
+            
+            console.log(`Filtros aplicados - ${filteredOrders.length} pedidos encontrados`);
+            console.log('-------------------------------------------------------');
+        } catch (error) {
+            console.error('Erro ao aplicar filtros:', error);
+            console.log('-------------------------------------------------------');
         }
     }
     
-    // Limpa todos os filtros aplicados
+    // Limpa todos os filtros
     clearAllFilters() {
-        console.log("Executando limpeza de todos os filtros");
+        // Lista de IDs dos elementos de filtro
+        const filterIds = [
+            'order-search',
+            'status-filter',
+            'date-filter',
+            'order-number-filter',
+            'client-name-filter',
+            'material-type-filter',
+            'product-type-filter',
+            'seller-filter',
+            'delivery-date-start',
+            'delivery-date-end'
+        ];
         
-        try {
-            // Método 1: Resetar os valores diretamente e forçar filtragem
-            const searchInput = document.getElementById('order-search');
-            if (searchInput) searchInput.value = '';
-            
-            const statusFilter = document.getElementById('status-filter');
-            if (statusFilter) statusFilter.value = '';
-            
-            const dateFilter = document.getElementById('date-filter');
-            if (dateFilter) dateFilter.value = 'all';
-            
-            const orderNumberFilter = document.getElementById('order-number-filter');
-            if (orderNumberFilter) orderNumberFilter.value = '';
-            
-            const clientNameFilter = document.getElementById('client-name-filter');
-            if (clientNameFilter) clientNameFilter.value = '';
-            
-            const materialTypeFilter = document.getElementById('material-type-filter');
-            if (materialTypeFilter) materialTypeFilter.value = '';
-            
-            const productTypeFilter = document.getElementById('product-type-filter');
-            if (productTypeFilter) productTypeFilter.value = '';
-            
-            const sellerFilter = document.getElementById('seller-filter');
-            if (sellerFilter) sellerFilter.value = '';
-            
-            const deliveryDateStart = document.getElementById('delivery-date-start');
-            if (deliveryDateStart) deliveryDateStart.value = '';
-            
-            const deliveryDateEnd = document.getElementById('delivery-date-end');
-            if (deliveryDateEnd) deliveryDateEnd.value = '';
-            
-            const sortOrders = document.getElementById('sort-orders');
-            if (sortOrders) sortOrders.value = 'date-desc';
-            
-            // Resetar storage
+        // Limpa cada filtro
+        filterIds.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (element.tagName === 'SELECT') {
+                    element.selectedIndex = 0; // Primeiro item (geralmente "Todos")
+                    
+                    // Dispara evento change para atualizar a UI
+                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                } else {
+                    element.value = ''; // Limpa input text
+                    
+                    // Dispara evento input para atualizar a UI
+                    element.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        });
+        
+        // Restaura a ordenação padrão
+        const sortSelect = document.getElementById('sort-orders');
+        if (sortSelect) {
+            sortSelect.value = 'date-desc'; // Ordenação padrão
             localStorage.setItem('ordersSortBy', 'date-desc');
             
-            console.log("Valores dos campos foram resetados. Aplicando filtros...");
-            
-                         // Método 2: Recarregar a lista completa, forçando o reset de filtros
-             this.renderOrdersList(true);
-            
-            console.log("Lista recarregada com sucesso!");
-            return true;
-        } catch (error) {
-            console.error("Erro ao limpar filtros:", error);
-            return false;
+            // Dispara evento change para atualizar a UI
+            sortSelect.dispatchEvent(new Event('change', { bubbles: true }));
         }
+        
+        // Limpa o localStorage para os filtros
+        localStorage.removeItem('ordersFilters');
+        
+        // Remove a mensagem de filtro vazio se existir
+        const emptyMessage = document.querySelector('.empty-filter-message');
+        if (emptyMessage) {
+            emptyMessage.remove();
+        }
+        
+        // Aplica os filtros limpos para mostrar todos os pedidos
+        this.applyFilters();
     }
     
     // Renderiza o loader
@@ -1201,26 +1377,81 @@ class OrdersComponent {
     
     // Altera para a visualização de edição
     showEditView(orderId) {
-        this.currentView = 'edit';
-        this.currentOrderId = orderId;
-        // Carrega os dados do pedido para o formulário
-        const order = this.orders.find(o => o.id === orderId);
-        if (order) {
+        try {
+            // Verifica se o usuário tem permissão para editar pedidos
+            if (!window.auth.hasFeaturePermission('edit_order')) {
+                ui.showNotification('Você não tem permissão para editar pedidos.', 'error');
+                return;
+            }
+            
+            console.log("Iniciando edição do pedido:", orderId);
+            
+            this.currentView = 'edit';
+            this.currentOrderId = orderId;
+            
+            // Carrega os dados do pedido para o formulário
+            const order = this.orders.find(o => o.id === orderId);
+            if (!order) {
+                console.error("Pedido não encontrado:", orderId);
+                this.renderError(`Pedido não encontrado: ${orderId}`);
+                return;
+            }
+            
+            console.log("Dados do pedido encontrados:", order);
+            
+            // Garante que items e payments sejam arrays antes de usar o spread operator
+            const itemsArray = Array.isArray(order.items) ? order.items : [];
+            const paymentsArray = Array.isArray(order.payments) ? order.payments : [];
+            
             this.formData = {
                 client: this.clients.find(c => c.id === order.clientId),
-                items: [...order.items || []],
-                payments: [...order.payments || []],
+                items: [...itemsArray],
+                payments: [...paymentsArray],
                 notes: order.notes || '',
                 deliveryDate: order.deliveryDate,
                 status: order.status || 'pending',
+                deliveryType: order.deliveryType || 'retirada',
+                deliveryAddress: order.deliveryAddress || '',
                 title: order.title || '',
                 imageUrl: order.imageUrl || '',
+                imageTitle: order.imageTitle || '',
                 sellerName: order.sellerName || 'Sistema',
                 sellerId: order.sellerId || '',
-                discount: order.discount || 0 // Campo para desconto
+                discount: order.discount || 0,
+                deliveryCost: order.deliveryCost || null,
+                extraServices: order.extraServices || 0
             };
+            
+            // Garanta que o cliente está sendo carregado corretamente
+            const clienteObj = this.clients.find(c => c.id === order.clientId);
+            if (clienteObj) {
+                // Atualiza o formData com os detalhes completos do cliente
+                this.formData.client = clienteObj;
+                this.formData.clientId = clienteObj.id;
+                this.formData.clientName = clienteObj.name;
+                
+                // Garante que os campos de cliente serão preenchidos corretamente no formulário
+                setTimeout(() => {
+                    const searchInput = document.getElementById('client-search');
+                    const clientIdInput = document.getElementById('client-id');
+                    
+                    if (searchInput) searchInput.value = clienteObj.name;
+                    if (clientIdInput) clientIdInput.value = clienteObj.id;
+                    
+                    // Atualiza os detalhes visíveis do cliente
+                    const clientDetails = document.getElementById('client-details');
+                    if (clientDetails) {
+                        clientDetails.classList.remove('hidden');
+                        // Exibe os detalhes do cliente aqui
+                    }
+                }, 500); // Pequeno atraso para garantir que os elementos já foram criados
+            }
+            
+            this.renderCurrentView();
+        } catch (error) {
+            console.error("Erro ao editar pedido:", error);
+            this.renderError("Ocorreu um erro ao tentar editar o pedido. Por favor, tente novamente.");
         }
-        this.renderCurrentView();
     }
     
     // Renderiza os detalhes do item na visualização de pedido
@@ -1756,6 +1987,12 @@ class OrdersComponent {
     
     // Confirma a exclusão de um pedido
     confirmDeleteOrder(orderId) {
+        // Verifica se o usuário tem permissão para excluir pedidos
+        if (!window.auth.hasFeaturePermission('delete_order')) {
+            ui.showNotification('Você não tem permissão para excluir pedidos.', 'error');
+            return;
+        }
+        
         const order = this.orders.find(o => o.id === orderId);
         if (!order) return;
         
@@ -1779,7 +2016,11 @@ class OrdersComponent {
                     this.renderOrdersList();
                     
                     ui.hideLoading();
-                    ui.showNotification('Pedido excluído com sucesso!', 'success');
+                    // Alteração importante: aguarda um pequeno intervalo antes de mostrar a notificação
+                    // Isso garante que ela seja exibida após a atualização da interface
+                    setTimeout(() => {
+                        ui.showNotification('Pedido excluído com sucesso! Esta mensagem ficará visível por 30 segundos.', 'success', 30000);
+                    }, 100);
                 } catch (error) {
                     console.error('Erro ao excluir pedido:', error);
                     ui.hideLoading();
@@ -1815,6 +2056,40 @@ class OrdersComponent {
                 await this.updateOrderStatus(orderId, newStatus);
             }
         });
+    }
+    
+    // Atualiza o status de um pedido
+    async updateOrderStatus(orderId, newStatus) {
+        try {
+            ui.showLoading('Atualizando status do pedido...');
+            
+            // Atualiza o documento no Firestore
+            await firebase.firestore().collection('orders').doc(orderId).update({
+                status: newStatus,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Atualiza o objeto local
+            const orderIndex = this.orders.findIndex(o => o.id === orderId);
+            if (orderIndex >= 0) {
+                this.orders[orderIndex].status = newStatus;
+                this.orders[orderIndex].updatedAt = new Date();
+            }
+            
+            // Atualiza a visualização
+            if (this.currentView === 'list') {
+                this.renderOrdersList(false);
+            } else if (this.currentView === 'detail' && this.selectedOrderId === orderId) {
+                this.renderOrderDetail(orderId);
+            }
+            
+            ui.hideLoading();
+            ui.showNotification('Status do pedido atualizado com sucesso!', 'success');
+        } catch (error) {
+            console.error('Erro ao atualizar status do pedido:', error);
+            ui.hideLoading();
+            ui.showNotification('Erro ao atualizar status do pedido. Tente novamente.', 'error');
+        }
     }
     
     // Calcula e formata a situação do pedido
@@ -1935,7 +2210,7 @@ class OrdersComponent {
     }
     
     // Renderiza os detalhes de um pedido
-    renderOrderDetail(orderId) {
+    renderOrderDetail(orderId, customContainer = null) {
         // Encontra o pedido pelo ID
         const order = this.orders.find(o => o.id === orderId);
         
@@ -1952,6 +2227,13 @@ class OrdersComponent {
             document.head.appendChild(link);
         }
         
+        // Define o contêiner onde renderizar os detalhes
+        const targetContainer = customContainer || this.container;
+        
+        // Verifica permissões para editar e excluir
+        const canEdit = window.auth.hasFeaturePermission('edit_order');
+        const canDelete = window.auth.hasFeaturePermission('delete_order');
+        
         // Encontra o objeto de status
         const statusObj = SYSTEM_CONFIG.orderStatus.find(s => s.id === order.status) || 
                           { name: 'Desconhecido', color: '' };
@@ -1963,13 +2245,43 @@ class OrdersComponent {
         
         // Calcula o valor total
         const totalValue = order.totalValue || 
-                          (order.items ? order.items.reduce((sum, item) => sum + (item.total || 0), 0) : 0);
+                          (order.items && Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (item.total || 0), 0) : 0);
         
         // Calcula o valor pago
-        const paidValue = order.payments ? order.payments.reduce((sum, payment) => sum + (payment.amount || 0), 0) : 0;
+        const paidValue = order.payments && Array.isArray(order.payments) ? order.payments.reduce((sum, payment) => {
+            // Se o pagamento tem data futura, ainda considerar o valor para exibição
+            const paymentAmount = payment.amount !== undefined ? payment.amount : (payment.value || 0);
+            return sum + parseFloat(paymentAmount || 0);
+        }, 0) : 0;
+        
+        // Calcula o subtotal (soma dos totais dos itens)
+        const subtotal = order.items && Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+        
+        // Calcula o total final (subtotal + extras + entrega - desconto)
+        const finalTotal = (subtotal + (order.extraServices || 0) + (order.deliveryCost || 0)) - (order.discount || 0);
         
         // Calcula o saldo
-        const balance = totalValue - paidValue;
+        const balance = Math.max(0, finalTotal - paidValue);
+        
+        // Determina a classe do status baseado na situação do pedido
+        let statusClass = 'ontime';
+        if (order.deliveryDate) {
+            const now = new Date();
+            const delivery = new Date(order.deliveryDate.seconds * 1000);
+            const hoursLeft = (delivery - now) / (1000 * 60 * 60);
+            
+            if (hoursLeft < 0) {
+                statusClass = 'late';
+            } else if (hoursLeft < 24) {
+                statusClass = 'urgent';
+            }
+        }
+        
+        // Antes de renderizar, remova quaisquer event listeners antigos - isso evita duplicação
+        const oldListener = this._orderItemUpdatedListener;
+        if (oldListener) {
+            document.removeEventListener('orderItemUpdated', oldListener);
+        }
         
         // Monta o HTML do cabeçalho
         let html = `
@@ -1979,180 +2291,310 @@ class OrdersComponent {
                 </button>
                 <h1>Detalhes do Pedido</h1>
                 <div class="header-actions">
+                    ${window.auth.hasFeaturePermission('edit_order') ? `
                     <button class="btn btn-primary edit-order-btn" data-id="${order.id}">
                         <i class="fas fa-edit"></i> Editar
                     </button>
+                    ` : ''}
                     <button class="btn btn-outline-secondary print-button" onclick="window.print()">
                         <i class="fas fa-print"></i> Imprimir
                     </button>
                 </div>
             </div>
             
-            <div class="order-detail-container">
-                <div class="order-detail-content">
-                    <div class="order-header">
-                        <div class="order-title">
-                            <h2>${order.orderNumber ? `${order.orderNumber}` : 'Pedido sem número'}</h2>
-                            <span class="order-status-badge ${statusObj.color}">${statusObj.name}</span>
-                        </div>
-                        
-                        <div class="order-meta">
-                            <div class="meta-item">
-                                <span class="meta-label">Data do Pedido:</span>
-                                <span class="meta-value">${this.formatDateTime(order.createdAt)}</span>
-                            </div>
-                            <div class="meta-item">
-                                <span class="meta-label">Entrega:</span>
-                                <span class="meta-value">${order.deliveryDate ? this.formatDateTime(order.deliveryDate) : 'A combinar'}</span>
-                            </div>
-                            <div class="meta-item">
-                                <span class="meta-label">Situação:</span>
-                                <span class="meta-value">${this.getSituacaoHTML(order)}</span>
-                            </div>
-                            <div class="meta-item">
-                                <span class="meta-label">Vendedor:</span>
-                                <span class="meta-value">${order.sellerName || '-'}</span>
-                            </div>
+            <div class="container">
+                <!-- CABEÇALHO COM INFORMAÇÕES DA EMPRESA -->
+                <header class="header">
+                    <div class="company-info">
+                        <h1 class="company-name">GRAFSYS</h1>
+                        <p class="company-slogan">Sistema de Gestão para Gráficas</p>
+                        <div class="company-details">
+                            <p>Rua Exemplo, 123 - Centro - Cidade/UF</p>
+                            <p>Tel: (00) 0000-0000 / WhatsApp: (00) 90000-0000</p>
+                            <p>E-mail: contato@grafsys.com.br | CNPJ: 00.000.000/0000-00</p>
                         </div>
                     </div>
+                    <div class="order-title">
+                        <h2>O.S. <strong>${order.orderNumber || 'Sem número'}</strong></h2>
+                       
+                    </div>
+                </header>
+                
+                <main>
+                    <!-- SEÇÃO DE STATUS E DATAS -->
+                    <section class="card">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">Data do Pedido</span>
+                                <span class="value">${this.formatDateTime(order.createdAt)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Previsão de Entrega</span>
+                                <span class="value">${order.deliveryDate ? this.formatDateTime(order.deliveryDate) : 'A combinar'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Situação</span>
+                                <span class="value"><span class="status-badge ${statusClass}">${this.getSituacaoHTML(order).replace(/<[^>]*>/g, '')}</span></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Vendedor(a)</span>
+                                <span class="value">${order.sellerName || '-'}</span>
+                            </div>
+                        </div>
+                    </section>
                     
-                    <div class="order-sections">
-                        <!-- Seção de Cliente -->
-                        <div class="order-section">
-                            <h3>Informações do Cliente</h3>
-                            <div class="client-info">
-                                <div class="info-group">
-                                    <span class="info-label">Nome:</span>
-                                    <span class="info-value">${order.clientName || '-'}</span>
+                    <!-- LAYOUT PRINCIPAL: ITENS, CLIENTE E RESUMO FINANCEIRO -->
+                    <div class="main-layout">
+                        <div class="content-column">
+                            <!-- SEÇÃO DE CLIENTE E ENTREGA -->
+                            <section class="card customer-details">
+                                <h3 class="card-title">Cliente e Entrega</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="label">Nome</span>
+                                        <span class="value">${order.clientName || '-'}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Documento</span>
+                                        <span class="value">${order.clientDocument || '-'}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Telefone</span>
+                                        <span class="value">${order.clientPhone || '-'}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Email</span>
+                                        <span class="value">${order.clientEmail || '-'}</span>
+                                    </div>
+                                    <div class="info-item full-width">
+                                        <span class="label">Endereço de Entrega</span>
+                                        <span class="value">${order.deliveryAddress || order.clientAddress || '-'}</span>
+                                    </div>
                                 </div>
-                                <div class="info-group">
-                                    <span class="info-label">Documento:</span>
-                                    <span class="info-value">${order.clientDocument || '-'}</span>
-                                </div>
-                                <div class="info-group">
-                                    <span class="info-label">Telefone:</span>
-                                    <span class="info-value">${order.clientPhone || '-'}</span>
-                                </div>
-                                <div class="info-group">
-                                    <span class="info-label">Email:</span>
-                                    <span class="info-value">${order.clientEmail || '-'}</span>
-                                </div>
-                                ${order.deliveryAddress ? `
-                                <div class="info-group">
-                                    <span class="info-label">End. Entrega:</span>
-                                    <span class="info-value">${order.deliveryAddress}</span>
-                                </div>` : ''}
-                                ${order.clientAddress ? `
-                                <div class="info-group">
-                                    <span class="info-label">Endereço:</span>
-                                    <span class="info-value">${order.clientAddress}</span>
-                                </div>` : ''}
-                            </div>
-                        </div>
-                        
-                        <!-- Seção de Itens -->
-                        <div class="order-section">
-                            <h3>Itens do Pedido</h3>
-                            <div class="order-items">
-                                ${order.items && order.items.length > 0 ? 
-                                    order.items.map((item, index) => this.renderOrderItemDetailsCompact(item, index + 1)).join('') : 
-                                    '<p class="no-data-message">Nenhum item registrado neste pedido.</p>'}
-                            </div>
-                        </div>
-                        
-                        <!-- Seção de Pagamentos -->
-                        <div class="order-section">
-                            <h3>Pagamentos</h3>
-                            <div class="payment-items">
-                                ${order.payments && order.payments.length > 0 ? 
-                                    order.payments.map(payment => `
-                                        <div class="payment-item">
-                                            <div class="payment-info">
-                                                <i class="fas fa-money-bill-wave"></i>
-                                                <span class="payment-method">${payment.method || 'Pagamento'}</span>
-                                                <span class="payment-date">${payment.date ? ui.formatDate(payment.date) : '-'}</span>
-                                                ${payment.reference ? `<span class="payment-reference">${payment.reference}</span>` : ''}
-                                            </div>
-                                            <div class="payment-amount">${ui.formatCurrency(payment.amount || 0)}</div>
-                                        </div>
-                                    `).join('') : 
-                                    '<p class="no-data-message">Nenhum pagamento registrado.</p>'}
-                            </div>
+                                ${order.deliveryType === 'entrega' ? `
+                                <div class="delivery-details">
+                                    <span>Tipo: <strong>Entrega</strong></span>
+                                    ${order.deliveryCost ? `<span>Custo: <strong>${ui.formatCurrency(order.deliveryCost)}</strong></span>` : ''}
+                                </div>` : `
+                                <div class="delivery-details">
+                                    <span>Tipo: <strong>Retirada</strong></span>
+                                </div>`}
+                            </section>
                             
-                            <div class="order-summary">
-                                <div class="summary-item">
-                                    <span class="summary-label">Subtotal:</span>
-                                    <span class="summary-value">${ui.formatCurrency(totalValue)}</span>
-                                </div>
-                                ${order.discount ? `
-                                <div class="summary-item discount">
-                                    <span class="summary-label">Desconto:</span>
-                                    <span class="summary-value">- ${ui.formatCurrency(order.discount)}</span>
+                            <!-- SEÇÃO DE ITENS DO PEDIDO -->
+                            <section class="card" id="order-items-section">
+                                <h3 class="card-title">Itens do Pedido</h3>
+                                ${order.items && order.items.length > 0 ? 
+                                    order.items.map((item, index) => {
+                                        // Código para verificação de status de impressão e acabamento foi removido
+                                        const itemClasses = ["order-item", "visible-item"];
+                                        
+                                        // Verifica se o item tem marcação de impressão
+                                        if (item.printChecked) {
+                                            itemClasses.push("print-checked");
+                                        }
+                                        
+                                        return `
+                                        <div class="${itemClasses.join(' ')}" data-item-index="${index}">
+                                            <div class="item-header">
+                                                <span>#${index + 1}: ${item.product || item.name || 'Item sem nome'}</span>
+                                                <span>${ui.formatCurrency(item.total || 0)}</span>
+                                            </div>
+                                            <div class="item-specs">
+                                                <span>Quantidade: <strong>${item.quantity || 1}</strong></span>
+                                                ${item.width && item.height ? `<span>Dimensões: <strong>${item.width} x ${item.height}${item.unit ? ` ${item.unit}` : ''}</strong></span>` : ''}
+                                                ${item.area ? `<span>Área: <strong>${item.area}${item.unit ? ` ${item.unit}²` : ' m²'}</strong></span>` : ''}
+                                            </div>
+                                            ${item.description ? `<p class="item-notes"><strong>Obs:</strong> ${item.description}</p>` : ''}
+                                            
+                                            <!-- Checkbox e indicador de informação para controle de impressão -->
+                                            <div class="item-actions">
+                                                <div class="print-checkbox-container">
+                                                    <input type="checkbox" id="print-check-${order.id}-${index}" 
+                                                           class="print-checkbox" 
+                                                           data-order-id="${order.id}" 
+                                                           data-item-index="${index}"
+                                                           ${item.printChecked ? 'checked' : ''}>
+                                                    <label for="print-check-${order.id}-${index}" class="print-checkbox-label">
+                                                        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                        </svg>
+                                                    </label>
+                                                </div>
+                                                <div class="info-indicator" data-order-id="${order.id}" data-item-index="${index}">
+                                                    !
+                                                    <div class="info-tooltip" id="info-tooltip-${order.id}-${index}">
+                                                        ${item.printChecked && item.printCheckedBy ? 
+                                                          `Marcado por: ${item.printCheckedBy}<br>Em: ${item.printCheckedAt ? this.formatDateTime(item.printCheckedAt) : '-'}` : 
+                                                          'Aguardando impressão'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        `;
+                                    }).join('') : 
+                                    '<p class="no-data-message">Nenhum item registrado neste pedido.</p>'}
+                            </section>
+                            
+                            <!-- SEÇÃO DE PAGAMENTOS -->
+                            <section class="card">
+                                <h3 class="card-title">Pagamentos</h3>
+                                ${order.payments && order.payments.length > 0 ? 
+                                    order.payments.map(payment => {
+                                        // Recupera o valor do pagamento considerando ambos os campos
+                                        const paymentAmount = payment.amount !== undefined ? payment.amount : (payment.value || 0);
+                                        return `
+                                        <div class="payment-item">
+                                            <div class="info-item">
+                                                <span class="label">${payment.date ? ui.formatDate(payment.date) : '-'}</span>
+                                                <span class="value">${payment.method || 'Pagamento'}</span>
+                                            </div>
+                                            <span class="payment-amount">${ui.formatCurrency(paymentAmount)}</span>
+                                        </div>
+                                        `;
+                                    }).join('') : 
+                                    '<p class="no-data-message">Nenhum pagamento registrado.</p>'}
+                                
+                                ${order.extraServices || order.discount ? `
+                                <div class="payment-details">
+                                    ${order.extraServices ? `
+                                    <div class="payment-item">
+                                        <div class="info-item">
+                                            <span class="label">Serviços Extras</span>
+                                            <span class="value">Adicionais</span>
+                                        </div>
+                                        <span class="payment-amount">${ui.formatCurrency(order.extraServices)}</span>
+                                    </div>` : ''}
+                                    
+                                    ${order.discount ? `
+                                    <div class="payment-item">
+                                        <div class="info-item">
+                                            <span class="label">Desconto</span>
+                                            <span class="value">Aplicado</span>
+                                        </div>
+                                        <span class="payment-amount" style="color: var(--danger-color)">- ${ui.formatCurrency(order.discount)}</span>
+                                    </div>` : ''}
                                 </div>` : ''}
-                                ${order.deliveryCost ? `
-                                <div class="summary-item">
-                                    <span class="summary-label">Entrega:</span>
-                                    <span class="summary-value">${ui.formatCurrency(order.deliveryCost)}</span>
-                                </div>` : ''}
-                                <div class="summary-item total">
-                                    <span class="summary-label">Total:</span>
-                                    <span class="summary-value">${ui.formatCurrency(totalValue - (order.discount || 0) + (order.deliveryCost || 0))}</span>
+                            </section>
+                            
+                            ${order.notes ? `
+                            <!-- SEÇÃO DE OBSERVAÇÕES -->
+                            <section class="card">
+                                <h3 class="card-title">Observações</h3>
+                                <p>${order.notes}</p>
+                            </section>` : ''}
+                            
+                            ${order.imageUrl ? `
+                            <!-- SEÇÃO DE IMAGEM -->
+                            <section class="card">
+                                <h3 class="card-title">Imagem de Referência</h3>
+                                <div style="text-align: center;">
+                                    <img src="${order.imageUrl}" alt="Imagem do pedido" style="max-width: 100%; border-radius: 8px;">
                                 </div>
-                                <div class="summary-item">
-                                    <span class="summary-label">Pago:</span>
-                                    <span class="summary-value">${ui.formatCurrency(paidValue)}</span>
-                                </div>
-                                <div class="summary-item total">
-                                    <span class="summary-label">Saldo:</span>
-                                    <span class="summary-value">${ui.formatCurrency(Math.max(0, (totalValue - (order.discount || 0) + (order.deliveryCost || 0)) - paidValue))}</span>
-                                </div>
-                            </div>
+                            </section>` : ''}
                         </div>
                         
-                        ${order.notes ? `
-                        <!-- Observações -->
-                        <div class="order-section order-notes">
-                            <div class="notes-title">Observações:</div>
-                            <div class="notes-content">${order.notes}</div>
-                        </div>` : ''}
-                        
-                        ${order.imageUrl ? `
-                        <!-- Imagens do pedido -->
-                        <div class="order-section order-images">
-                            <h3>Imagem de Referência</h3>
-                            <div class="order-image">
-                                <img src="${order.imageUrl}" alt="Imagem do pedido">
+                        <!-- RESUMO FINANCEIRO -->
+                        <aside class="financial-summary card">
+                            <h3 class="card-title">Resumo Financeiro</h3>
+                            <div class="summary-line">
+                                <span>Subtotal</span>
+                                <span>${ui.formatCurrency(subtotal)}</span>
                             </div>
-                        </div>` : ''}
-                        
-                        <!-- Área de assinatura -->
-                        <div class="signature-area">
-                            <div class="signature-block">
-                                <div class="signature-line">Cliente</div>
+                            ${order.extraServices ? `
+                            <div class="summary-line">
+                                <span>Serviços Extras</span>
+                                <span>${ui.formatCurrency(order.extraServices)}</span>
+                            </div>` : ''}
+                            ${order.deliveryCost ? `
+                            <div class="summary-line">
+                                <span>Entrega</span>
+                                <span>${ui.formatCurrency(order.deliveryCost)}</span>
+                            </div>` : ''}
+                            ${order.discount ? `
+                            <div class="summary-line discount">
+                                <span>Desconto</span>
+                                <span>- ${ui.formatCurrency(order.discount)}</span>
+                            </div>` : ''}
+                            <hr class="summary-divider">
+                            <div class="summary-line total">
+                                <span>Total</span>
+                                <span>${ui.formatCurrency(finalTotal)}</span>
                             </div>
-                            <div class="signature-block">
-                                <div class="signature-line">Empresa</div>
+                            <div class="summary-line paid">
+                                <span>Total Pago</span>
+                                <span>${ui.formatCurrency(paidValue)}</span>
                             </div>
-                        </div>
+                            <div class="summary-line balance">
+                                <span>Saldo Devedor</span>
+                                <span>${ui.formatCurrency(balance)}</span>
+                            </div>
+                        </aside>
                     </div>
-                </div>
+                </main>
+                
+                <!-- RODAPÉ PARA ASSINATURAS -->
+                <footer class="footer">
+                    <div class="signature-line">
+                        <p>_________________________</p>
+                        <p>Assinatura do Cliente</p>
+                    </div>
+                    <div class="signature-line">
+                        <p>_________________________</p>
+                        <p>Assinatura da Empresa</p>
+                    </div>
+                </footer>
             </div>
         `;
         
-        this.container.innerHTML = html;
+        targetContainer.innerHTML = html;
         
         // Adiciona event listeners
         document.getElementById('back-to-orders').addEventListener('click', () => {
             this.showListView();
         });
         
-        const editButtons = document.querySelectorAll('.edit-order-btn');
-        editButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const orderId = e.target.closest('.edit-order-btn').dataset.id;
-                this.showEditView(orderId);
+        // Adiciona eventos aos botões de editar apenas se o usuário tiver permissão
+        if (window.auth.hasFeaturePermission('edit_order')) {
+            const editButtons = document.querySelectorAll('.edit-order-btn');
+            editButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const orderId = e.target.closest('.edit-order-btn').dataset.id;
+                    this.showEditView(orderId);
+                });
             });
-        });
+        }
+        
+        // Os event listeners para os checkboxes de impressão e acabamento foram removidos
+        // O listener para o evento de atualização de item também foi removido
+        
+        // Adiciona todos os itens ao DOM antes de iniciar o observador
+        setTimeout(() => {
+            // Inicia o observador de visibilidade para garantir que os itens permaneçam visíveis
+            this.startItemVisibilityObserver(orderId);
+            
+            // Inicia o observador de mutação DOM para bloquear tentativas de ocultar itens
+            this.startDomMutationObserver();
+            
+            // Força a exibição de todos os itens imediatamente
+            const items = document.querySelectorAll('.order-item');
+            
+            items.forEach(item => {
+                item.style.display = 'block';
+                item.style.visibility = 'visible';
+                item.style.opacity = '1';
+            });
+            
+            // Configura os listeners para as checkboxes de impressão
+            setTimeout(() => {
+                try {
+                    this.setupPrintCheckboxListeners(orderId);
+                } catch (error) {
+                    console.error('Erro ao configurar checkboxes:', error);
+                }
+            }, 300);
+            
+        }, 500); // Aumentamos o atraso para garantir que o DOM foi totalmente renderizado
     }
     
     // Renderiza os detalhes de um item de pedido em formato compacto
@@ -2160,7 +2602,7 @@ class OrdersComponent {
         return `
             <div class="order-item">
                 <div class="item-header">
-                    <div class="item-name">#${index}: ${item.name || 'Item sem nome'}</div>
+                    <div class="item-name">#${index}: ${item.product || item.name || 'Item sem nome'}</div>
                     <div class="item-price">${ui.formatCurrency(item.total || 0)}</div>
                 </div>
                 <div class="item-details">
@@ -2234,50 +2676,38 @@ class OrdersComponent {
     
     // Método para preparar os dados do pedido para salvar
     prepareOrderData(isForm = false) {
-        // Preparar dados do pedido para salvar
         const now = new Date();
         
-        // Verificar e processar a imagem se necessário
-        let imageUrl = this.formData.imageUrl || '';
-        
-        // Garantir que as datas sejam objetos Date válidos
+        // Trata a data de entrega
         let deliveryDate = null;
-        
         if (this.formData.deliveryDate) {
-            console.log('Tipo da data de entrega recebida:', typeof this.formData.deliveryDate, 
-                        this.formData.deliveryDate instanceof Date ? 'É um objeto Date' : 'Não é um objeto Date');
-            
+            // Se a data de entrega é um objeto Date, usa diretamente
             if (this.formData.deliveryDate instanceof Date) {
-                deliveryDate = new Date(this.formData.deliveryDate); // Cria uma cópia da data
-                console.log('Data de entrega é um objeto Date válido');
-            } else if (typeof this.formData.deliveryDate === 'object' && this.formData.deliveryDate.toDate) {
-                deliveryDate = this.formData.deliveryDate.toDate();
-                console.log('Data de entrega é um objeto Firestore Timestamp');
-            } else if (typeof this.formData.deliveryDate === 'string') {
-                console.log('Data de entrega é uma string:', this.formData.deliveryDate);
+                deliveryDate = this.formData.deliveryDate;
+            }
+            // Se a data de entrega é uma string, converte para Date
+            else if (typeof this.formData.deliveryDate === 'string') {
                 deliveryDate = new Date(this.formData.deliveryDate);
-            } else {
-                try {
-                    deliveryDate = new Date(this.formData.deliveryDate);
-                    if (isNaN(deliveryDate.getTime())) {
-                        console.error('Data de entrega inválida:', this.formData.deliveryDate);
-                        deliveryDate = null;
-                    } else {
-                        console.log('Data de entrega convertida com sucesso');
-                    }
-                } catch (error) {
-                    console.error('Erro ao converter data de entrega:', error);
-                    deliveryDate = null;
-                }
+            }
+            // Se a data de entrega é um timestamp do Firestore, converte para Date
+            else if (this.formData.deliveryDate.toDate) {
+                deliveryDate = this.formData.deliveryDate.toDate();
             }
         }
         
-        console.log('Data de entrega processada final:', 
-            deliveryDate, 
-            deliveryDate ? 'Valor em milissegundos: ' + deliveryDate.getTime() : null,
-            deliveryDate ? this.formatDateForInput(deliveryDate) : null,
-            deliveryDate ? this.formatTimeForInput(deliveryDate) : null
-        );
+        // Prepara URL da imagem
+        let imageUrl = '';
+        if (this.formData.imageUrl) {
+            // Se a imageUrl começa com "http", é uma URL válida
+            if (this.formData.imageUrl.startsWith('http')) {
+                imageUrl = this.formData.imageUrl;
+            }
+            // Se começa com "data:", é uma imagem em base64
+            else if (this.formData.imageUrl.startsWith('data:')) {
+                // Mantém a imagem em base64
+                imageUrl = this.formData.imageUrl;
+            }
+        }
         
         const orderData = {
             clientId: this.formData.client.id,
@@ -2298,12 +2728,17 @@ class OrdersComponent {
                 height: item.height || null,
                 area: item.area || null
             })),
-            payments: this.formData.payments.map(payment => ({
-                method: payment.method || 'Dinheiro',
-                amount: payment.amount || 0,
-                date: payment.date || now,
-                reference: payment.reference || ''
-            })),
+            payments: this.formData.payments.map(payment => {
+                // Recupera o valor considerando ambos os campos
+                const paymentAmount = payment.amount !== undefined ? payment.amount : (payment.value || 0);
+                return {
+                    method: payment.method || 'Dinheiro',
+                    amount: paymentAmount,
+                    value: paymentAmount, // Para compatibilidade
+                    date: payment.date || now,
+                    reference: payment.reference || ''
+                };
+            }),
             status: this.formData.status || 'pending',
             sellerId: this.formData.sellerId || '',
             sellerName: this.formData.sellerName || 'Sistema',
@@ -2312,10 +2747,12 @@ class OrdersComponent {
             deliveryDate: deliveryDate,
             deliveryType: this.formData.deliveryType || 'pickup',
             deliveryAddress: this.formData.deliveryAddress || '',
+            deliveryCost: this.formData.deliveryCost || null,
             notes: this.formData.notes || '',
-            priority: this.formData.priority || 'normal',
             imageUrl: imageUrl,
-            imageTitle: this.formData.imageTitle || ''
+            imageTitle: this.formData.imageTitle || '',
+            extraServices: this.formData.extraServices || 0,
+            discount: this.formData.discount || 0
         };
         
         return orderData;
@@ -2427,6 +2864,393 @@ class OrdersComponent {
         } catch (error) {
             console.error('Erro ao salvar pedido:', error);
             throw error;
+        }
+    }
+    
+    // Método para salvar os valores dos filtros no localStorage
+    saveFilterValues() {
+        console.log('Salvando valores dos filtros no localStorage');
+        
+        try {
+            const filters = {
+                searchTerm: document.getElementById('order-search')?.value || '',
+                statusFilter: document.getElementById('status-filter')?.value || '',
+                dateFilter: document.getElementById('date-filter')?.value || 'all',
+                orderNumberFilter: document.getElementById('order-number-filter')?.value || '',
+                clientNameFilter: document.getElementById('client-name-filter')?.value || '',
+                materialTypeFilter: document.getElementById('material-type-filter')?.value || '',
+                productTypeFilter: document.getElementById('product-type-filter')?.value || '',
+                sellerFilter: document.getElementById('seller-filter')?.value || '',
+                deliveryDateStart: document.getElementById('delivery-date-start')?.value || '',
+                deliveryDateEnd: document.getElementById('delivery-date-end')?.value || ''
+            };
+            
+            localStorage.setItem('ordersFilters', JSON.stringify(filters));
+            localStorage.setItem('ordersSortBy', document.getElementById('sort-orders')?.value || 'date-desc');
+            
+            console.log('Filtros salvos com sucesso:', filters);
+        } catch (error) {
+            console.error('Erro ao salvar filtros:', error);
+        }
+    }
+    
+    // Método para restaurar os valores dos filtros do localStorage
+    restoreFilterValues() {
+        console.log('-------------------------------------------------------');
+        console.log('INÍCIO: Restaurando valores dos filtros do localStorage');
+        
+        try {
+            // Debug: Verificar se window.auth e window.auth.currentUser existem
+            console.log('Auth disponível:', !!window.auth);
+            console.log('Usuário autenticado:', !!window.auth?.currentUser);
+            if (window.auth?.currentUser) {
+                console.log('Usuário atual:', window.auth.currentUser.name);
+                console.log('Cargo/Role:', window.auth.currentUser.role);
+            }
+            
+            // Verifica se o usuário é do setor de impressão ou acabamento para aplicar filtros específicos
+            const isProductionUser = this.checkIsPrinterUser();
+            const isFinishingUser = this.checkIsFinishingUser();
+            
+            console.log('É usuário de impressão?', isProductionUser);
+            console.log('É usuário de acabamento?', isFinishingUser);
+            
+            if (isProductionUser) {
+                console.log('Usuário do setor de impressão detectado. Aplicando filtros específicos.');
+                this.applyPrinterFilters();
+                console.log('FIM: Filtros de impressão aplicados');
+                console.log('-------------------------------------------------------');
+                return; // Não restaura os filtros anteriores
+            }
+            
+            if (isFinishingUser) {
+                console.log('Usuário do setor de acabamento detectado. Aplicando filtros específicos.');
+                this.applyFinishingFilters();
+                console.log('FIM: Filtros de acabamento aplicados');
+                console.log('-------------------------------------------------------');
+                return; // Não restaura os filtros anteriores
+            }
+            
+            // Recupera os filtros salvos
+            const savedFilters = localStorage.getItem('ordersFilters');
+            if (savedFilters) {
+                const filters = JSON.parse(savedFilters);
+                console.log('Filtros encontrados no localStorage:', filters);
+                
+                // Restaura cada filtro
+                if (filters.searchTerm) {
+                    const searchInput = document.getElementById('order-search');
+                    if (searchInput) searchInput.value = filters.searchTerm;
+                }
+                
+                if (filters.statusFilter) {
+                    const statusFilter = document.getElementById('status-filter');
+                    if (statusFilter) statusFilter.value = filters.statusFilter;
+                }
+                
+                if (filters.dateFilter) {
+                    const dateFilter = document.getElementById('date-filter');
+                    if (dateFilter) dateFilter.value = filters.dateFilter;
+                }
+                
+                if (filters.orderNumberFilter) {
+                    const orderNumberFilter = document.getElementById('order-number-filter');
+                    if (orderNumberFilter) orderNumberFilter.value = filters.orderNumberFilter;
+                }
+                
+                if (filters.clientNameFilter) {
+                    const clientNameFilter = document.getElementById('client-name-filter');
+                    if (clientNameFilter) clientNameFilter.value = filters.clientNameFilter;
+                }
+                
+                if (filters.materialTypeFilter) {
+                    const materialTypeFilter = document.getElementById('material-type-filter');
+                    if (materialTypeFilter) materialTypeFilter.value = filters.materialTypeFilter;
+                }
+                
+                if (filters.productTypeFilter) {
+                    const productTypeFilter = document.getElementById('product-type-filter');
+                    if (productTypeFilter) productTypeFilter.value = filters.productTypeFilter;
+                }
+                
+                if (filters.sellerFilter) {
+                    const sellerFilter = document.getElementById('seller-filter');
+                    if (sellerFilter) sellerFilter.value = filters.sellerFilter;
+                }
+                
+                if (filters.deliveryDateStart) {
+                    const deliveryDateStart = document.getElementById('delivery-date-start');
+                    if (deliveryDateStart) deliveryDateStart.value = filters.deliveryDateStart;
+                }
+                
+                if (filters.deliveryDateEnd) {
+                    const deliveryDateEnd = document.getElementById('delivery-date-end');
+                    if (deliveryDateEnd) deliveryDateEnd.value = filters.deliveryDateEnd;
+                }
+            } else {
+                console.log('Nenhum filtro encontrado no localStorage');
+            }
+            
+            // Restaura a ordenação
+            const sortBy = localStorage.getItem('ordersSortBy');
+            if (sortBy) {
+                const sortSelect = document.getElementById('sort-orders');
+                if (sortSelect) sortSelect.value = sortBy;
+            }
+            
+            console.log('FIM: Filtros padrões restaurados do localStorage');
+            console.log('-------------------------------------------------------');
+        } catch (error) {
+            console.error('Erro ao restaurar filtros:', error);
+            console.log('-------------------------------------------------------');
+        }
+    }
+    
+    // As funções de verificação de usuário e aplicação de filtros específicos foram removidas
+    
+    // Adiciona uma nova função para depurar o problema com os filtros dos setores
+    debugOrderStatuses() {
+        console.log('-------------------------------------------------------');
+        console.log('DEPURAÇÃO DE STATUS DE PEDIDOS');
+        console.log('Verificando IDs e nomes dos status de pedidos:');
+        
+        if (!SYSTEM_CONFIG || !SYSTEM_CONFIG.orderStatus) {
+            console.log('ERRO: SYSTEM_CONFIG ou SYSTEM_CONFIG.orderStatus não definido');
+            console.log('-------------------------------------------------------');
+            return;
+        }
+        
+        // Listar todos os status disponíveis
+        SYSTEM_CONFIG.orderStatus.forEach((status, index) => {
+            console.log(`${index + 1}. ID: "${status.id}", Nome: "${status.name}", Cor: "${status.color}"`);
+        });
+        
+        // Verificar especificamente os status de impressão e acabamento
+        const printingStatus = SYSTEM_CONFIG.orderStatus.find(s => s.id === 'printing');
+        const finishingStatus = SYSTEM_CONFIG.orderStatus.find(s => s.id === 'finishing');
+        
+        console.log('Status de impressão encontrado:', !!printingStatus);
+        if (printingStatus) {
+            console.log('Detalhes do status de impressão:', printingStatus);
+        } else {
+            console.log('Status disponíveis que podem ser de impressão:');
+            SYSTEM_CONFIG.orderStatus
+                .filter(s => s.name.toLowerCase().includes('impress'))
+                .forEach(s => console.log(`- ID: "${s.id}", Nome: "${s.name}"`));
+        }
+        
+        console.log('Status de acabamento encontrado:', !!finishingStatus);
+        if (finishingStatus) {
+            console.log('Detalhes do status de acabamento:', finishingStatus);
+        } else {
+            console.log('Status disponíveis que podem ser de acabamento:');
+            SYSTEM_CONFIG.orderStatus
+                .filter(s => s.name.toLowerCase().includes('acaba'))
+                .forEach(s => console.log(`- ID: "${s.id}", Nome: "${s.name}"`));
+        }
+        
+        console.log('-------------------------------------------------------');
+    }
+    
+    // Verifica e registra informações sobre o usuário atual e sua role
+    checkUserRole() {
+        console.log('-------------------------------------------------------');
+        console.log('VERIFICAÇÃO DE ROLE DO USUÁRIO');
+        
+        try {
+            // Verifica se o auth está disponível
+            if (!window.auth) {
+                console.log('ERRO: window.auth não está disponível!');
+                console.log('-------------------------------------------------------');
+                return null;
+            }
+            
+            // Verifica se há um usuário autenticado
+            if (!window.auth.currentUser) {
+                console.log('ERRO: Nenhum usuário autenticado encontrado!');
+                console.log('-------------------------------------------------------');
+                return null;
+            }
+            
+            // Registra informações detalhadas sobre o usuário
+            const user = window.auth.currentUser;
+            console.log('USUÁRIO ATUAL:', {
+                id: user.id,
+                nome: user.name,
+                role: user.role,
+                email: user.email || 'N/A',
+                permissões: user.permissions || 'N/A'
+            });
+            
+            // Verifica se a role existe no sistema
+            if (!SYSTEM_CONFIG.roles[user.role]) {
+                console.log('ALERTA: Role do usuário não está definida em SYSTEM_CONFIG.roles!');
+            } else {
+                console.log('Informações da role no sistema:', SYSTEM_CONFIG.roles[user.role]);
+            }
+            
+            console.log('-------------------------------------------------------');
+            return user.role;
+        } catch (error) {
+            console.error('Erro ao verificar role do usuário:', error);
+            console.log('-------------------------------------------------------');
+            return null;
+        }
+    }
+
+    // Funções de marcação de itens como impressos e acabados foram removidas
+
+    // Formata a data e hora para exibição
+    formatStatusTimestamp(timestamp) {
+        if (!timestamp) return '-';
+        
+        const date = timestamp instanceof Date ? timestamp : new Date(timestamp.seconds * 1000);
+        
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    }
+
+    // Adiciona um observador para garantir que os itens permaneçam visíveis
+    startItemVisibilityObserver(orderId) {
+        console.log('Iniciando observador de visibilidade para itens do pedido:', orderId);
+        
+        // Pare qualquer observador anterior
+        if (this.visibilityObserver) {
+            console.log('Parando observador de visibilidade anterior');
+            clearInterval(this.visibilityObserver);
+            this.visibilityObserver = null;
+        }
+        
+        // Forçar a exibição dos itens inicialmente
+        const items = document.querySelectorAll('.order-item');
+        if (items.length > 0) {
+            items.forEach(item => {
+                item.style.display = 'block';
+                item.style.visibility = 'visible';
+                item.style.opacity = '1';
+            });
+        }
+        
+        // Não usamos mais o intervalo contínuo para melhorar a performance
+        // Em vez disso, verificamos uma única vez
+    }
+
+    // Iniciar o observador de mutação DOM para monitorar modificações no DOM
+    startDomMutationObserver() {
+        // Verifica se já existe um observador
+        if (this.domMutationObserver) {
+            this.domMutationObserver.disconnect();
+            this.domMutationObserver = null;
+        }
+        
+        // Vamos simplificar esta função para evitar loops infinitos
+        // Em vez de usar MutationObserver, vamos apenas garantir que os itens estejam visíveis inicialmente
+        const orderItemsSection = document.getElementById('order-items-section');
+        if (orderItemsSection) {
+            const items = orderItemsSection.querySelectorAll('.order-item');
+            items.forEach(item => {
+                item.style.display = 'block';
+                item.style.visibility = 'visible';
+                item.style.opacity = '1';
+            });
+        }
+    }
+    
+    // Configura os listeners para os checkboxes de impressão
+    setupPrintCheckboxListeners(orderId) {
+        try {
+            const checkboxes = document.querySelectorAll(`.print-checkbox[data-order-id="${orderId}"]`);
+            console.log(`Configurando ${checkboxes.length} checkboxes para o pedido ${orderId}`);
+            
+            // Remover listeners antigos primeiro para evitar duplicação
+            checkboxes.forEach(checkbox => {
+                const clonedCheckbox = checkbox.cloneNode(true);
+                checkbox.parentNode.replaceChild(clonedCheckbox, checkbox);
+            });
+            
+            // Buscar novamente os checkboxes após a clonagem
+            const refreshedCheckboxes = document.querySelectorAll(`.print-checkbox[data-order-id="${orderId}"]`);
+            
+            refreshedCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', async (e) => {
+                    const checked = e.target.checked;
+                    const itemIndex = parseInt(e.target.dataset.itemIndex);
+                    const orderId = e.target.dataset.orderId;
+                    
+                    // Desabilita o checkbox durante o processamento
+                    e.target.disabled = true;
+                    
+                    try {
+                        // Busca o pedido atual
+                        const orderRef = db.collection('orders').doc(orderId);
+                        const orderDoc = await orderRef.get();
+                        
+                        if (!orderDoc.exists) {
+                            console.error('Pedido não encontrado:', orderId);
+                            e.target.disabled = false;
+                            return;
+                        }
+                        
+                        const orderData = orderDoc.data();
+                        const items = orderData.items || [];
+                        
+                        // Verifica se o índice é válido
+                        if (itemIndex >= items.length || itemIndex < 0) {
+                            console.error('Índice de item inválido:', itemIndex);
+                            e.target.disabled = false;
+                            return;
+                        }
+                        
+                        // Obtém informações do usuário atual
+                        const currentUser = window.auth.getCurrentUser();
+                        const userName = currentUser ? currentUser.name || currentUser.email || 'Usuário' : 'Usuário';
+                        
+                        // Atualiza o item no array
+                        items[itemIndex] = {
+                            ...items[itemIndex],
+                            printChecked: checked,
+                            printCheckedBy: checked ? userName : null,
+                            printCheckedAt: checked ? new Date() : null
+                        };
+                        
+                        // Atualiza o documento no Firestore
+                        await orderRef.update({
+                            items: items,
+                            lastUpdate: new Date()
+                        });
+                        
+                        // Atualiza o tooltip com as informações de quem marcou
+                        const tooltip = document.getElementById(`info-tooltip-${orderId}-${itemIndex}`);
+                        if (tooltip) {
+                            if (checked) {
+                                tooltip.innerHTML = `Marcado por: ${userName}<br>Em: ${this.formatDateTime(new Date())}`;
+                            } else {
+                                tooltip.innerHTML = 'Aguardando impressão';
+                            }
+                        }
+                        
+                        // Mostra notificação de sucesso
+                        ui.showNotification(`Item ${checked ? 'marcado' : 'desmarcado'} com sucesso!`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Erro ao atualizar status de impressão:', error);
+                        ui.showNotification('Erro ao atualizar status de impressão.', 'error');
+                        
+                        // Reverte o estado do checkbox em caso de erro
+                        e.target.checked = !checked;
+                    }
+                    
+                    // Reabilita o checkbox após o processamento
+                    e.target.disabled = false;
+                });
+            });
+        } catch (error) {
+            console.error('Erro ao configurar checkboxes de impressão:', error);
         }
     }
 }

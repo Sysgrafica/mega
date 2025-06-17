@@ -21,7 +21,8 @@ class UI {
             { id: 'products', label: 'Produtos', icon: 'fa-boxes', component: 'ProductsComponent' },
             { id: 'employees', label: 'Funcionários', icon: 'fa-id-card', component: 'EmployeesComponent' },
             { id: 'suppliers', label: 'Fornecedores', icon: 'fa-truck', component: 'SuppliersComponent' },
-            { id: 'reports', label: 'Relatórios', icon: 'fa-chart-bar', component: 'ReportsComponent' }
+            { id: 'reports', label: 'Relatórios', icon: 'fa-chart-bar', component: 'ReportsComponent' },
+            { id: 'permissions', label: 'Gerenciar Permissões', icon: 'fa-shield-alt', component: 'PermissionsComponent' }
         ];
         
         this.init();
@@ -57,7 +58,7 @@ class UI {
         
         this.menuItems.forEach(item => {
             // Verifica se o usuário tem permissão para este item
-            if (window.auth.hasPermission(item.id)) {
+            if (window.auth.hasPagePermission(item.id)) {
                 const menuItem = document.createElement('a');
                 menuItem.href = '#';
                 menuItem.dataset.page = item.id;
@@ -81,6 +82,13 @@ class UI {
     
     // Navega para uma página específica
     navigateTo(pageId, callback = null, isInitialLoad = false) {
+        // Verifica se o usuário tem permissão para acessar a página
+        if (!window.auth.hasPagePermission(pageId)) {
+            console.error(`Usuário não tem permissão para acessar: ${pageId}`);
+            this.showNotification('Você não tem permissão para acessar esta página.', 'error');
+            return;
+        }
+        
         // Verifica se a página existe
         if (!this.menuItems.find(item => item.id === pageId)) {
             console.error(`Página não encontrada: ${pageId}`);
@@ -200,29 +208,80 @@ class UI {
     }
     
     // Exibe uma notificação temporária
-    showNotification(message, type = 'success') {
+    showNotification(message, type = 'success', customTime = null) {
+        console.log('Exibindo notificação:', message, 'tipo:', type, 'tempo:', customTime);
+        
         // Limpa timeout anterior, se existir
         if (this.notificationTimeout) {
             clearTimeout(this.notificationTimeout);
         }
         
+        // Força a criação da área de notificações se não existir
+        if (!this.notificationArea || !document.body.contains(this.notificationArea)) {
+            console.log('Área de notificações não encontrada, criando nova');
+            this.notificationArea = document.createElement('div');
+            this.notificationArea.id = 'notification-area';
+            document.body.appendChild(this.notificationArea);
+        }
+        
         // Cria elemento de notificação
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.textContent = message;
+        notification.style.display = 'block'; // Garante que a notificação seja exibida
+        
+        // Adiciona botão de fechar para notificações importantes
+        if (message.includes('excluído') || type === 'error' || type === 'warning') {
+            notification.innerHTML = `
+                ${message}
+                <span class="notification-close-btn">×</span>
+            `;
+            // Adiciona evento ao botão de fechar
+            const closeBtn = notification.querySelector('.notification-close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateY(-20px)';
+                    notification.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    setTimeout(() => {
+                        if (notification.parentNode === this.notificationArea) {
+                            this.notificationArea.removeChild(notification);
+                        }
+                    }, 500);
+                });
+            }
+        } else {
+            notification.textContent = message;
+        }
         
         // Adiciona à área de notificações
         this.notificationArea.appendChild(notification);
         
-        // Configura a remoção automática após 5 segundos
+        // Define tempo de exibição com base no tipo e no conteúdo da mensagem
+        let displayTime = customTime || 5000; // 5 segundos (padrão)
+        
+        // Aumenta o tempo para mensagens importantes
+        if (message.includes('excluído com sucesso') || message.includes('excluir')) {
+            displayTime = customTime || 15000; // 15 segundos para exclusões (aumentado de 8s para 15s)
+        } else if (type === 'error' || type === 'warning') {
+            displayTime = customTime || 12000; // 12 segundos para erros e avisos (aumentado de 7s para 12s)
+        } else if (message.length > 50) {
+            displayTime = customTime || 8000; // 8 segundos para mensagens longas (aumentado de 6s para 8s)
+        }
+        
+        // Configura a remoção automática após o tempo definido
         this.notificationTimeout = setTimeout(() => {
+            // Adiciona classe para animação de saída
             notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-20px)';
+            notification.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
             
             // Remove do DOM após a animação de fade out
             setTimeout(() => {
-                this.notificationArea.removeChild(notification);
-            }, 300);
-        }, 5000);
+                if (notification.parentNode === this.notificationArea) {
+                    this.notificationArea.removeChild(notification);
+                }
+            }, 500);
+        }, displayTime);
     }
     
     // Abre o modal de ação rápida
@@ -302,297 +361,608 @@ class UI {
         this.openModal(title || 'Confirmar', modalContent);
     }
     
-    // Cria um formulário dinâmico
+    // Cria um formulário a partir de uma definição de campos
     createForm(fields, submitCallback, initialValues = {}) {
         const form = document.createElement('form');
-        form.className = 'dynamic-form';
+        form.className = 'custom-form';
         
-        // Cria os campos do formulário
+        // Para cada campo, cria os elementos correspondentes
         fields.forEach(field => {
-            const formGroup = document.createElement('div');
-            formGroup.className = 'input-group';
+            // Verifica permissão, se o campo exigir
+            if (field.requiresPermission && !window.auth.hasFeaturePermission(field.requiresPermission)) {
+                // Se não tiver permissão, não inclui o campo no formulário
+                return;
+            }
             
-            // Label
+            const fieldContainer = document.createElement('div');
+            fieldContainer.className = 'form-group';
+            
+            // Label para o campo
             const label = document.createElement('label');
-            label.setAttribute('for', field.id);
             label.textContent = field.label;
-            formGroup.appendChild(label);
+            if (field.id) {
+                label.htmlFor = field.id;
+            }
+            fieldContainer.appendChild(label);
             
-            // Campo
-            let input;
+            // Elemento de input, conforme o tipo
+            let inputElement;
             
             switch (field.type) {
                 case 'select':
-                    input = document.createElement('select');
-                    
+                    inputElement = document.createElement('select');
                     // Adiciona as opções
-                    field.options.forEach(option => {
-                        const optionEl = document.createElement('option');
-                        optionEl.value = option.value;
-                        optionEl.textContent = option.label;
-                        input.appendChild(optionEl);
-                    });
+                    if (field.options && Array.isArray(field.options)) {
+                        field.options.forEach(option => {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option.value;
+                            optionElement.textContent = option.label;
+                            inputElement.appendChild(optionElement);
+                        });
+                    }
                     break;
                     
                 case 'textarea':
-                    input = document.createElement('textarea');
-                    input.rows = field.rows || 4;
+                    inputElement = document.createElement('textarea');
+                    if (field.rows) inputElement.rows = field.rows;
                     break;
                     
                 case 'checkbox':
-                    input = document.createElement('input');
-                    input.type = 'checkbox';
-                    input.checked = initialValues[field.id] || false;
+                    const checkWrapper = document.createElement('div');
+                    checkWrapper.className = 'checkbox-wrapper';
+                    
+                    inputElement = document.createElement('input');
+                    inputElement.type = 'checkbox';
+                    
+                    const checkLabel = document.createElement('span');
+                    checkLabel.className = 'checkbox-label';
+                    checkLabel.textContent = field.checkLabel || '';
+                    
+                    checkWrapper.appendChild(inputElement);
+                    checkWrapper.appendChild(checkLabel);
+                    fieldContainer.appendChild(checkWrapper);
                     break;
                     
-                default:
-                    input = document.createElement('input');
-                    input.type = field.type || 'text';
+                default: // text, email, number, password, etc.
+                    inputElement = document.createElement('input');
+                    inputElement.type = field.type || 'text';
+                    if (field.placeholder) inputElement.placeholder = field.placeholder;
+                    if (field.min !== undefined) inputElement.min = field.min;
+                    if (field.max !== undefined) inputElement.max = field.max;
+                    if (field.step !== undefined) inputElement.step = field.step;
                     break;
             }
             
-            // Atributos comuns
-            input.id = field.id;
-            input.name = field.id;
-            
-            if (field.placeholder) {
-                input.placeholder = field.placeholder;
+            // Configura os atributos comuns
+            if (field.id) {
+                inputElement.id = field.id;
             }
-            
+            inputElement.name = field.name;
+            inputElement.className = 'form-control';
             if (field.required) {
-                input.required = true;
+                inputElement.required = true;
             }
             
-            // Define valor inicial, se existir
-            if (initialValues[field.id] !== undefined && field.type !== 'checkbox') {
-                input.value = initialValues[field.id];
+            // Desabilita o campo se o usuário não tiver permissão para editar
+            if (field.editRequiresPermission && !window.auth.hasFeaturePermission(field.editRequiresPermission)) {
+                inputElement.disabled = true;
+                inputElement.title = 'Você não tem permissão para editar este campo';
             }
             
-            formGroup.appendChild(input);
+            // Aplica o valor inicial, se existir
+            if (initialValues[field.name] !== undefined) {
+                if (field.type === 'checkbox') {
+                    inputElement.checked = !!initialValues[field.name];
+                } else {
+                    inputElement.value = initialValues[field.name];
+                }
+            } else if (field.defaultValue !== undefined) {
+                if (field.type === 'checkbox') {
+                    inputElement.checked = !!field.defaultValue;
+                } else {
+                    inputElement.value = field.defaultValue;
+                }
+            }
             
-            // Mensagem de erro
-            const errorMsg = document.createElement('div');
-            errorMsg.className = 'error-message';
-            errorMsg.id = `${field.id}-error`;
-            formGroup.appendChild(errorMsg);
+            // Se não for checkbox, adiciona o input ao container agora
+            // (para checkbox já foi adicionado junto com seu label)
+            if (field.type !== 'checkbox') {
+                fieldContainer.appendChild(inputElement);
+            }
             
-            form.appendChild(formGroup);
+            // Mensagem de ajuda, se existir
+            if (field.helpText) {
+                const helpText = document.createElement('div');
+                helpText.className = 'help-text';
+                helpText.textContent = field.helpText;
+                fieldContainer.appendChild(helpText);
+            }
+            
+            form.appendChild(fieldContainer);
         });
         
         // Botões de ação
-        const actions = document.createElement('div');
-        actions.className = 'form-actions';
+        const actionButtons = document.createElement('div');
+        actionButtons.className = 'form-actions';
         
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.className = 'btn btn-secondary';
-        cancelBtn.textContent = 'Cancelar';
-        cancelBtn.addEventListener('click', () => this.closeModal());
-        actions.appendChild(cancelBtn);
+        // Botão de cancelar, se solicitado
+        if (fields.some(field => field.name === 'cancel')) {
+            const cancelButton = document.createElement('button');
+            cancelButton.type = 'button';
+            cancelButton.className = 'btn btn-secondary';
+            cancelButton.textContent = 'Cancelar';
+            cancelButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (typeof submitCallback === 'function') {
+                    submitCallback({ cancel: true });
+                }
+            });
+            actionButtons.appendChild(cancelButton);
+        }
         
-        const submitBtn = document.createElement('button');
-        submitBtn.type = 'submit';
-        submitBtn.className = 'btn btn-primary';
-        submitBtn.textContent = 'Salvar';
-        actions.appendChild(submitBtn);
+        // Botão de enviar
+        const submitButton = document.createElement('button');
+        submitButton.type = 'submit';
+        submitButton.className = 'btn btn-primary';
+        submitButton.textContent = 'Salvar';
+        actionButtons.appendChild(submitButton);
         
-        form.appendChild(actions);
+        form.appendChild(actionButtons);
         
-        // Event listener de submit
+        // Event listener para envio do formulário
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             
             // Coleta os valores do formulário
             const formData = {};
             fields.forEach(field => {
-                const input = document.getElementById(field.id);
-                
-                if (field.type === 'checkbox') {
-                    formData[field.id] = input.checked;
-                } else {
-                    formData[field.id] = input.value;
+                const element = form.elements[field.name];
+                if (element) {
+                    if (field.type === 'checkbox') {
+                        formData[field.name] = element.checked;
+                    } else {
+                        formData[field.name] = element.value;
+                    }
                 }
             });
             
-            // Chama o callback de submit
-            submitCallback(formData, form);
+            // Chama o callback com os dados
+            if (typeof submitCallback === 'function') {
+                submitCallback(formData);
+            }
         });
         
         return form;
     }
     
-    // Cria uma tabela de dados
+    // Cria uma tabela de dados a partir de cabeçalhos e dados
     createDataTable(headers, data, options = {}) {
         const tableContainer = document.createElement('div');
-        tableContainer.className = 'table-card';
+        tableContainer.className = 'table-container';
         
-        // Título da tabela
-        if (options.title) {
-            const title = document.createElement('h3');
-            title.textContent = options.title;
-            tableContainer.appendChild(title);
-        }
-        
-        // Barra de pesquisa
+        // Elemento de busca, se solicitado
         if (options.searchable) {
-            const searchBar = document.createElement('div');
-            searchBar.className = 'search-input';
-            
-            const searchIcon = document.createElement('i');
-            searchIcon.className = 'fas fa-search';
-            searchBar.appendChild(searchIcon);
+            const searchContainer = document.createElement('div');
+            searchContainer.className = 'table-search-container';
             
             const searchInput = document.createElement('input');
             searchInput.type = 'text';
-            searchInput.placeholder = 'Pesquisar...';
-            searchInput.addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                
-                // Filtra as linhas
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    if (text.includes(term)) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
+            searchInput.className = 'table-search-input';
+            searchInput.placeholder = 'Buscar...';
             
-            searchBar.appendChild(searchInput);
-            tableContainer.appendChild(searchBar);
+            // Ícone de busca
+            const searchIcon = document.createElement('i');
+            searchIcon.className = 'fas fa-search table-search-icon';
+            
+            searchContainer.appendChild(searchIcon);
+            searchContainer.appendChild(searchInput);
+            tableContainer.appendChild(searchContainer);
+            
+            // Lógica de busca
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                
+                // Filtra os dados conforme o termo de busca
+                const filteredData = searchTerm ? 
+                    data.filter(row => 
+                        Object.values(row).some(value => 
+                            value && value.toString().toLowerCase().includes(searchTerm)
+                        )
+                    ) : data;
+                
+                // Atualiza a tabela com os dados filtrados
+                updateTableRows(filteredData);
+            });
         }
         
-        // Tabela
+        // Container de ações em lote, se houver
+        if (options.batchActions && options.batchActions.length > 0) {
+            const batchActionsContainer = document.createElement('div');
+            batchActionsContainer.className = 'batch-actions-container';
+            
+            const actionsSelect = document.createElement('select');
+            actionsSelect.className = 'batch-actions-select';
+            
+            // Opção padrão
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Ações em lote';
+            defaultOption.selected = true;
+            defaultOption.disabled = true;
+            actionsSelect.appendChild(defaultOption);
+            
+            // Adiciona as opções de ação
+            options.batchActions.forEach(action => {
+                // Verifica se o usuário tem permissão para esta ação
+                if (!action.requiresPermission || window.auth.hasFeaturePermission(action.requiresPermission)) {
+                    const option = document.createElement('option');
+                    option.value = action.id;
+                    option.textContent = action.label;
+                    actionsSelect.appendChild(option);
+                }
+            });
+            
+            // Botão de aplicar
+            const applyButton = document.createElement('button');
+            applyButton.className = 'btn btn-sm btn-secondary batch-actions-button';
+            applyButton.textContent = 'Aplicar';
+            applyButton.disabled = true; // Desabilitado inicialmente
+            
+            batchActionsContainer.appendChild(actionsSelect);
+            batchActionsContainer.appendChild(applyButton);
+            tableContainer.appendChild(batchActionsContainer);
+            
+            // Lógica para ativar/desativar o botão de aplicar
+            actionsSelect.addEventListener('change', () => {
+                applyButton.disabled = !actionsSelect.value;
+            });
+            
+            // Lógica para aplicar a ação selecionada
+            applyButton.addEventListener('click', () => {
+                const selectedAction = options.batchActions.find(a => a.id === actionsSelect.value);
+                const selectedRows = Array.from(tableBody.querySelectorAll('input[type="checkbox"]:checked'))
+                    .map(checkbox => checkbox.dataset.id);
+                
+                if (selectedAction && selectedRows.length > 0) {
+                    if (typeof selectedAction.handler === 'function') {
+                        selectedAction.handler(selectedRows);
+                    }
+                    
+                    // Reseta a seleção
+                    actionsSelect.selectedIndex = 0;
+                    applyButton.disabled = true;
+                }
+            });
+        }
+        
+        // Cria a tabela
         const table = document.createElement('table');
         table.className = 'data-table';
         
-        // Cabeçalho
+        // Cabeçalho da tabela
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
         
+        // Checkbox de seleção para todos, se necessário
+        if (options.selectable) {
+            const selectAllHeader = document.createElement('th');
+            selectAllHeader.className = 'select-column';
+            
+            const selectAllCheckbox = document.createElement('input');
+            selectAllCheckbox.type = 'checkbox';
+            selectAllCheckbox.className = 'select-all-checkbox';
+            
+            selectAllHeader.appendChild(selectAllCheckbox);
+            headerRow.appendChild(selectAllHeader);
+            
+            // Lógica para selecionar/deselecionar todos
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const checkboxes = tableBody.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = e.target.checked;
+                });
+                
+                // Atualiza o estado do botão de ações em lote
+                if (options.batchActions) {
+                    const applyButton = tableContainer.querySelector('.batch-actions-button');
+                    if (applyButton) {
+                        const actionsSelect = tableContainer.querySelector('.batch-actions-select');
+                        applyButton.disabled = !actionsSelect.value || !Array.from(checkboxes).some(cb => cb.checked);
+                    }
+                }
+            });
+        }
+        
+        // Adiciona os cabeçalhos
         headers.forEach(header => {
             const th = document.createElement('th');
             th.textContent = header.label;
             
-            if (header.width) {
-                th.style.width = header.width;
+            // Adiciona classe se for uma coluna de ações
+            if (header.isAction) {
+                th.className = 'action-column';
+            }
+            
+            // Adiciona funcionalidade de ordenação, se solicitada
+            if (options.sortable && header.sortable !== false) {
+                th.className = (th.className + ' sortable').trim();
+                th.dataset.field = header.field;
+                
+                // Ícone de ordenação
+                const sortIcon = document.createElement('i');
+                sortIcon.className = 'fas fa-sort sort-icon';
+                th.appendChild(sortIcon);
+                
+                // Lógica de ordenação
+                th.addEventListener('click', () => {
+                    // Remove classe de ordenação de todos os cabeçalhos
+                    headerRow.querySelectorAll('th').forEach(header => {
+                        header.classList.remove('sort-asc', 'sort-desc');
+                    });
+                    
+                    // Define a direção da ordenação
+                    let sortDirection = 'asc';
+                    if (th.classList.contains('sort-asc')) {
+                        sortDirection = 'desc';
+                    }
+                    
+                    // Adiciona classe de ordenação
+                    th.classList.add(`sort-${sortDirection}`);
+                    
+                    // Ordena os dados
+                    const sortedData = [...data].sort((a, b) => {
+                        const aValue = a[header.field];
+                        const bValue = b[header.field];
+                        
+                        if (aValue === bValue) return 0;
+                        
+                        if (aValue == null) return 1; // Valores nulos por último
+                        if (bValue == null) return -1;
+                        
+                        // Compara os valores conforme a direção
+                        return sortDirection === 'asc' ? 
+                            (aValue < bValue ? -1 : 1) : 
+                            (aValue > bValue ? -1 : 1);
+                    });
+                    
+                    // Atualiza a tabela
+                    updateTableRows(sortedData);
+                });
             }
             
             headerRow.appendChild(th);
         });
         
-        // Adiciona coluna de ações, se necessário
-        if (options.actions) {
-            const actionsHeader = document.createElement('th');
-            actionsHeader.textContent = 'Ações';
-            actionsHeader.style.width = '120px';
-            headerRow.appendChild(actionsHeader);
-        }
-        
         thead.appendChild(headerRow);
         table.appendChild(thead);
         
         // Corpo da tabela
-        const tbody = document.createElement('tbody');
+        const tableBody = document.createElement('tbody');
+        table.appendChild(tableBody);
         
-        data.forEach(item => {
-            const row = document.createElement('tr');
+        // Função para atualizar as linhas da tabela
+        const updateTableRows = (rowsData) => {
+            tableBody.innerHTML = '';
             
-            headers.forEach(header => {
-                const td = document.createElement('td');
+            if (rowsData.length === 0) {
+                // Mensagem para quando não há dados
+                const emptyRow = document.createElement('tr');
+                const emptyCell = document.createElement('td');
+                emptyCell.colSpan = headers.length + (options.selectable ? 1 : 0);
+                emptyCell.className = 'no-data';
+                emptyCell.textContent = options.emptyMessage || 'Nenhum dado disponível';
+                emptyRow.appendChild(emptyCell);
+                tableBody.appendChild(emptyRow);
+                return;
+            }
+            
+            // Adiciona as linhas de dados
+            rowsData.forEach(rowData => {
+                const row = document.createElement('tr');
                 
-                // Se houver um renderizador personalizado
-                if (header.render) {
-                    td.innerHTML = header.render(item[header.field], item);
-                } else {
-                    td.textContent = item[header.field] || '';
+                // Adiciona o ID como atributo data, se existir
+                if (rowData.id) {
+                    row.dataset.id = rowData.id;
                 }
                 
-                row.appendChild(td);
-            });
-            
-            // Botões de ação
-            if (options.actions) {
-                const actionsTd = document.createElement('td');
-                actionsTd.className = 'table-actions';
-                
-                options.actions.forEach(action => {
-                    if (action.condition && !action.condition(item)) {
-                        return; // Pula esta ação se a condição não for atendida
+                // Checkbox de seleção, se necessário
+                if (options.selectable) {
+                    const selectCell = document.createElement('td');
+                    selectCell.className = 'select-column';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'row-checkbox';
+                    if (rowData.id) {
+                        checkbox.dataset.id = rowData.id;
                     }
                     
-                    const button = document.createElement('button');
-                    button.className = `btn btn-sm ${action.class || 'btn-primary'}`;
-                    button.innerHTML = `<i class="fas ${action.icon}"></i>`;
-                    button.title = action.label;
+                    // Lógica para atualizar o estado do botão de ações em lote
+                    if (options.batchActions) {
+                        checkbox.addEventListener('change', () => {
+                            const applyButton = tableContainer.querySelector('.batch-actions-button');
+                            if (applyButton) {
+                                const actionsSelect = tableContainer.querySelector('.batch-actions-select');
+                                const anyChecked = tableBody.querySelector('input[type="checkbox"]:checked');
+                                applyButton.disabled = !actionsSelect.value || !anyChecked;
+                            }
+                        });
+                    }
                     
-                    button.addEventListener('click', () => {
-                        action.onClick(item);
+                    selectCell.appendChild(checkbox);
+                    row.appendChild(selectCell);
+                }
+                
+                // Adiciona as células de dados
+                headers.forEach(header => {
+                    const cell = document.createElement('td');
+                    
+                    // Para colunas de ação, adiciona os botões de ação
+                    if (header.isAction && header.actions) {
+                        header.actions.forEach(action => {
+                            // Verifica se o usuário tem permissão para esta ação
+                            if (!action.requiresPermission || window.auth.hasFeaturePermission(action.requiresPermission)) {
+                                // Se houver uma condição para mostrar o botão, verifica
+                                if (!action.condition || action.condition(rowData)) {
+                                    const actionButton = document.createElement('button');
+                                    actionButton.className = `btn btn-sm ${action.class || 'btn-primary'}`;
+                                    
+                                    // Adiciona ícone, se existir
+                                    if (action.icon) {
+                                        actionButton.innerHTML = `<i class="fas ${action.icon}"></i>`;
+                                        actionButton.title = action.label;
+                                    } else {
+                                        actionButton.textContent = action.label;
+                                    }
+                                    
+                                    // Adiciona evento de clique
+                                    actionButton.addEventListener('click', () => {
+                                        if (typeof action.handler === 'function') {
+                                            action.handler(rowData);
+                                        }
+                                    });
+                                    
+                                    cell.appendChild(actionButton);
+                                }
+                            }
+                        });
+                        
+                        cell.className = 'action-column';
+                    } else if (header.field) {
+                        // Para campos normais, exibe o valor
+                        let value = rowData[header.field];
+                        
+                        // Aplica o formatter, se existir
+                        if (header.formatter && typeof header.formatter === 'function') {
+                            value = header.formatter(value, rowData);
+                        }
+                        
+                        cell.innerHTML = value !== undefined && value !== null ? value : '';
+                        
+                        // Adiciona classe específica, se existir
+                        if (header.cellClass) {
+                            cell.className = header.cellClass;
+                        }
+                    }
+                    
+                    row.appendChild(cell);
+                });
+                
+                // Adiciona evento de clique na linha, se existir handler
+                if (options.onRowClick && typeof options.onRowClick === 'function') {
+                    row.style.cursor = 'pointer';
+                    row.addEventListener('click', (e) => {
+                        // Ignora cliques em checkboxes e botões
+                        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') {
+                            options.onRowClick(rowData);
+                        }
                     });
-                    
-                    actionsTd.appendChild(button);
-                });
+                }
                 
-                row.appendChild(actionsTd);
-            }
+                tableBody.appendChild(row);
+            });
+        };
+        
+        // Inicializa a tabela com os dados
+        updateTableRows(data);
+        
+        // Adiciona paginação, se solicitada
+        if (options.pageable && data.length > (options.pageSize || 10)) {
+            const pageSize = options.pageSize || 10;
+            let currentPage = 1;
+            const totalPages = Math.ceil(data.length / pageSize);
             
-            // Evento de clique na linha, se definido
-            if (options.onRowClick) {
-                row.style.cursor = 'pointer';
-                row.addEventListener('click', (e) => {
-                    // Não dispara se o clique foi em um botão de ação
-                    if (!e.target.closest('.table-actions')) {
-                        options.onRowClick(item);
+            const paginationContainer = document.createElement('div');
+            paginationContainer.className = 'pagination-container';
+            
+            // Conteúdo da paginação
+            const updatePagination = () => {
+                paginationContainer.innerHTML = '';
+                
+                // Exibe informações sobre a página atual
+                const pageInfo = document.createElement('div');
+                pageInfo.className = 'pagination-info';
+                pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+                paginationContainer.appendChild(pageInfo);
+                
+                // Botões de navegação
+                const paginationControls = document.createElement('div');
+                paginationControls.className = 'pagination-controls';
+                
+                // Botão anterior
+                const prevButton = document.createElement('button');
+                prevButton.className = 'btn btn-sm btn-secondary';
+                prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                prevButton.disabled = currentPage === 1;
+                prevButton.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        updateTablePage();
+                        updatePagination();
                     }
                 });
-            }
+                paginationControls.appendChild(prevButton);
+                
+                // Botão próximo
+                const nextButton = document.createElement('button');
+                nextButton.className = 'btn btn-sm btn-secondary';
+                nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                nextButton.disabled = currentPage === totalPages;
+                nextButton.addEventListener('click', () => {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        updateTablePage();
+                        updatePagination();
+                    }
+                });
+                paginationControls.appendChild(nextButton);
+                
+                paginationContainer.appendChild(paginationControls);
+            };
             
-            tbody.appendChild(row);
-        });
-        
-        table.appendChild(tbody);
-        tableContainer.appendChild(table);
-        
-        // Mensagem de "nenhum dado"
-        if (data.length === 0) {
-            const noData = document.createElement('div');
-            noData.className = 'no-data-message';
-            noData.textContent = options.noDataMessage || 'Nenhum dado encontrado.';
-            tableContainer.appendChild(noData);
+            // Função para atualizar os dados da tabela conforme a página
+            const updateTablePage = () => {
+                const start = (currentPage - 1) * pageSize;
+                const end = start + pageSize;
+                const pageData = data.slice(start, end);
+                updateTableRows(pageData);
+            };
+            
+            // Inicializa a paginação
+            updateTablePage();
+            updatePagination();
+            
+            tableContainer.appendChild(paginationContainer);
         }
         
+        tableContainer.appendChild(table);
         return tableContainer;
     }
     
-    // Formata um valor monetário
+    // Formata um valor como moeda
     formatCurrency(value) {
-        return SYSTEM_CONFIG.currency + ' ' + parseFloat(value).toFixed(2).replace('.', ',');
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(value);
     }
     
     // Formata uma data
     formatDate(date) {
         if (!date) return '';
         
-        if (date instanceof Date) {
-            // Se já for um objeto Date
-            const day = date.getDate().toString().padStart(2, '0');
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const year = date.getFullYear();
-            
-            return `${day}/${month}/${year}`;
-        } else if (date.seconds) {
-            // Se for um timestamp do Firestore
-            const jsDate = new Date(date.seconds * 1000);
-            const day = jsDate.getDate().toString().padStart(2, '0');
-            const month = (jsDate.getMonth() + 1).toString().padStart(2, '0');
-            const year = jsDate.getFullYear();
-            
-            return `${day}/${month}/${year}`;
+        // Se for um timestamp do Firestore
+        if (date && typeof date.toDate === 'function') {
+            date = date.toDate();
         }
         
-        return date;
+        // Se for uma string, converte para Date
+        if (typeof date === 'string' || typeof date === 'number') {
+            date = new Date(date);
+        }
+        
+        // Formato padrão DD/MM/YYYY
+        return new Intl.DateTimeFormat('pt-BR').format(date);
     }
     
     // Cria notificação tipo "desfazer"
@@ -700,15 +1070,14 @@ class UI {
     
     // Oculta o toast de carregamento
     hideLoadingToast() {
-        const toast = document.getElementById('loading-toast');
-        if (toast) {
-            // Primeiro remove a classe visible para iniciar a animação de saída
-            toast.classList.remove('visible');
+        const loadingToastEl = document.getElementById('loading-toast');
+        if (loadingToastEl) {
+            loadingToastEl.classList.remove('active');
             
-            // Depois de um tempo, remove o elemento do DOM
+            // Remove após a animação
             setTimeout(() => {
-                if (document.body.contains(toast)) {
-                    document.body.removeChild(toast);
+                if (loadingToastEl.parentNode) {
+                    loadingToastEl.parentNode.removeChild(loadingToastEl);
                 }
             }, 300);
         }
@@ -716,32 +1085,20 @@ class UI {
     
     // Exibe diálogo de confirmação
     showConfirmation(message) {
-        return new Promise(resolve => {
-            // Cria o modal de confirmação
-            const confirmModal = document.createElement('div');
-            confirmModal.className = 'confirmation-modal';
-            
-            confirmModal.innerHTML = `
-                <div class="confirmation-content">
+        return new Promise((resolve) => {
+            const content = `
+                <div class="confirmation-message">
+                    <i class="fas fa-question-circle"></i>
                     <p>${message}</p>
-                    <div class="confirmation-buttons">
-                        <button id="confirm-yes" class="btn btn-primary">Sim</button>
-                        <button id="confirm-no" class="btn btn-secondary">Não</button>
-                    </div>
                 </div>
             `;
             
-            // Adiciona ao body
-            document.body.appendChild(confirmModal);
-            
-            // Adiciona eventos aos botões
-            document.getElementById('confirm-yes').addEventListener('click', () => {
-                document.body.removeChild(confirmModal);
+            this.showModal('Confirmação', content, () => {
                 resolve(true);
-            });
+            }, 'Confirmar', 'Cancelar');
             
-            document.getElementById('confirm-no').addEventListener('click', () => {
-                document.body.removeChild(confirmModal);
+            // Configura o botão de cancelar para resolver com false
+            document.getElementById('modal-cancel').addEventListener('click', () => {
                 resolve(false);
             });
         });
@@ -936,6 +1293,57 @@ class UI {
                 input.focus();
             }
         }, 100);
+    }
+    
+    // Verifica se um botão deve estar habilitado baseado em permissões
+    buttonShouldBeEnabled(featureId) {
+        return window.auth.hasFeaturePermission(featureId);
+    }
+    
+    // Cria um botão com verificação de permissões
+    createPermissionedButton(label, featureId, onClick, className = 'btn-primary', icon = '') {
+        const button = document.createElement('button');
+        const hasPermission = window.auth.hasFeaturePermission(featureId);
+        
+        button.className = `btn ${className} ${!hasPermission ? 'btn-disabled' : ''}`;
+        
+        // Adicionar ícone se fornecido
+        if (icon) {
+            button.innerHTML = `<i class="fas ${icon}"></i> ${label}`;
+        } else {
+            button.textContent = label;
+        }
+        
+        // Se o usuário não tem permissão, desabilita o botão
+        if (!hasPermission) {
+            button.disabled = true;
+            button.title = 'Você não tem permissão para executar esta ação';
+        } else {
+            button.addEventListener('click', onClick);
+        }
+        
+        return button;
+    }
+    
+    // Exibe um elemento apenas se o usuário tem permissão
+    showIfHasPermission(element, featureId) {
+        if (window.auth.hasFeaturePermission(featureId)) {
+            if (typeof element === 'string') {
+                const el = document.querySelector(element);
+                if (el) el.style.display = '';
+            } else if (element instanceof HTMLElement) {
+                element.style.display = '';
+            }
+            return true;
+        } else {
+            if (typeof element === 'string') {
+                const el = document.querySelector(element);
+                if (el) el.style.display = 'none';
+            } else if (element instanceof HTMLElement) {
+                element.style.display = 'none';
+            }
+            return false;
+        }
     }
 }
 

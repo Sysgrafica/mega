@@ -1,0 +1,159 @@
+/* Estilos para a tela de login */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f5f5f5;
+}
+
+.auth-container.active {
+    display: flex;
+}
+
+.auth-container.hidden {
+    display: none;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 400px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    padding: 2rem;
+}
+
+.auth-card .logo {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-card .logo h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.auth-card .logo p {
+    color: #666;
+    font-size: 1rem;
+}
+
+.auth-form h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.input-group {
+    margin-bottom: 1.5rem;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #555;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.input-group input:focus {
+    border-color: #4a90e2;
+    outline: none;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    font-size: 15px;
+    font-weight: 500;
+    text-align: center;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.1s;
+    font-family: 'Poppins';
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn-primary {
+    background-color: #4a90e2;
+    color: #000000;
+    width: 50%;
+    margin-left: 25%;
+    margin-bottom: 10px;
+    margin-top: 10px;
+}
+
+.btn-primary:hover {
+    background-color: #3a80d2;
+}
+
+.error-message {
+    color: #e74c3c;
+    font-size: 0.875rem;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+/* Dark mode */
+.dark-mode .auth-card {
+    background-color: #00000059;
+    color: #ecf0f1;
+}
+.dark-mode .auth-card .logo h1 {
+    color: #a80ca0;
+    font-family: 'Poppins';
+}
+
+.dark-mode .auth-card .logo p {
+    color: #bdc3c7;
+    font-family: 'Poppins';
+}
+
+.dark-mode .auth-form h2 {
+    color: #ecf0f1;
+    font-family: 'Poppins';
+    text-align: center;
+}
+
+.dark-mode .input-group label {
+    color: #bdc3c7;
+    font-family: sans-serif;
+}
+
+.dark-mode .input-group input {
+    background-color: #28042f;
+    border-color: #630e83;
+    color: #ecf0f1;
+}
+
+.dark-mode .input-group input:focus {
+    border-color: #3498db;
+}
+
+.dark-mode .btn-primary {
+    background-color: #3498db;
+    font-family: 'Poppins';
+    font-size: x-large;
+    padding: 10px;
+}
+
+.dark-mode .btn-primary:hover {
+    background-color: #2980b9;
+}

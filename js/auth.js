@@ -12,6 +12,9 @@ class AuthSystem {
         this.userNameDisplay = document.getElementById('user-name');
         this.userRoleDisplay = document.getElementById('user-role');
         
+        // Cache de permissões por setor para evitar múltiplas consultas
+        this.permissionsCache = {};
+        
         // Usuários de demonstração para testes iniciais
         this.demoUsers = {
             '123456': { id: 'admin1', name: 'Administrador', role: 'admin' },
@@ -30,6 +33,10 @@ class AuthSystem {
         if (savedUser) {
             try {
                 this.currentUser = JSON.parse(savedUser);
+                // Carrega as permissões do usuário se ele já estava logado
+                if (this.currentUser) {
+                    await this.loadUserPermissions(this.currentUser.role);
+                }
                 this.showMainApp();
                 this.updateUserInfo();
             } catch (error) {
@@ -99,10 +106,121 @@ class AuthSystem {
                 }
                 
                 console.log("Usuários de demonstração criados com sucesso");
+                
+                // Cria permissões padrão para os setores de demonstração
+                await this.createDefaultPermissions();
             }
         } catch (error) {
             console.error("Erro ao criar usuários de demonstração:", error);
         }
+    }
+    
+    // Cria permissões padrão para os setores de demonstração
+    async createDefaultPermissions() {
+        try {
+            console.log("Criando permissões padrão para setores");
+            
+            // Verifica se já existem permissões configuradas
+            const permissionsCount = await db.collection('permissions').get().then(snap => snap.size);
+            
+            if (permissionsCount === 0) {
+                // Define permissões padrão para cada setor
+                const defaultPermissions = {
+                    // Para administradores, concede todas as permissões
+                    'admin': this.createAllPermissions(true),
+                    
+                    // Para vendedores, concede permissões relacionadas a clientes e pedidos
+                    'seller': {
+                        pages: ["dashboard", "workflow", "orders", "clients", "products"],
+                        features: [
+                            "view_dashboard", "view_workflow", "view_orders", "create_order", 
+                            "edit_order", "view_order_details", "print_order", "view_clients", 
+                            "create_client", "edit_client", "view_products"
+                        ]
+                    },
+                    
+                    // Para designers, concede permissões relacionadas a pedidos
+                    'designer': {
+                        pages: ["dashboard", "workflow", "orders", "products"],
+                        features: [
+                            "view_dashboard", "view_workflow", "view_orders", 
+                            "view_order_details", "view_products"
+                        ]
+                    },
+                    
+                    // Para produção, concede permissões básicas para acompanhar o fluxo de pedidos
+                    'production': {
+                        pages: ["dashboard", "workflow", "orders"],
+                        features: [
+                            "view_dashboard", "view_workflow", "view_orders", 
+                            "view_order_details", "change_order_status"
+                        ]
+                    },
+                    
+                    // Para impressores, permissões para acompanhar pedidos e alterar status
+                    'impressor': {
+                        pages: ["dashboard", "workflow", "orders"],
+                        features: [
+                            "view_dashboard", "view_workflow", "view_orders", 
+                            "view_order_details", "change_order_status"
+                            // Removido intencionalmente: "edit_order", "delete_order"
+                        ]
+                    },
+                    
+                    'acabamento': {
+                        pages: ["dashboard", "workflow", "orders"],
+                        features: [
+                            "view_dashboard", "view_workflow", "view_orders", 
+                            "view_order_details", "change_order_status"
+                            // Removido intencionalmente: "edit_order", "delete_order"
+                        ]
+                    },
+                    
+                    'cortesEspeciais': {
+                        pages: ["dashboard", "workflow", "orders"],
+                        features: [
+                            "view_dashboard", "view_workflow", "view_orders", 
+                            "view_order_details", "change_order_status"
+                        ]
+                    },
+                    
+                    'aplicador': {
+                        pages: ["dashboard", "workflow", "orders"],
+                        features: [
+                            "view_dashboard", "view_workflow", "view_orders", 
+                            "view_order_details", "change_order_status"
+                        ]
+                    }
+                };
+                
+                // Salva as permissões padrão no Firestore
+                for (const [role, permissions] of Object.entries(defaultPermissions)) {
+                    await db.collection('permissions').doc(role).set({
+                        role: role,
+                        roleName: SYSTEM_CONFIG.roles[role].name,
+                        pages: permissions.pages,
+                        features: permissions.features,
+                        lastUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastUpdatedBy: "system"
+                    });
+                }
+                
+                console.log("Permissões padrão criadas com sucesso");
+            }
+        } catch (error) {
+            console.error("Erro ao criar permissões padrão:", error);
+        }
+    }
+    
+    // Cria um objeto com todas as permissões possíveis
+    createAllPermissions(allowed = true) {
+        const allPages = SYSTEM_CONFIG.pages.map(page => page.id);
+        const allFeatures = SYSTEM_CONFIG.features.map(feature => feature.id);
+        
+        return {
+            pages: allowed ? allPages : [],
+            features: allowed ? allFeatures : []
+        };
     }
     
     // Configura event listeners
@@ -119,7 +237,7 @@ class AuthSystem {
     }
     
     // Tentativa de login com código de acesso
-    attemptLogin() {
+    async attemptLogin() {
         const accessCode = this.accessCodeInput.value.trim();
         
         if (!accessCode) {
@@ -130,11 +248,19 @@ class AuthSystem {
         // Verifica se o código existe
         if (this.accessCodes[accessCode]) {
             const user = this.accessCodes[accessCode];
+            
+            // Carrega as permissões do usuário
+            await this.loadUserPermissions(user.role);
+            
             this.currentUser = {
                 id: user.id,
                 name: user.name,
                 role: user.role,
-                roleInfo: SYSTEM_CONFIG.roles[user.role]
+                roleInfo: SYSTEM_CONFIG.roles[user.role],
+                permissions: this.permissionsCache[user.role] || {
+                    pages: SYSTEM_CONFIG.roles[user.role].menuAccess || [],
+                    features: []
+                }
             };
             
             // Salva no localStorage para persistência de sessão
@@ -181,6 +307,112 @@ class AuthSystem {
         }
     }
     
+    // Carrega permissões do usuário com base em seu papel
+    async loadUserPermissions(role) {
+        // Se já temos no cache, retorna
+        if (this.permissionsCache[role]) {
+            console.log(`Usando permissões em cache para ${role}`);
+            return this.permissionsCache[role];
+        }
+        
+        try {
+            console.log(`Carregando permissões para ${role} do Firestore`);
+            
+            // Busca as permissões no Firestore
+            const permissionDoc = await db.collection('permissions').doc(role).get();
+            
+            if (permissionDoc.exists) {
+                const permissionsData = permissionDoc.data();
+                
+                // Salva no cache para evitar consultas repetidas
+                this.permissionsCache[role] = {
+                    pages: permissionsData.pages || [],
+                    features: permissionsData.features || []
+                };
+                
+                console.log(`Permissões carregadas para ${role}:`, this.permissionsCache[role]);
+                return this.permissionsCache[role];
+            } else {
+                console.log(`Nenhuma permissão encontrada para ${role}, usando padrão do papel`);
+                
+                // Se não houver configuração específica, usa o padrão
+                this.permissionsCache[role] = {
+                    pages: SYSTEM_CONFIG.roles[role].menuAccess || [],
+                    features: []
+                };
+                
+                // Cria um documento de permissões padrão para este papel
+                await db.collection('permissions').doc(role).set({
+                    role: role,
+                    roleName: SYSTEM_CONFIG.roles[role].name,
+                    pages: SYSTEM_CONFIG.roles[role].menuAccess || [],
+                    features: [],
+                    lastUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastUpdatedBy: "system"
+                });
+                
+                return this.permissionsCache[role];
+            }
+        } catch (error) {
+            console.error(`Erro ao carregar permissões para ${role}:`, error);
+            
+            // Em caso de erro, usa o padrão
+            this.permissionsCache[role] = {
+                pages: SYSTEM_CONFIG.roles[role].menuAccess || [],
+                features: []
+            };
+            
+            return this.permissionsCache[role];
+        }
+    }
+    
+    // Verifica se o usuário tem permissão para acessar uma página específica
+    hasPagePermission(pageId) {
+        if (!this.currentUser) return false;
+        
+        // Administradores sempre têm acesso a tudo
+        if (this.currentUser.role === 'admin') return true;
+        
+        // Verifica nas permissões dinâmicas
+        if (this.currentUser.permissions && this.currentUser.permissions.pages) {
+            return this.currentUser.permissions.pages.includes(pageId);
+        }
+        
+        // Fallback para o método antigo
+        return this.currentUser.roleInfo.menuAccess.includes(pageId);
+    }
+    
+    // Verifica se o usuário tem uma funcionalidade específica
+    hasFeaturePermission(featureId) {
+        if (!this.currentUser) return false;
+        
+        // Administradores sempre têm acesso a tudo
+        if (this.currentUser.role === 'admin') return true;
+        
+        // Verifica nas permissões dinâmicas
+        if (this.currentUser.permissions && this.currentUser.permissions.features) {
+            return this.currentUser.permissions.features.includes(featureId);
+        }
+        
+        return false;
+    }
+    
+    // Interface unificada para verificar permissões (compatibilidade com o código existente)
+    hasPermission(id) {
+        // Primeiro verifica se é uma página
+        if (SYSTEM_CONFIG.pages.some(page => page.id === id)) {
+            return this.hasPagePermission(id);
+        }
+        
+        // Depois verifica se é uma funcionalidade
+        if (SYSTEM_CONFIG.features.some(feature => feature.id === id)) {
+            return this.hasFeaturePermission(id);
+        }
+        
+        // Se não for nem página nem funcionalidade, usa o método antigo
+        return this.getUserAccessLevel() >= 1;
+    }
+    
     // Efetua o logout
     logout() {
         if (this.currentUser) {
@@ -190,6 +422,10 @@ class AuthSystem {
         this.currentUser = null;
         localStorage.removeItem('currentUser');
         localStorage.removeItem('userConfig');
+        
+        // Limpa o cache de permissões para garantir que serão recarregadas no próximo login
+        this.permissionsCache = {};
+        
         this.showAuthScreen();
         
         // Limpa campos e mensagens de erro
@@ -247,24 +483,64 @@ class AuthSystem {
         this.loginError.classList.remove('active');
     }
     
-    // Verifica se o usuário atual tem permissão para uma funcionalidade específica
-    hasPermission(feature) {
-        if (!this.currentUser || !this.currentUser.roleInfo) {
-            return false;
-        }
-        
-        return this.currentUser.roleInfo.menuAccess.includes(feature);
+    // Obter o nível de acesso do usuário atual
+    getUserAccessLevel() {
+        if (!this.currentUser) return 0;
+        return this.currentUser.roleInfo.level || 0;
     }
     
-    // Obtém o nível de acesso do usuário atual
-    getUserAccessLevel() {
-        if (!this.currentUser || !this.currentUser.roleInfo) {
-            return 0;
+    // Salva permissões para um papel específico
+    async saveRolePermissions(role, permissions) {
+        try {
+            const permissionsData = {
+                role: role,
+                roleName: SYSTEM_CONFIG.roles[role].name,
+                pages: permissions.pages || [],
+                features: permissions.features || [],
+                lastUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastUpdatedBy: this.currentUser ? this.currentUser.id : "system"
+            };
+            
+            await db.collection('permissions').doc(role).set(permissionsData);
+            
+            // Atualiza o cache
+            this.permissionsCache[role] = {
+                pages: permissions.pages || [],
+                features: permissions.features || []
+            };
+            
+            console.log(`Permissões atualizadas para ${role}`);
+            return true;
+        } catch (error) {
+            console.error(`Erro ao salvar permissões para ${role}:`, error);
+            return false;
+        }
+    }
+    
+    // Limpa o cache de permissões (útil após atualizações)
+    clearPermissionsCache() {
+        this.permissionsCache = {};
+        console.log("Cache de permissões limpo");
+    }
+    
+    // Retorna o usuário atualmente logado
+    getCurrentUser() {
+        if (!this.currentUser) {
+            return null;
         }
         
-        return this.currentUser.roleInfo.level;
+        // Garantir que o usuário tenha campos consistentes
+        return {
+            id: this.currentUser.id || '',
+            name: this.currentUser.name || this.currentUser.displayName || '',
+            email: this.currentUser.email || '',
+            role: this.currentUser.role || ''
+        };
     }
 }
+
+// Inicializa o sistema de autenticação globalmente
+window.auth = new AuthSystem();
 
 // Registra o componente globalmente
 window.AuthSystem = AuthSystem; 
