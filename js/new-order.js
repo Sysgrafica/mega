@@ -249,41 +249,21 @@ class NewOrderComponent {
                 });
             });
             
-            // Carrega funcionários para usar como vendedores
+            // Carrega funcionários ativos
             const employeesSnapshot = await db.collection('employees')
                 .where('active', '==', true)
                 .get();
             this.employees = [];
-            this.users = [];
-            
             employeesSnapshot.forEach(doc => {
                 const employee = doc.data();
                 this.employees.push({
                     id: doc.id,
                     ...employee
                 });
-                
-                // Adiciona à lista de usuários/vendedores
-                this.users.push({
-                    id: doc.id,
-                    name: employee.name || 'Usuário',
-                    role: employee.role || 'employee'
-                });
             });
-            
-            // Se não houver vendedores e estamos no modo de demonstração, cria alguns
-            if (this.users.length === 0) {
-                console.log("Nenhum vendedor encontrado, usando dados de demonstração");
-                this.users = [
-                    { id: 'seller1', name: 'Vendedor 1', role: 'seller' },
-                    { id: 'seller2', name: 'Vendedor 2', role: 'seller' },
-                    { id: 'admin1', name: 'Administrador', role: 'admin' }
-                ];
-            }
             
         } catch (error) {
             console.error('Erro ao carregar dados iniciais:', error);
-            throw error;
         }
     }
     
@@ -336,6 +316,20 @@ class NewOrderComponent {
             // Busca o próximo número de pedido
             const nextOrderNumber = await this.getNextOrderNumber();
             this.formData.orderNumber = nextOrderNumber;
+            
+            // Se for novo pedido, define o vendedor como o usuário logado (se for vendedor)
+            if (!isEditing) {
+                const currentUser = window.auth.getCurrentUser();
+                if (currentUser) {
+                    // Verifica se o usuário atual é um vendedor
+                    const userAsSeller = this.employees.find(e => e.id === currentUser.id && e.role === 'seller');
+                    if (userAsSeller) {
+                        console.log("Definindo vendedor padrão como usuário logado:", userAsSeller.name);
+                        this.formData.sellerId = currentUser.id;
+                        this.formData.sellerName = userAsSeller.name;
+                    }
+                }
+            }
         }
         
         const headerText = isEditing ? 'Editar Pedido' : 'Novo Pedido';
@@ -346,7 +340,7 @@ class NewOrderComponent {
                 <!-- CABEÇALHO -->
                 <header class="page-header">
                    
-                    <div class="header-actions">
+                    <div class="header-actionsNJ">
                         <button id="cancel-order-btn" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Cancelar
                         </button>
@@ -379,9 +373,8 @@ class NewOrderComponent {
                             </div>
                             <div class="form-group">
                                 <label for="seller" class="required">Vendedor</label>
-                                <select id="seller" class="form-control" required>
-                                    <option value="">Selecione um vendedor</option>
-                                    ${this.renderSellerOptions ? this.renderSellerOptions() : ''}
+                                <select id="seller" name="sellerId" class="form-control" required>
+                                    ${this.renderSellerOptions(isEditing)}
                                 </select>
                             </div>
                             <div class="form-group">
@@ -591,48 +584,83 @@ class NewOrderComponent {
         // Configura o tratamento do tipo de entrega
         this.setupDeliveryTypeHandler();
         
-        // Pré-define o vendedor logado
-        const vendedorSelect = document.getElementById('seller');
-        if (vendedorSelect) {
-            const usuarioAtual = JSON.parse(localStorage.getItem('currentUser'));
-            if (usuarioAtual && usuarioAtual.id) {
-                vendedorSelect.value = usuarioAtual.id;
-            }
+        // Configura o manipulador de imagens
+        this.setupImageHandlers();
+        
+        // Configura o manipulador de "a combinar"
+        this.setupDeliveryToArrangeHandler();
+        
+        // Adiciona os event listeners para os pagamentos
+        this.setupPaymentEventListeners();
+        
+        // Atualiza os totais do pedido
+        this.updateOrderTotals();
+        
+        // Seleciona o vendedor correto após a renderização
+        const sellerSelect = document.getElementById('seller');
+        
+        // Se não estiver editando, define o vendedor como o usuário logado
+        if (!isEditing && sellerSelect && this.formData.sellerId) {
+            console.log("Definindo vendedor no select para novo pedido:", this.formData.sellerId);
+            sellerSelect.value = this.formData.sellerId;
+        } 
+        // Se estiver editando, usa o vendedor que já está no pedido
+        else if (isEditing && sellerSelect && this.formData.sellerId) {
+            console.log("Definindo vendedor no select para edição:", this.formData.sellerId);
+            sellerSelect.value = this.formData.sellerId;
         }
     }
     
     // Renderiza as opções de vendedor no select
-    renderSellerOptions() {
+    renderSellerOptions(isEditing = false) {
         let options = '<option value="">Selecione um vendedor</option>';
         
-        // Verifica se temos usuários carregados
-        if (this.users && Array.isArray(this.users) && this.users.length > 0) {
-            // Filtra apenas vendedores se tivermos essa informação
-            const sellers = this.users.filter(user => 
-                user.role === 'seller' || 
-                user.role === 'vendedor' || 
-                (user.role && user.role.toLowerCase().includes('vend'))
-            );
-            
-            // Se não encontramos vendedores, usamos todos os usuários
-            const usersToShow = sellers.length > 0 ? sellers : this.users;
-            
-            // Ordena por nome
-            usersToShow.sort((a, b) => {
-                const nameA = a.name ? a.name.toLowerCase() : '';
-                const nameB = b.name ? b.name.toLowerCase() : '';
-                return nameA.localeCompare(nameB);
-            });
-            
-            // Adiciona cada vendedor como uma opção
-            usersToShow.forEach(user => {
-                const selected = user.id === this.formData.sellerId ? 'selected' : '';
-                options += `<option value="${user.id}" ${selected}>${user.name || 'Usuário sem nome'}</option>`;
-            });
-        } else {
-            // Opção padrão se não tivermos vendedores
-            options += `<option value="sistema">Sistema</option>`;
+        if (!this.employees || this.employees.length === 0) {
+            console.warn("A lista de vendedores (this.employees) está vazia.");
+            return '<option value="">Nenhum vendedor encontrado</option>';
         }
+
+        // Filtra para mostrar apenas vendedores ativos
+        const sellers = this.employees.filter(emp => emp.role === 'seller' && emp.active);
+
+        if (sellers.length === 0) {
+            return '<option value="">Nenhum vendedor cadastrado</option>';
+        }
+
+        let selectedSellerId = null;
+        
+        // Se estiver editando um pedido, o vendedor deve ser o que já está no pedido
+        if (isEditing) {
+            console.log("Editando pedido: usando vendedor original:", this.formData.sellerId);
+            selectedSellerId = this.formData.sellerId;
+        } else { 
+            // Se for um novo pedido, o vendedor padrão é o usuário logado
+            const currentUser = window.auth.getCurrentUser();
+            console.log("Novo pedido: usuário atual:", currentUser);
+            
+            if (currentUser) {
+                // Primeiro, verifica se o usuário logado é um vendedor na lista
+                const userAsSeller = sellers.find(s => s.id === currentUser.id);
+                
+                if (userAsSeller) {
+                    console.log("Usuário atual é vendedor:", userAsSeller.name);
+                    selectedSellerId = currentUser.id;
+                    
+                    // Também define no formData para garantir que seja salvo
+                    this.formData.sellerId = currentUser.id;
+                    this.formData.sellerName = userAsSeller.name;
+                } else {
+                    console.log("Usuário atual não é vendedor ou não está na lista de vendedores ativos");
+                }
+            }
+        }
+        
+        console.log("ID do vendedor selecionado:", selectedSellerId);
+        
+        sellers.forEach(employee => {
+            const isSelected = employee.id === selectedSellerId;
+            options += `<option value="${employee.id}" ${isSelected ? 'selected' : ''}>${employee.name}</option>`;
+        });
         
         return options;
     }
@@ -739,7 +767,7 @@ class NewOrderComponent {
                         <div class="inline-item-fields">
                             <div class="form-group">
                                 <label>Produto</label>
-                                <select class="form-control item-product" data-index="${index}">
+                                <select class="form-control item-product" data-index="${index}" ${item.product ? 'disabled' : ''}>
                                     ${productOptions}
                                 </select>
                             </div>
@@ -1827,8 +1855,6 @@ class NewOrderComponent {
             } else {
                 alert('Não há produtos cadastrados. Adicione produtos primeiro.');
             }
-            // Adiciona um item vazio mesmo assim
-            this.addOrderItem();
             return;
         }
         
@@ -1849,7 +1875,6 @@ class NewOrderComponent {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-                    <button type="button" class="btn btn-primary add-empty-item-btn">Adicionar Item Vazio</button>
                 </div>
             </div>
         `;
@@ -1869,15 +1894,6 @@ class NewOrderComponent {
                 document.body.removeChild(modalContainer);
             });
         });
-        
-        // Botão para adicionar item vazio
-        const addEmptyItemBtn = modalContainer.querySelector('.add-empty-item-btn');
-        if (addEmptyItemBtn) {
-            addEmptyItemBtn.addEventListener('click', () => {
-                this.addOrderItem();
-                document.body.removeChild(modalContainer);
-            });
-        }
         
         // Event listeners para os itens da lista
         const productItems = modalContainer.querySelectorAll('.product-item');
@@ -2276,135 +2292,87 @@ class NewOrderComponent {
     // Salva o pedido no banco de dados
     async saveOrder() {
         try {
-            // Captura os dados do formulário
-            const formData = this.captureFormData();
-            
-            // Verifica se temos um ID de pedido (edição)
-            const isEditing = this.formData.id !== undefined;
-            console.log("Salvando pedido - isEditing:", isEditing, "ID:", this.formData.id);
-            
-            // Validação básica
-            if (!formData.client || !formData.client.id) {
-                if (window.ui) {
-                    window.ui.showNotification('Selecione um cliente para o pedido', 'error');
-                } else {
-                    alert('Selecione um cliente para o pedido');
-                }
-                return;
-            }
-            
-            if (formData.items.length === 0) {
-                if (window.ui) {
-                    window.ui.showNotification('Adicione pelo menos um item ao pedido', 'error');
-                } else {
-                    alert('Adicione pelo menos um item ao pedido');
-                }
-                return;
-            }
-            
-            // Mostra loader
+            // Mostra o loader
             if (window.ui) {
                 window.ui.showLoading('Salvando pedido...');
             }
+
+            // Captura e valida os dados do formulário
+            this.captureFormData();
             
-            // Prepara os dados para salvar
-            const orderData = {
-                clientId: formData.client.id,
-                clientName: formData.client.name,
-                clientDocument: formData.client.document,
-                clientPhone: formData.client.phone,
-                clientEmail: formData.client.email,
-                clientAddress: formData.client.address,
-                clientCategory: formData.client.category,
-                items: formData.items,
-                payments: formData.payments,
-                notes: formData.notes,
-                status: formData.status,
-                orderNumber: formData.orderNumber,
-                createdAt: isEditing && this.formData.createdAt ? this.formData.createdAt : new Date(),
-                updatedAt: new Date(),
-                deliveryDate: formData.deliveryDate,
-                deliveryType: formData.deliveryType,
-                deliveryAddress: formData.deliveryAddress,
-                deliveryCost: formData.deliveryCost,
-                totalValue: formData.totalValue,
-                sellerName: formData.sellerName,
-                sellerId: formData.sellerId,
-                discount: formData.discount,
-                extraServices: formData.extraServices,
-                imageUrl: formData.imageUrl,
-                imageTitle: formData.imageTitle || ''
-            };
-            
-            // Referência para a coleção de pedidos
-            const ordersRef = db.collection('orders');
-            
-            let result;
-            
-            if (isEditing) {
-                // Verifica se o pedido existe e obtém dados atuais se necessário
-                try {
-                    const orderDoc = await ordersRef.doc(this.formData.id).get();
-                    if (orderDoc.exists && !orderData.createdAt) {
-                        const existingData = orderDoc.data();
-                        // Usa o createdAt existente se o nosso estiver undefined
-                        orderData.createdAt = existingData.createdAt || new Date();
-                    }
-                } catch (error) {
-                    console.warn("Erro ao verificar pedido existente:", error);
-                    // Garante que createdAt tenha um valor válido
-                    orderData.createdAt = orderData.createdAt || new Date();
+            if (!this.formData.client || !this.formData.client.id) {
+                window.ui.showNotification('Por favor, selecione um cliente.', 'error');
+                window.ui.hideLoading();
+                return null;
+            }
+
+            if (!this.formData.items || this.formData.items.length === 0) {
+                window.ui.showNotification('O pedido deve ter pelo menos um item.', 'error');
+                window.ui.hideLoading();
+                return null;
+            }
+
+            // Preparar os dados do pedido para o Firestore
+            const orderData = this.prepareOrderDataForSave();
+
+            // Tratamento de imagem
+            const IMAGE_SIZE_LIMIT = 900 * 1024; // 900 KB (margem de segurança)
+            if (orderData.imageUrl && orderData.imageUrl.length > IMAGE_SIZE_LIMIT) {
+                console.warn(`A imagem excede o limite de ${IMAGE_SIZE_LIMIT} bytes. Tentando redimensionar...`);
+                window.ui.showNotification('A imagem é muito grande, tentando otimizar...', 'info');
+                orderData.imageUrl = await this.processImageForUpload(orderData.imageUrl);
+
+                if (orderData.imageUrl.length > IMAGE_SIZE_LIMIT) {
+                    console.error('A imagem ainda é muito grande após o redimensionamento. A imagem não será salva.');
+                    window.ui.showNotification('A imagem é grande demais e não pôde ser salva. Salve o pedido sem a imagem.', 'error');
+                    orderData.imageUrl = ''; // Remove a imagem se ainda for muito grande
+                } else {
+                     window.ui.showNotification('Imagem otimizada com sucesso!', 'success');
                 }
-                
-                // Atualiza o pedido existente
+            }
+
+
+            const ordersRef = firebase.firestore().collection('orders');
+            let result;
+            const isEditing = this.formData && this.formData.id;
+
+            if (isEditing) {
+                orderData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
                 await ordersRef.doc(this.formData.id).update(orderData);
                 result = { id: this.formData.id };
                 console.log(`Pedido atualizado com sucesso: ${this.formData.id}`);
-                if (window.ui) {
-                    window.ui.showNotification('Pedido atualizado com sucesso!', 'success');
-                } else {
-                    alert('Pedido atualizado com sucesso!');
-                }
+                window.ui.showNotification('Pedido atualizado com sucesso!', 'success');
+
             } else {
-                // Cria um novo pedido
+                orderData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                orderData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
                 result = await ordersRef.add(orderData);
                 console.log(`Novo pedido criado com sucesso: ${result.id}`);
-                if (window.ui) {
-                    window.ui.showNotification('Pedido criado com sucesso!', 'success');
-                } else {
-                    alert('Pedido criado com sucesso!');
-                }
+                window.ui.showNotification('Pedido criado com sucesso!', 'success');
             }
-            
-            // Esconde o loader
-            if (window.ui) {
-                window.ui.hideLoading();
-            }
-            
-            // Redireciona para a lista de pedidos ou para os detalhes do pedido
-            // Verifica se existe um componente de pedidos global
+
+            window.ui.hideLoading();
+
             if (window.ordersComponent) {
                 if (isEditing) {
-                    // Volta para a visualização de detalhes do pedido
                     window.ordersComponent.showDetailView(this.formData.id);
                 } else {
-                    // Volta para a lista de pedidos
                     window.ordersComponent.showListView();
                 }
             } else {
-                // Recarrega a página se não houver componente de pedidos
                 location.reload();
             }
-            
+
             return result.id;
+
         } catch (error) {
             console.error('Erro ao salvar pedido:', error);
-            if (window.ui) {
-                window.ui.hideLoading();
-                window.ui.showNotification('Erro ao salvar pedido. Por favor, tente novamente.', 'error');
-            } else {
-                alert('Erro ao salvar pedido. Por favor, tente novamente.');
+            window.ui.hideLoading();
+            let errorMessage = 'Erro ao salvar pedido. Por favor, tente novamente.';
+            if (error.message.includes('longer than 1048487 bytes')) {
+                errorMessage = 'A imagem do pedido é muito grande. Remova-a ou substitua por uma menor.';
             }
+            window.ui.showNotification(errorMessage, 'error');
             return null;
         }
     }
@@ -2491,10 +2459,8 @@ class NewOrderComponent {
         const sellerSelect = document.getElementById('seller');
         if (sellerSelect) {
             this.formData.sellerId = sellerSelect.value;
-            
-            if (sellerSelect.selectedOptions && sellerSelect.selectedOptions[0]) {
-                this.formData.sellerName = sellerSelect.selectedOptions[0].dataset.name || sellerSelect.selectedOptions[0].textContent;
-            }
+            const selectedOption = sellerSelect.options[sellerSelect.selectedIndex];
+            this.formData.sellerName = selectedOption ? selectedOption.text : 'Sistema';
         }
         
         // Recupera tipo de entrega
@@ -3378,67 +3344,116 @@ class NewOrderComponent {
     
     // Exclui o pedido atual
     async deleteOrder() {
-        if (!this.formData || !this.formData.id) {
-            console.error('Não é possível excluir: ID do pedido não encontrado');
-            if (window.ui) {
-                window.ui.showNotification('Erro: Pedido não encontrado', 'error');
-            } else {
-                alert('Erro: Pedido não encontrado');
-            }
+        const orderId = this.formData.id;
+        if (!orderId) {
+            console.error("ID do pedido não encontrado para exclusão.");
+            window.ui.showNotification('Erro: ID do pedido não encontrado.', 'error');
             return;
         }
-        
-        const confirmMessage = `Tem certeza que deseja excluir o pedido #${this.formData.orderNumber}? Esta ação não pode ser desfeita.`;
-        
-        // Verifica se temos o ui.confirmModal disponível
-        if (window.ui && window.ui.confirmModal) {
-            window.ui.confirmModal(
-                'Excluir Pedido', 
-                confirmMessage,
-                async () => {
-                    await this.performDeleteOrder();
-                }
-            );
-        } else {
-            // Fallback para confirm padrão
-            if (confirm(confirmMessage)) {
-                await this.performDeleteOrder();
-            }
+
+        // Chama a função global de exclusão
+        // A função global já cuida da confirmação, motivo, e notificação.
+        const deleted = await window.ui.confirmDeleteOrder(orderId);
+
+        // Se a exclusão for bem-sucedida, redireciona para a lista de pedidos
+        if (deleted) {
+            // Um delay para garantir que o usuário veja a notificação de sucesso
+            setTimeout(() => {
+                window.location.hash = '#orders';
+            }, 500);
         }
     }
-    
-    // Executa a exclusão do pedido
-    async performDeleteOrder() {
-        try {
-            if (window.ui) {
-                window.ui.showLoading('Excluindo pedido...');
-            }
-            
-            // Exclui o pedido do banco de dados
-            const db = firebase.firestore();
-            await db.collection('orders').doc(this.formData.id).delete();
-            
-            if (window.ui) {
-                window.ui.hideLoading();
-                // Aguarda um pequeno intervalo antes de mostrar a notificação
-                setTimeout(() => {
-                    window.ui.showNotification('Pedido excluído com sucesso!', 'success');
-                }, 100);
-            } else {
-                alert('Pedido excluído com sucesso!');
-            }
-            
-            // Redireciona para a lista de pedidos
-            window.location.hash = '#orders';
-        } catch (error) {
-            console.error('Erro ao excluir pedido:', error);
-            if (window.ui) {
-                window.ui.hideLoading();
-                window.ui.showNotification('Erro ao excluir pedido.', 'error');
-            } else {
-                alert('Erro ao excluir pedido.');
-            }
+
+    // Processa a imagem para upload, redimensionando se necessário
+    async processImageForUpload(imageUrl) {
+        // Se não for uma imagem em base64, retorna a URL original
+        if (!imageUrl || !imageUrl.startsWith('data:')) {
+            return imageUrl;
         }
+
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Define as dimensões máximas
+                const MAX_WIDTH = 1024;
+                const MAX_HEIGHT = 1024;
+                let width = img.width;
+                let height = img.height;
+
+                // Redimensiona a imagem se ela for maior que as dimensões máximas
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Converte para JPEG com qualidade de 70%
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                console.log(`Imagem redimensionada. Tamanho original: ${imageUrl.length}, novo tamanho: ${dataUrl.length}`);
+                resolve(dataUrl);
+            };
+            img.onerror = () => {
+                console.error('Erro ao carregar a imagem para redimensionamento.');
+                window.ui.showNotification('Erro ao processar a imagem.', 'warning');
+                resolve(imageUrl); // Retorna a imagem original em caso de erro
+            };
+            img.src = imageUrl;
+        });
+    }
+
+    // Prepara os dados do pedido para serem salvos no Firestore
+    prepareOrderDataForSave() {
+        const formData = this.formData;
+        
+        // Obter informações do usuário atual
+        let userName = 'Usuário desconhecido';
+        if (window.auth && window.auth.currentUser) {
+            userName = window.auth.currentUser.name || 'Usuário desconhecido';
+        }
+
+        // Monta o objeto de dados garantindo que não haja valores undefined
+        const orderData = {
+            clientId: formData.client.id,
+            clientName: formData.client.name,
+            clientDocument: formData.client.document || null,
+            clientPhone: formData.client.phone || null,
+            clientEmail: formData.client.email || null,
+            clientAddress: formData.client.address || null,
+            clientCategory: formData.client.category || 'Padrão',
+            items: formData.items || [],
+            payments: formData.payments || [],
+            notes: formData.notes || '',
+            status: formData.status || 'pending',
+            orderNumber: formData.orderNumber || null,
+            deliveryDate: formData.deliveryDate || null,
+            deliveryType: formData.deliveryType || 'pickup',
+            deliveryAddress: formData.deliveryAddress || '',
+            deliveryCost: formData.deliveryCost || 0,
+            totalValue: formData.totalValue || 0,
+            sellerName: formData.sellerName || 'Sistema',
+            sellerId: formData.sellerId || null,
+            discount: formData.discount || 0,
+            extraServices: formData.extraServices || 0,
+            imageUrl: formData.imageUrl || '',
+            imageTitle: formData.imageTitle || '',
+            statusUpdatedBy: userName,
+            statusUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        return orderData;
     }
 }
 

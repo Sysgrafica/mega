@@ -1,0 +1,205 @@
+/* CSS para a página de Busca de Pedidos */
+
+.search-orders-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+}
+
+.filters-panel {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--color-background-card);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    height: fit-content;
+    transition: all 0.3s ease;
+}
+
+.filters-panel h3 {
+    font-size: 1.5em;
+    margin-top: 0;
+    margin-bottom: 25px;
+    color: var(--color-primary);
+    border-bottom: 2px solid var(--color-primary-light);
+    padding-bottom: 10px;
+}
+
+.filters-panel .filter-group {
+    margin-bottom: 20px;
+    font-size: 0.95em;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filters-panel label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--color-text-primary);
+}
+
+.filters-panel .input,
+.filters-panel .select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-background-input);
+    color: var(--color-text-primary);
+}
+
+.filters-panel .input:focus,
+.filters-panel .select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.2);
+}
+
+.filter-actions {
+    margin-top: 25px;
+    display: flex;
+    gap: 10px;
+}
+
+.filter-actions .btn {
+    flex-grow: 1;
+    padding: 12px;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.results-panel {
+    flex-grow: 1;
+}
+
+.results-header {
+    margin-bottom: 20px;
+}
+
+.results-header h4 {
+    font-size: 1.3em;
+    color: var(--color-text-primary);
+}
+
+.search-orders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.no-results-message {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    background: var(--color-background-card);
+    border-radius: 12px;
+    color: var(--color-text-secondary);
+    font-size: 1.1em;
+}
+
+.no-results-message i {
+    font-size: 2em;
+    display: block;
+    margin-bottom: 15px;
+    color: var(--color-primary);
+}
+
+/* Estilo dos Cards de Pedido */
+.search-order-card {
+    background: var(--color-background-card);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border-left: 5px solid var(--color-primary);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.search-order-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.search-order-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.search-order-card .order-number {
+    font-weight: 700;
+    font-size: 1.1em;
+    color: var(--color-primary);
+}
+
+.search-order-card .status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: #fff;
+}
+
+.search-order-card .card-body {
+    padding: 15px;
+    flex-grow: 1;
+}
+
+.search-order-card .client-name {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 15px 0;
+}
+
+.search-order-card .order-details {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    font-size: 0.9em;
+    color: var(--color-text-secondary);
+}
+
+.search-order-card .order-details div i {
+    margin-right: 8px;
+    color: var(--color-primary-light);
+    width: 15px;
+    text-align: center;
+}
+
+.search-order-card .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: var(--color-background-light);
+    border-top: 1px solid var(--color-border-light);
+    border-radius: 0 0 10px 10px;
+}
+
+.delivery-status {
+    font-weight: 600;
+    font-size: 0.85em;
+    padding: 5px 12px;
+    border-radius: 15px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Cores por Situação */
+.search-order-card.situacao-atrasado { border-left-color: #d62828; }
+.search-order-card.situacao-apresse { border-left-color: #f77f00; }
+.search-order-card.situacao-no-prazo { border-left-color: #2a9d8f; }
+.search-order-card.situacao-combinar,
+.search-order-card.situacao-pendente { border-left-color: var(--color-text-secondary); }
+
+.delivery-status.situacao-atrasado { background-color: #d62828; color: white; }
+.delivery-status.situacao-apresse { background-color: #f77f00; color: white; }
+.delivery-status.situacao-no-prazo { background-color: #2a9d8f; color: white; }
+.delivery-status.situacao-combinar,
+.delivery-status.situacao-pendente { background-color: var(--color-background-tag); color: var(--color-text-secondary); } 

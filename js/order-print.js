@@ -644,7 +644,7 @@ class OrderPrintComponent {
                 ${order.notes ? `
                 <div class="notes-section">
                     <div class="section-title">OBSERVAÇÕES</div>
-                    <p>${order.notes}</p>
+                    <p class="summary-line">${order.notes}</p>
                 </div>` : ''}
                 
                 <!-- Imagem -->

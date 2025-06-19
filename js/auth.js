@@ -134,7 +134,7 @@ class AuthSystem {
                         pages: ["dashboard", "workflow", "orders", "clients", "products"],
                         features: [
                             "view_dashboard", "view_workflow", "view_orders", "create_order", 
-                            "edit_order", "view_order_details", "print_order", "view_clients", 
+                            "edit_order", "delete_order", "view_order_details", "print_order", "view_clients", 
                             "create_client", "edit_client", "view_products"
                         ]
                     },
@@ -150,18 +150,18 @@ class AuthSystem {
                     
                     // Para produção, concede permissões básicas para acompanhar o fluxo de pedidos
                     'production': {
-                        pages: ["dashboard", "workflow", "orders"],
+                        pages: ["dashboard", "workflow", "impressao", "orders"],
                         features: [
-                            "view_dashboard", "view_workflow", "view_orders", 
+                            "view_dashboard", "view_workflow", "view_impressao", "view_orders", 
                             "view_order_details", "change_order_status"
                         ]
                     },
                     
                     // Para impressores, permissões para acompanhar pedidos e alterar status
                     'impressor': {
-                        pages: ["dashboard", "workflow", "orders"],
+                        pages: ["dashboard", "workflow", "impressao", "orders"],
                         features: [
-                            "view_dashboard", "view_workflow", "view_orders", 
+                            "view_dashboard", "view_workflow", "view_impressao", "view_orders", 
                             "view_order_details", "change_order_status"
                             // Removido intencionalmente: "edit_order", "delete_order"
                         ]
@@ -225,15 +225,29 @@ class AuthSystem {
     
     // Configura event listeners
     setupEventListeners() {
-        this.loginBtn.addEventListener('click', () => this.attemptLogin());
-        this.logoutBtn.addEventListener('click', () => this.logout());
+        // Verificar se os elementos existem antes de adicionar event listeners
+        if (this.loginBtn) {
+            this.loginBtn.addEventListener('click', () => this.attemptLogin());
+        } else {
+            console.log('Botão de login não encontrado');
+        }
+        
+        if (this.logoutBtn) {
+            this.logoutBtn.addEventListener('click', () => this.logout());
+        } else {
+            console.log('Botão de logout não encontrado');
+        }
         
         // Login com tecla Enter
-        this.accessCodeInput.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
-                this.attemptLogin();
-            }
-        });
+        if (this.accessCodeInput) {
+            this.accessCodeInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    this.attemptLogin();
+                }
+            });
+        } else {
+            console.log('Campo de código de acesso não encontrado');
+        }
     }
     
     // Tentativa de login com código de acesso
@@ -429,7 +443,9 @@ class AuthSystem {
         this.showAuthScreen();
         
         // Limpa campos e mensagens de erro
-        this.accessCodeInput.value = '';
+        if (this.accessCodeInput) {
+            this.accessCodeInput.value = '';
+        }
         this.hideError();
     }
     
@@ -449,38 +465,56 @@ class AuthSystem {
     
     // Mostra a tela de autenticação
     showAuthScreen() {
-        this.authContainer.classList.add('active');
-        this.authContainer.classList.remove('hidden');
-        this.mainApp.classList.add('hidden');
-        this.mainApp.classList.remove('active');
+        if (this.authContainer && this.mainApp) {
+            this.authContainer.classList.add('active');
+            this.authContainer.classList.remove('hidden');
+            this.mainApp.classList.add('hidden');
+            this.mainApp.classList.remove('active');
+        } else {
+            console.log('Elementos de autenticação não encontrados');
+        }
     }
     
     // Mostra a aplicação principal
     showMainApp() {
-        this.authContainer.classList.remove('active');
-        this.authContainer.classList.add('hidden');
-        this.mainApp.classList.remove('hidden');
-        this.mainApp.classList.add('active');
+        if (this.authContainer && this.mainApp) {
+            this.authContainer.classList.remove('active');
+            this.authContainer.classList.add('hidden');
+            this.mainApp.classList.remove('hidden');
+            this.mainApp.classList.add('active');
+        } else {
+            console.log('Elementos da aplicação principal não encontrados');
+        }
     }
     
     // Atualiza a exibição de informações do usuário
     updateUserInfo() {
         if (this.currentUser) {
-            this.userNameDisplay.textContent = this.currentUser.name;
-            this.userRoleDisplay.textContent = SYSTEM_CONFIG.roles[this.currentUser.role].name;
+            if (this.userNameDisplay) {
+                this.userNameDisplay.textContent = this.currentUser.name;
+            }
+            if (this.userRoleDisplay && SYSTEM_CONFIG.roles[this.currentUser.role]) {
+                this.userRoleDisplay.textContent = SYSTEM_CONFIG.roles[this.currentUser.role].name;
+            }
         }
     }
     
     // Mostra mensagem de erro
     showError(message) {
-        this.loginError.textContent = message;
-        this.loginError.classList.add('active');
+        if (this.loginError) {
+            this.loginError.textContent = message;
+            this.loginError.classList.add('active');
+        } else {
+            console.error('Elemento de erro de login não encontrado:', message);
+        }
     }
     
     // Esconde mensagem de erro
     hideError() {
-        this.loginError.textContent = '';
-        this.loginError.classList.remove('active');
+        if (this.loginError) {
+            this.loginError.textContent = '';
+            this.loginError.classList.remove('active');
+        }
     }
     
     // Obter o nível de acesso do usuário atual

@@ -82,19 +82,19 @@
 
 /* Estilo dos botões */
 #order-form-container .btn {
-    padding: 0.75rem 1.5rem;
+    padding: 1rem 0.5rem;
     border: none;
     border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 1.2rem;
+    font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
     text-decoration: none;
     display: inline-flex;
+    gap: 2.5rem;
+    box-shadow: 0 2px 4px rgb(10 68 130 / 64%);
     align-items: center;
     justify-content: center;
-    gap: 2.5rem;
-    box-shadow: 0 2px 4px var(--no-shadow-color);
 }
 
 #order-form-container .btn:active {
@@ -567,6 +567,7 @@
 }
 
 .modal-header {
+    BACKGROUND: darkblue;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -932,7 +933,9 @@
 input#com-aplicacao-0 {
     WIDTH: 10px;
 }
-
+button#cancel-order-btn {
+    width: 30%;
+}
 label.custom-control-label {
     width: 50px;
 }

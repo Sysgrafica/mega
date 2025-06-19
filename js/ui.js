@@ -16,13 +16,19 @@ class UI {
         this.menuItems = [
             { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie', component: 'DashboardComponent' },
             { id: 'workflow', label: 'Fluxo de Trabalho', icon: 'fa-tasks', component: 'WorkflowComponent' },
+            { id: 'impressao', label: 'Impressão', icon: 'fa-print', component: 'ImpressaoComponent' },
+            { id: 'aplicacao', label: 'Aplicação', icon: 'fa-spray-can', component: 'AplicacaoComponent' },
+            { id: 'acabamento', label: 'Acabamento', icon: 'fa-cut', component: 'AcabamentoComponent' },
+            { id: 'cortes-especiais', label: 'Cortes Especiais', icon: 'fa-ruler-combined', component: 'CortesEspeciaisComponent' },
             { id: 'orders', label: 'Pedidos', icon: 'fa-clipboard-list', component: 'OrdersComponent' },
+            { id: 'search-orders', label: 'Buscar Pedidos', icon: 'fa-search', component: 'SearchOrdersComponent' },
             { id: 'clients', label: 'Clientes', icon: 'fa-users', component: 'ClientsComponent' },
             { id: 'products', label: 'Produtos', icon: 'fa-boxes', component: 'ProductsComponent' },
             { id: 'employees', label: 'Funcionários', icon: 'fa-id-card', component: 'EmployeesComponent' },
             { id: 'suppliers', label: 'Fornecedores', icon: 'fa-truck', component: 'SuppliersComponent' },
             { id: 'reports', label: 'Relatórios', icon: 'fa-chart-bar', component: 'ReportsComponent' },
-            { id: 'permissions', label: 'Gerenciar Permissões', icon: 'fa-shield-alt', component: 'PermissionsComponent' }
+            { id: 'permissions', label: 'Gerenciar Permissões', icon: 'fa-shield-alt', component: 'PermissionsComponent' },
+            { id: 'profile', label: 'Meu Perfil', icon: 'fa-user', component: 'Profile', isHidden: true }
         ];
         
         this.init();
@@ -57,8 +63,8 @@ class UI {
         this.mainMenu.innerHTML = '';
         
         this.menuItems.forEach(item => {
-            // Verifica se o usuário tem permissão para este item
-            if (window.auth.hasPagePermission(item.id)) {
+            // Verifica se o usuário tem permissão para este item e se não está oculto
+            if (!item.isHidden && window.auth.hasPagePermission(item.id)) {
                 const menuItem = document.createElement('a');
                 menuItem.href = '#';
                 menuItem.dataset.page = item.id;
@@ -83,7 +89,7 @@ class UI {
     // Navega para uma página específica
     navigateTo(pageId, callback = null, isInitialLoad = false) {
         // Verifica se o usuário tem permissão para acessar a página
-        if (!window.auth.hasPagePermission(pageId)) {
+        if (pageId !== 'profile' && !window.auth.hasPagePermission(pageId)) {
             console.error(`Usuário não tem permissão para acessar: ${pageId}`);
             this.showNotification('Você não tem permissão para acessar esta página.', 'error');
             return;
@@ -311,54 +317,56 @@ class UI {
     
     // Mostra um modal com opções de confirmar e cancelar
     showModal(title, content, onConfirm, confirmText = 'Confirmar', cancelText = 'Cancelar') {
-        // Se recebemos um objeto de opções, use a versão antiga do método
-        if (typeof title === 'object') {
-            return this.showModal(title.title, title.content, title.onConfirm, title.confirmText, title.cancelText);
+        const modalBody = this.quickActionModal.querySelector('#modal-body');
+        if (!modalBody) {
+            console.error('Elemento #modal-body não encontrado no modal.');
+            return;
         }
-        
-        const modalContent = document.createElement('div');
-        modalContent.className = 'modal-confirm-content';
-        
-        // Adiciona o conteúdo
-        modalContent.innerHTML = content;
-        
-        // Adiciona botões
+
+        // Define o título
+        this.modalTitle.textContent = title;
+        modalBody.innerHTML = ''; // Limpa o conteúdo anterior
+
+        // Adiciona o novo conteúdo
+        if (typeof content === 'string') {
+            modalBody.innerHTML = content;
+        } else {
+            modalBody.appendChild(content);
+        }
+
+        // Remove o container de botões antigo, se existir, para evitar duplicatas
+        const oldButtons = modalBody.querySelector('.modal-buttons');
+        if (oldButtons) {
+            oldButtons.remove();
+        }
+
+        // Cria e adiciona o novo container de botões
         const buttonsContainer = document.createElement('div');
         buttonsContainer.className = 'modal-buttons';
-        buttonsContainer.style.display = 'flex';
-        buttonsContainer.style.justifyContent = 'flex-end';
-        buttonsContainer.style.marginTop = '20px';
-        buttonsContainer.style.gap = '10px';
-        
-        // Botão cancelar
-        if (cancelText) {
-            const cancelBtn = document.createElement('button');
-            cancelBtn.className = 'btn btn-secondary';
-            cancelBtn.textContent = cancelText;
-            cancelBtn.addEventListener('click', () => {
-                this.closeModal();
-            });
-            buttonsContainer.appendChild(cancelBtn);
-        }
-        
-        // Botão confirmar
-        if (confirmText) {
+
+        // Botão de Cancelar
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-secondary';
+        cancelBtn.textContent = cancelText;
+        cancelBtn.addEventListener('click', () => this.closeModal());
+        buttonsContainer.appendChild(cancelBtn);
+
+        // Botão de Confirmar
+        if (onConfirm) {
             const confirmBtn = document.createElement('button');
             confirmBtn.className = 'btn btn-primary';
             confirmBtn.textContent = confirmText;
             confirmBtn.addEventListener('click', () => {
+                onConfirm();
                 this.closeModal();
-                if (onConfirm && typeof onConfirm === 'function') {
-                    onConfirm();
-                }
             });
             buttonsContainer.appendChild(confirmBtn);
         }
-        
-        modalContent.appendChild(buttonsContainer);
-        
-        // Abre o modal
-        this.openModal(title || 'Confirmar', modalContent);
+
+        modalBody.appendChild(buttonsContainer);
+
+        // Abre o modal diretamente
+        this.quickActionModal.classList.add('active');
     }
     
     // Cria um formulário a partir de uma definição de campos
@@ -1256,41 +1264,137 @@ class UI {
     }
     
     // Exibe um modal de confirmação com botões Sim/Não
-    confirmModal(title, message, onConfirm) {
-        this.showModal(title, `<p>${message}</p>`, onConfirm, 'Sim', 'Não');
+    confirmModal(title, message, onConfirm, { confirmText = 'Confirmar', cancelText = 'Cancelar', contentHTML = '' } = {}) {
+        const modalId = `confirm-modal-${Date.now()}`;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container active';
+        modal.id = modalId;
+
+        const bodyContent = contentHTML || `<p>${message}</p>`;
+
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3>${title}</h3>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    ${bodyContent}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary cancel-btn">${cancelText}</button>
+                    <button class="btn btn-danger confirm-btn">${confirmText}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const closeModal = () => {
+            modal.classList.remove('active');
+            setTimeout(() => {
+                if (document.body.contains(modal)) {
+                    document.body.removeChild(modal);
+                }
+            }, 300);
+        };
+
+        modal.querySelector('.confirm-btn').addEventListener('click', async () => {
+            if (onConfirm) {
+                // onConfirm agora pode ser assíncrona e deve retornar true para fechar.
+                const shouldClose = await onConfirm();
+                if (shouldClose) {
+                    closeModal();
+                }
+            } else {
+                closeModal();
+            }
+        });
+
+        modal.querySelector('.cancel-btn').addEventListener('click', closeModal);
+        modal.querySelector('.close-modal').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
     }
     
     // Exibe um modal para entrada de texto
     promptModal(title, message, onConfirm, onCancel) {
-        const content = `
+        const modalBody = this.quickActionModal.querySelector('#modal-body');
+        if (!modalBody) {
+            console.error('Elemento #modal-body não encontrado no modal.');
+            return;
+        }
+
+        // Define o título e limpa o conteúdo anterior
+        this.modalTitle.textContent = title;
+        modalBody.innerHTML = '';
+        
+        // Cria o conteúdo do modal
+        const contentHTML = `
             <p>${message}</p>
             <div class="form-group">
                 <input type="text" id="prompt-input" class="form-control">
             </div>
         `;
         
-        this.showModal(title, content, () => {
+        modalBody.innerHTML = contentHTML;
+        
+        // Remove o container de botões antigo, se existir
+        const oldButtons = modalBody.querySelector('.modal-buttons');
+        if (oldButtons) {
+            oldButtons.remove();
+        }
+        
+        // Cria e adiciona o container de botões
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.className = 'modal-buttons';
+        
+        // Botão de Cancelar
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-secondary';
+        cancelBtn.textContent = 'Cancelar';
+        cancelBtn.addEventListener('click', () => {
+            this.closeModal();
+            if (onCancel) {
+                onCancel();
+            }
+        });
+        buttonsContainer.appendChild(cancelBtn);
+        
+        // Botão de Confirmar
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'btn btn-primary';
+        confirmBtn.textContent = 'Confirmar';
+        confirmBtn.addEventListener('click', () => {
             const value = document.getElementById('prompt-input').value;
             if (onConfirm) {
                 onConfirm(value);
             }
-        }, 'Confirmar', 'Cancelar');
+            this.closeModal();
+        });
+        buttonsContainer.appendChild(confirmBtn);
         
-        // Configura o botão cancelar
-        const cancelButton = document.querySelector('#quick-action-modal .btn-secondary');
-        if (cancelButton) {
-            const originalClick = cancelButton.onclick;
-            cancelButton.onclick = (e) => {
-                if (originalClick) originalClick(e);
-                if (onCancel) onCancel();
-            };
-        }
+        // Adiciona os botões ao corpo do modal
+        modalBody.appendChild(buttonsContainer);
         
-        // Foca no input
+        // Abre o modal diretamente
+        this.quickActionModal.classList.add('active');
+        
+        // Foca no input após abrir o modal
         setTimeout(() => {
             const input = document.getElementById('prompt-input');
             if (input) {
                 input.focus();
+                input.addEventListener('keyup', (e) => {
+                    if (e.key === 'Enter') {
+                        confirmBtn.click();
+                    } else if (e.key === 'Escape') {
+                        cancelBtn.click();
+                    }
+                });
             }
         }, 100);
     }
@@ -1344,6 +1448,144 @@ class UI {
             }
             return false;
         }
+    }
+
+    async showOrderDetails(orderId) {
+        try {
+            // Define o ID do pedido no localStorage para ser pego pelo OrdersComponent
+            localStorage.setItem('viewOrderId', orderId);
+            // Navega para a página de pedidos, que irá renderizar a visualização de detalhes
+            this.navigateTo('orders');
+        } catch (error) {
+            console.error("Erro ao tentar navegar para os detalhes do pedido:", error);
+            this.showNotification('Não foi possível abrir os detalhes do pedido.', 'error');
+        }
+    }
+    
+    async showChangeStatusDialog(orderId, currentStatus, onStatusChanged) {
+        if (!window.auth.hasFeaturePermission('change_order_status')) {
+            this.showNotification('Você não tem permissão para alterar o status do pedido.', 'error');
+            return;
+        }
+    
+        const statusOptions = SYSTEM_CONFIG.orderStatus
+            .filter(status => status.id !== 'cancelled')
+            .map(status => `<option value="${status.id}" ${status.id === currentStatus ? 'selected' : ''}>${status.name}</option>`)
+            .join('');
+    
+        const content = `
+            <div class="form-group">
+                <label for="status-select">Selecione o novo status:</label>
+                <select id="status-select" class="form-control">
+                    ${statusOptions}
+                </select>
+            </div>
+        `;
+    
+        this.showModal('Alterar Status do Pedido', content, async () => {
+            const newStatus = document.getElementById('status-select').value;
+            if (newStatus !== currentStatus) {
+                try {
+                    this.showLoading('Atualizando status...');
+
+                    const user = window.auth.getCurrentUser();
+                    const historyEntry = {
+                        previousStatus: currentStatus,
+                        newStatus: newStatus,
+                        changedAt: new Date(),
+                        changedBy: user ? user.name : 'Sistema'
+                    };
+
+                    await db.collection('orders').doc(orderId).update({ 
+                        status: newStatus,
+                        statusHistory: firebase.firestore.FieldValue.arrayUnion(historyEntry)
+                    });
+
+                    this.hideLoading();
+                    this.showNotification('Status do pedido atualizado com sucesso!', 'success');
+                    if (onStatusChanged) {
+                        onStatusChanged(newStatus);
+                    }
+                } catch (error) {
+                    this.hideLoading();
+                    this.showNotification('Erro ao atualizar o status do pedido.', 'error');
+                    console.error("Erro ao alterar status:", error);
+                }
+            }
+        });
+    }
+
+    async confirmDeleteOrder(orderId) {
+        if (!window.auth.hasFeaturePermission('delete_order')) {
+            this.showNotification('Você não tem permissão para excluir pedidos.', 'error');
+            return Promise.resolve(false); // Retorna uma promessa resolvida como falso
+        }
+
+        return new Promise(async (resolve) => {
+            const orderDetails = await firebase.firestore().collection('orders').doc(orderId).get();
+            const orderNumber = orderDetails.data()?.orderNumber || orderId;
+
+            const contentHTML = `
+                <p>Tem certeza que deseja excluir o pedido <strong>#${orderNumber}</strong>? Esta ação não pode ser desfeita.</p>
+                <div class="form-group mt-3">
+                    <label for="cancellation-reason"><strong>Motivo do cancelamento (obrigatório):</strong></label>
+                    <textarea id="cancellation-reason" class="form-control" rows="3" placeholder="Ex: Cliente desistiu, erro no pedido, etc."></textarea>
+                    <small id="reason-error" class="text-danger" style="display: none;">O motivo é obrigatório.</small>
+                </div>
+            `;
+            
+            this.confirmModal(
+                'Confirmar Exclusão',
+                '', // Mensagem principal no HTML
+                async () => {
+                    const modalInstance = document.querySelector('.modal-container.active');
+                    const reasonInput = modalInstance.querySelector('#cancellation-reason');
+                    const errorEl = modalInstance.querySelector('#reason-error');
+                    const reason = reasonInput.value.trim();
+
+                    if (!reason) {
+                        errorEl.style.display = 'block';
+                        reasonInput.classList.add('is-invalid');
+                        reasonInput.focus();
+                        return false; // Não fecha o modal
+                    } else {
+                        errorEl.style.display = 'none';
+                        reasonInput.classList.remove('is-invalid');
+                    }
+
+                    try {
+                        this.showLoading('Excluindo pedido...');
+                        
+                        await firebase.firestore().collection('orders').doc(orderId).update({
+                            status: 'cancelled',
+                            cancellationReason: reason,
+                            cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            cancelledBy: window.auth.currentUser.name || 'Sistema'
+                        });
+
+                        this.hideLoading();
+                        this.showNotification(`Pedido #${orderNumber} cancelado com sucesso!`, 'success');
+                        
+                        document.dispatchEvent(new CustomEvent('orderDeleted', { detail: { orderId } }));
+                        
+                        resolve(true); // Resolve a promessa principal com sucesso
+                        return true; // Fecha o modal
+
+                    } catch (error) {
+                        this.hideLoading();
+                        console.error("Erro ao cancelar pedido:", error);
+                        this.showNotification(`Erro ao cancelar o pedido: ${error.message}`, 'error');
+                        resolve(false);
+                        return true; // Fecha o modal mesmo em caso de erro no servidor
+                    }
+                },
+                {
+                    confirmText: 'Confirmar Exclusão',
+                    cancelText: 'Manter Pedido',
+                    contentHTML: contentHTML
+                }
+            );
+        });
     }
 }
 

@@ -964,4 +964,59 @@
 .order-item.printed.finished,
 .order-item.completed {
     border-left: 4px solid #6f42c1 !important; /* Roxo para concluído total */
+}
+
+/* Status do pedido na seção de detalhes */
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    text-align: center;
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.status-badge.ontime {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-badge.urgent {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.late {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-updated-info {
+    margin-top: 5px;
+    font-size: 0.9em;
+}
+
+.dark-mode .status-badge {
+    background-color: #2d3748;
+    color: #cbd5e0;
+}
+
+.dark-mode .status-badge.ontime {
+    background-color: #276749;
+    color: #c6f6d5;
+}
+
+.dark-mode .status-badge.urgent {
+    background-color: #744210;
+    color: #fefcbf;
+}
+
+.dark-mode .status-badge.late {
+    background-color: #822727;
+    color: #fed7d7;
+}
+
+.dark-mode .status-updated-info {
+    color: #a0aec0;
 } 

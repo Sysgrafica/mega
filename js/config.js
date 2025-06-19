@@ -30,7 +30,7 @@ const SYSTEM_CONFIG = {
         admin: {
             name: "Administrador",
             level: 4,
-            menuAccess: ["dashboard", "workflow", "orders", "clients", "products", "employees", "suppliers", "reports", "permissions"]
+            menuAccess: ["dashboard", "workflow", "impressao", "acabamento", "cortes-especiais", "orders", "clients", "products", "employees", "suppliers", "reports", "permissions"]
         },
         seller: {
             name: "Vendedor",
@@ -45,34 +45,39 @@ const SYSTEM_CONFIG = {
         production: {
             name: "Produção",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "orders"]
+            menuAccess: ["dashboard", "workflow", "impressao", "orders"]
         },
         impressor: {
             name: "Impressor",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "orders"]
+            menuAccess: ["dashboard", "workflow", "impressao", "orders"]
         },
         acabamento: {
             name: "Acabamento",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "orders"]
+            menuAccess: ["dashboard", "workflow", "acabamento", "orders", "aplicacao"]
         },
         cortesEspeciais: {
             name: "Cortes Especiais",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "orders"]
+            menuAccess: ["dashboard", "workflow", "cortes-especiais", "orders"]
         },
         aplicador: {
             name: "Aplicador",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "orders"]
+            menuAccess: ["dashboard", "workflow", "orders", "aplicacao"]
         }
     },
     // Lista de todas as páginas do sistema
     pages: [
         { id: "dashboard", name: "Dashboard" },
         { id: "workflow", name: "Fluxo de Trabalho" },
+        { id: "impressao", name: "Impressão" },
+        { id: "aplicacao", name: "Aplicação" },
+        { id: "acabamento", name: "Acabamento" },
+        { id: "cortes-especiais", name: "Cortes Especiais" },
         { id: "orders", name: "Pedidos" },
+        { id: "search-orders", name: "Buscar Pedidos" },
         { id: "clients", name: "Clientes" },
         { id: "products", name: "Produtos" },
         { id: "employees", name: "Funcionários" },
@@ -85,6 +90,7 @@ const SYSTEM_CONFIG = {
         // Funcionalidades gerais
         { id: "view_dashboard", name: "Ver Dashboard", category: "geral" },
         { id: "view_workflow", name: "Ver Fluxo de Trabalho", category: "geral" },
+        { id: "view_impressao", name: "Ver Página de Impressão", category: "geral" },
         
         // Funcionalidades de Pedidos
         { id: "view_orders", name: "Ver Pedidos", category: "pedidos" },

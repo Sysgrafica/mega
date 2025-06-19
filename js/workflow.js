@@ -301,189 +301,21 @@ class WorkflowComponent {
     }
     
     // Mostra detalhes de um pedido selecionado
-    showOrderDetails(orderId) {
-        console.log(`Abrindo detalhes do pedido: ${orderId}`);
-        
-        // Exibe indicador de carregamento
-        ui.showLoading('Carregando detalhes do pedido...');
-        
-        // Busca os dados do pedido no Firestore
-        db.collection('orders').doc(orderId).get().then(async doc => {
-            if (doc.exists) {
-                const orderData = { id: doc.id, ...doc.data() };
-                
-                // Limpa o conteúdo atual
-                const mainContent = document.getElementById('main-content');
-                const originalContent = mainContent.innerHTML;
-                
-                // Cria um botão para voltar ao fluxo de trabalho
-                const backButton = document.createElement('div');
-                backButton.className = 'page-header no-print';
-                backButton.innerHTML = `
-                    <button class="btn btn-outline-secondary back-button" id="back-to-workflow">
-                        <i class="fas fa-arrow-left"></i> Voltar para Fluxo de Trabalho
-                    </button>
-                    <h1>Detalhes do Pedido</h1>
-                    <div class="header-actions">
-                        ${window.auth.hasFeaturePermission('edit_order') ? `
-                        <button class="btn btn-primary edit-order-btn" data-id="${orderId}">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        ` : ''}
-                        <button class="btn btn-outline-secondary print-button" onclick="window.print()">
-                            <i class="fas fa-print"></i> Imprimir
-                        </button>
-                    </div>
-                `;
-                
-                // Insere os detalhes do pedido diretamente na página atual
-                mainContent.innerHTML = '';
-                mainContent.appendChild(backButton);
-                
-                // Cria o container para os detalhes
-                const detailsContainer = document.createElement('div');
-                detailsContainer.className = 'order-details-container';
-                mainContent.appendChild(detailsContainer);
-                
-                try {
-                    // Instancia temporariamente um componente de pedidos para renderizar os detalhes
-                    const tempOrdersComponent = new OrdersComponent();
-                    
-                    // Carrega dados adicionais necessários
-                    // Busca cliente
-                    if (orderData.clientId) {
-                        const clientDoc = await db.collection('clients').doc(orderData.clientId).get();
-                        if (clientDoc.exists) {
-                            const clientData = { id: clientDoc.id, ...clientDoc.data() };
-                            // Adiciona cliente aos dados do pedido e à lista de clientes
-                            orderData.client = clientData;
-                            tempOrdersComponent.clients = [clientData];
-                        }
-                    }
-                    
-                    // Carrega os dados iniciais necessários e renderiza os detalhes
-                    tempOrdersComponent.orders = [orderData];
-                    tempOrdersComponent.renderOrderDetail(orderId, detailsContainer);
-                    
-                    // Adiciona evento para o botão voltar
-                    document.getElementById('back-to-workflow').addEventListener('click', () => {
-                        mainContent.innerHTML = originalContent;
-                        // Re-renderiza o fluxo de trabalho para atualizar os dados
-                        this.render(mainContent);
-                    });
-                    
-                    // Adiciona evento para o botão editar (se existir)
-                    const editButton = document.querySelector('.edit-order-btn');
-                    if (editButton) {
-                        editButton.addEventListener('click', () => {
-                            localStorage.setItem('editOrderId', orderId);
-                            ui.navigateTo('orders');
-                        });
-                    }
-                } catch (error) {
-                    console.error("Erro ao renderizar detalhes do pedido:", error);
-                    detailsContainer.innerHTML = `
-                        <div class="error-message">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <p>Ocorreu um erro ao renderizar os detalhes do pedido.</p>
-                        </div>
-                    `;
-                }
-                
-                // Esconde o loading
-                ui.hideLoading();
-            } else {
-                ui.hideLoading();
-                ui.showNotification('Pedido não encontrado.', 'error');
-            }
-        }).catch(error => {
-            console.error("Erro ao carregar detalhes do pedido:", error);
-            ui.hideLoading();
-            ui.showNotification('Erro ao carregar detalhes do pedido.', 'error');
-        });
+    async showOrderDetails(orderId) {
+        await window.ui.showOrderDetails(orderId);
     }
     
     // Mostra diálogo para alterar o status do pedido
-    showChangeStatusDialog(orderId) {
-        // Encontra o pedido pelo ID
+    async showChangeStatusDialog(orderId) {
         const order = this.findOrderById(orderId);
-        if (!order) return;
-        
-        // Cria um modal para seleção do status
-        const currentStatus = order.status;
-        let statusOptions = '';
-        
-        SYSTEM_CONFIG.orderStatus.forEach(status => {
-            if (status.id !== currentStatus) {
-                statusOptions += `<option value="${status.id}">${status.name}</option>`;
-            }
-        });
-        
-        const modalContent = `
-            <div class="form-group">
-                <label for="new-status">Selecione o novo status:</label>
-                <select id="new-status" class="form-control">
-                    ${statusOptions}
-                </select>
-            </div>
-        `;
-        
-        ui.showModal('Alterar Status do Pedido', modalContent, async () => {
-            const newStatus = document.getElementById('new-status').value;
-            if (newStatus && newStatus !== currentStatus) {
-                try {
-                    ui.showLoading('Atualizando status do pedido...');
-                    
-                    // Se o status for 'cancelled', pergunta o motivo
-                    if (newStatus === 'cancelled') {
-                        const reason = await this.askCancellationReason();
-                        if (reason === null) {
-                            ui.hideLoading();
-                            return; // Cancelou a operação
-                        }
-                        
-                        await db.collection('orders').doc(orderId).update({
-                            status: newStatus,
-                            cancellationReason: reason,
-                            lastUpdate: new Date()
-                        });
-                    } else {
-                        await db.collection('orders').doc(orderId).update({
-                            status: newStatus,
-                            lastUpdate: new Date()
-                        });
-                    }
-                    
-                    ui.showNotification('Status do pedido atualizado com sucesso!', 'success');
-                    
-                    // Recarrega os dados e atualiza a visualização
-                    await this.loadOrdersByStatus();
-                    this.renderWorkflow();
-                    
-                    ui.hideLoading();
-                } catch (error) {
-                    console.error('Erro ao atualizar status do pedido:', error);
-                    ui.hideLoading();
-                    ui.showNotification('Erro ao atualizar status do pedido.', 'error');
-                }
-            }
-        });
-    }
-    
-    // Pergunta o motivo do cancelamento
-    async askCancellationReason() {
-        return new Promise((resolve) => {
-            ui.promptModal(
-                'Motivo do Cancelamento', 
-                'Por favor, informe o motivo do cancelamento:',
-                (reason) => {
-                    resolve(reason);
-                },
-                () => {
-                    resolve(null);
-                }
-            );
-        });
+        if (order) {
+            // Usa a função global do UI para consistência e passa um callback para recarregar
+            await window.ui.showChangeStatusDialog(orderId, order.status, () => {
+                this.render(this.container); // Recarrega os dados na página de workflow
+            });
+        } else {
+            window.ui.showNotification('Ocorreu um erro ao encontrar o pedido para alterar o status.', 'error');
+        }
     }
     
     // Encontra um pedido pelo ID em todos os blocos de status

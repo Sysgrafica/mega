@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializa os módulos principais
     window.ui = new UI();
     window.auth = new AuthSystem();
+    window.profile = new Profile();
     
     // Flag global para controle de carregamento de dados
     window.isLoadingData = false;
@@ -33,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Se o usuário estiver autenticado, gera o menu e carrega a página inicial
             if (auth.currentUser) {
                 ui.generateMenu();
+                profile.init(); // Inicializa o listener do perfil
                 
                 // Verifica se há uma rota na URL
                 const hash = window.location.hash.substring(1);

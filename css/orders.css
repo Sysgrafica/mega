@@ -124,7 +124,7 @@
 
 .order-status {
     display: inline-block;
-    padding: 0.25rem 0.5rem;
+    padding: 0.5rem 0.5rem;
     border-radius: 4px;
     font-size: 0.75rem;
     font-weight: 500;
@@ -207,6 +207,21 @@
     color: white;
     border-color: #4a90e2;
 }
+
+/* Estilos para a badge de situação */
+.situacao-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.situacao-atrasado { background-color: #d62828; color: white; }
+.situacao-apresse { background-color: #f77f00; color: white; }
+.situacao-no-prazo { background-color: #2a9d8f; color: white; }
+.situacao-combinar,
+.situacao-pendente { background-color: #778ca3; color: white; }
 
 /* Dark mode */
 .dark-mode .orders-title {

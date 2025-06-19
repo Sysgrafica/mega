@@ -848,7 +848,8 @@ class DashboardComponent {
             
             // Usando o índice composto status+deliveryDate
             const snapshot = await db.collection('orders')
-                .where('status', 'in', ['pending', 'approved', 'production'])
+                .where('deliveryType', '==', 'entrega')
+                .where('status', 'in', ['pending', 'approved', 'production', 'ready', 'printing', 'cutting', 'finishing', 'application'])
                 .where('deliveryDate', '>=', today)
                 .where('deliveryDate', '<=', limitDate)
                 .orderBy('deliveryDate', 'asc')

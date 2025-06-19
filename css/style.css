@@ -82,8 +82,8 @@ body {
 }
 
 .btn-danger {
-    background-color: var(--error-color);
-    color: var(--text-light);
+    background-color: #b10020;
+    color: #ffffff;
 }
 
 .btn-sm {
@@ -384,6 +384,7 @@ body {
 }
 
 #modal-body {
+    background: royalblue;
     padding: 1.5rem;
 }
 
@@ -560,6 +561,7 @@ body {
 }
 
 .situacao-no-prazo {
+    margin-top: 2px;
     color: #2196F3;
     font-weight: bold;
 }
@@ -1298,12 +1300,15 @@ body {
 }
 
 .workflow-order-item {
+    display: flex;
     background-color: var(--dark-surface);
     padding: 0.75rem;
     border-radius: var(--border-radius);
     cursor: pointer;
     transition: var(--transition);
     border-left: 3px solid transparent;
+    flex-direction: column;
+    align-items: center;
 }
 
 .workflow-order-item:hover {
@@ -2800,4 +2805,8 @@ body {
     background-color: rgba(255, 255, 255, 0.2);
     color: var(--text-light);
 }
-  
+.header-actionsNJ {
+    width: 1190px;
+    display: flex;
+    gap: 0.75rem;
+}
