@@ -1,0 +1,16 @@
+{
+  "name": "grafsys-teste-desempenho",
+  "version": "1.0.0",
+  "description": "Scripts para teste de desempenho do sistema GrafSys",
+  "main": "script-teste-desempenho.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "gerar-pedidos": "node script-teste-desempenho.js",
+    "limpar-pedidos": "node script-limpeza-dados-teste.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "firebase-admin": "^11.10.1"
+  }
+} 

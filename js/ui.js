@@ -26,6 +26,7 @@ class UI {
             { id: 'products', label: 'Produtos', icon: 'fa-boxes', component: 'ProductsComponent' },
             { id: 'employees', label: 'Funcionários', icon: 'fa-id-card', component: 'EmployeesComponent' },
             { id: 'suppliers', label: 'Fornecedores', icon: 'fa-truck', component: 'SuppliersComponent' },
+            { id: 'inventory', label: 'Estoque', icon: 'fa-warehouse', component: 'Inventory' },
             { id: 'reports', label: 'Relatórios', icon: 'fa-chart-bar', component: 'ReportsComponent' },
             { id: 'permissions', label: 'Gerenciar Permissões', icon: 'fa-shield-alt', component: 'PermissionsComponent' },
             { id: 'profile', label: 'Meu Perfil', icon: 'fa-user', component: 'Profile', isHidden: true }
@@ -88,17 +89,21 @@ class UI {
     
     // Navega para uma página específica
     navigateTo(pageId, callback = null, isInitialLoad = false) {
+        console.log(`[UI.navigateTo] Iniciando navegação para: ${pageId}. É carregamento inicial? ${isInitialLoad}`);
         // Verifica se o usuário tem permissão para acessar a página
         if (pageId !== 'profile' && !window.auth.hasPagePermission(pageId)) {
-            console.error(`Usuário não tem permissão para acessar: ${pageId}`);
+            console.error(`[UI.navigateTo] Falha na permissão para a página: ${pageId}`);
             this.showNotification('Você não tem permissão para acessar esta página.', 'error');
             return;
         }
         
+        const menuItem = this.menuItems.find(item => item.id === pageId);
+
         // Verifica se a página existe
-        if (!this.menuItems.find(item => item.id === pageId)) {
-            console.error(`Página não encontrada: ${pageId}`);
-            pageId = 'dashboard'; // Redireciona para o dashboard
+        if (!menuItem) {
+            console.error(`[UI.navigateTo] Página não encontrada na lista menuItems: ${pageId}. Redirecionando para o dashboard.`);
+            this.showErrorPage(`Componente para a página "${pageId}" não foi encontrado.`);
+            return;
         }
         
         // Limpa o componente anterior, se existir
@@ -147,11 +152,12 @@ class UI {
     
     // Renderiza um componente na área de conteúdo principal
     renderComponent(componentId, callback = null, isInitialLoad = false) {
-        console.log(`Renderizando componente: ${componentId}`);
+        console.log(`[UI.renderComponent] Tentando renderizar componente: ${componentId}`);
         // Encontra o componente correspondente
         const menuItem = this.menuItems.find(item => item.id === componentId);
         
         if (menuItem && window[menuItem.component]) {
+            console.log(`[UI.renderComponent] Componente "${menuItem.component}" encontrado para a página "${componentId}".`);
             try {
                 // Se for dashboard e não for carregamento inicial, mostra indicador de carregamento
                 if (componentId === 'dashboard' && !isInitialLoad) {
@@ -162,6 +168,7 @@ class UI {
                 }
                 
                 // Cria e renderiza o componente
+                console.log(`[UI.renderComponent] Instanciando a classe: new window.${menuItem.component}()`);
                 const component = new window[menuItem.component]();
                 
                 // Armazena referência ao componente atual
@@ -184,21 +191,23 @@ class UI {
                         }
                     })
                     .catch(error => {
-                        console.error(`Erro ao renderizar componente ${componentId}:`, error);
+                        console.error(`[UI.renderComponent] Erro CRÍTICO ao renderizar o componente ${componentId}:`, error);
                         window.isLoadingData = false;
-                        this.showErrorPage(error.message);
+                        this.showErrorPage(`Erro ao renderizar o componente "${componentId}": ${error.message}`);
                     });
             } catch (error) {
-                console.error(`Erro ao criar o componente ${menuItem.component}:`, error);
-                this.showErrorPage(`Erro ao criar o componente: ${error.message}`);
+                console.error(`[UI.renderComponent] Erro CRÍTICO ao instanciar o componente ${menuItem.component}:`, error);
+                this.showErrorPage(`Erro ao criar o componente "${menuItem.component}": ${error.message}`);
             }
         } else {
-            this.showErrorPage();
+            console.error(`[UI.renderComponent] Definição do componente não encontrada para: ${componentId}. Verifique se o ID está correto em menuItems e se a classe/arquivo JS existe.`);
+            this.showErrorPage(`Componente "${menuItem?.component || 'desconhecido'}" não foi encontrado ou carregado.`);
         }
     }
     
     // Exibe página de erro
     showErrorPage(message = 'Página não encontrada') {
+        console.error(`[UI.showErrorPage] Exibindo página de erro com a mensagem: "${message}"`);
         this.mainContent.innerHTML = `
             <div class="error-page">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -1498,6 +1507,8 @@ class UI {
 
                     await db.collection('orders').doc(orderId).update({ 
                         status: newStatus,
+                        statusUpdatedBy: user ? user.name : 'Sistema',
+                        statusUpdatedAt: new Date(),
                         statusHistory: firebase.firestore.FieldValue.arrayUnion(historyEntry)
                     });
 

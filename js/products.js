@@ -378,279 +378,205 @@ class ProductsComponent {
     }
     
     // Renderiza o formulário de produto (para criação ou edição)
-    renderProductForm(productId = null) {
+    async renderProductForm(productId = null) {
         const isEdit = !!productId;
         const product = isEdit ? this.products.find(p => p.id === productId) : {
             active: true,
             pricingType: 'unit',
-            category: 'impressao',
-            productType: 'standard' // Valor padrão para tipo de produto
+            category: 'impressao'
         };
+
+        // Buscar todos os materiais disponíveis
+        let materials = [];
+        try {
+            const snapshot = await db.collection('materiais').orderBy('nome').get();
+            snapshot.forEach(doc => materials.push({ id: doc.id, ...doc.data() }));
+        } catch (error) {
+            console.error("Erro ao buscar materiais:", error);
+            this.renderError("Não foi possível carregar os materiais para associação.");
+            return;
+        }
+
+        const materialsCheckboxes = materials.map(material => {
+            const isChecked = product.materiaisAssociados?.includes(material.id) ? 'checked' : '';
+            return `
+                <div class="checkbox-item">
+                    <input type="checkbox" id="material-${material.id}" name="materiais" value="${material.id}" ${isChecked}>
+                    <label for="material-${material.id}">${material.nome}</label>
+                </div>
+            `;
+        }).join('');
         
         const formTitle = isEdit ? 'Editar Produto' : 'Novo Produto ou Serviço';
         
         let html = `
-            <div class="page-header">
-                <div class="back-button-wrapper">
-                    <button id="back-to-list" class="btn-icon"><i class="fas fa-arrow-left"></i></button>
-                    <h1>${formTitle}</h1>
-                </div>
-                <div class="action-buttons">
-                    <button id="save-product-btn" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Salvar Produto
-                    </button>
-                </div>
+            <div class="form-container">
+                <form id="product-form" class="styled-form">
+                    <div class="form-header">
+                        <div class="back-button-wrapper">
+                            <button type="button" id="back-to-list" class="btn-icon"><i class="fas fa-arrow-left"></i></button>
+                            <h1>${formTitle}</h1>
+                        </div>
+                        <div class="action-buttons">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>Informações Básicas</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="product-name">Nome do Produto</label>
+                                <input type="text" id="product-name" class="form-control" value="${product.name || ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="product-description">Descrição</label>
+                                <textarea id="product-description" class="form-control">${product.description || ''}</textarea>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="product-category">Categoria</label>
+                                <select id="product-category" class="form-control">
+                                    <option value="impressao" ${product.category === 'impressao' ? 'selected' : ''}>Impressão Digital</option>
+                                    <option value="grafica" ${product.category === 'grafica' ? 'selected' : ''}>Gráfica Offset</option>
+                                    <option value="servico" ${product.category === 'servico' ? 'selected' : ''}>Serviços</option>
+                                    <option value="outro" ${product.category === 'outro' ? 'selected' : ''}>Outros</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="product-active">Status</label>
+                                <select id="product-active" class="form-control">
+                                    <option value="true" ${product.active ? 'selected' : ''}>Ativo</option>
+                                    <option value="false" ${!product.active ? 'selected' : ''}>Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="materials-section">
+                        <h3>Materiais Necessários</h3>
+                        <div class="checkbox-group">
+                            ${materialsCheckboxes || '<p>Nenhum material cadastrado no estoque.</p>'}
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Precificação</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="product-pricing-type">Tipo de Precificação</label>
+                                <select id="product-pricing-type" class="form-control">
+                                    <option value="unit" ${product.pricingType === 'unit' ? 'selected' : ''}>Por Unidade</option>
+                                    <option value="area" ${product.pricingType === 'area' ? 'selected' : ''}>Por Área (m²)</option>
+                                    <option value="hour" ${product.pricingType === 'hour' ? 'selected' : ''}>Por Hora</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="product-price">Preço</label>
+                                <input type="number" id="product-price" class="form-control" step="0.01" value="${product.price || 0}">
+                            </div>
+                             <div class="form-group">
+                                <label for="product-price-reseller">Preço (Revenda)</label>
+                                <input type="number" id="product-price-reseller" class="form-control" step="0.01" value="${product.priceReseller || 0}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="product-min-price">Preço Mínimo</label>
+                                <input type="number" id="product-min-price" class="form-control" step="0.01" value="${product.minPrice || 0}">
+                            </div>
+                             <div class="form-group">
+                                <label for="product-unit">Unidade</label>
+                                <input type="text" id="product-unit" class="form-control" value="${product.unit || ''}" placeholder="un, m², kg, etc.">
+                            </div>
+                        </div>
+                         <div class="form-row">
+                            <div class="form-group">
+                                <label for="product-min-quantity">Quantidade Mínima</label>
+                                <input type="number" id="product-min-quantity" class="form-control" value="${product.minQuantity || 1}">
+                            </div>
+                            <div class="form-group">
+                                <label for="product-lead-time">Prazo de Produção (dias)</label>
+                                <input type="number" id="product-lead-time" class="form-control" value="${product.leadTime || 0}">
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
-            
-            <form id="product-form" class="product-form">
-                <div class="form-section">
-                    <h3>Informações Básicas</h3>
-                    
-                    <div class="form-row">
-                        <div class="form-group full-width">
-                            <label for="product-name">Nome do Produto/Serviço</label>
-                            <input type="text" id="product-name" class="form-control" value="${product.name || ''}" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="product-category">Categoria</label>
-                            <select id="product-category" class="form-control" required>
-                                <option value="impressao" ${product.category === 'impressao' ? 'selected' : ''}>Impressão Digital</option>
-                                <option value="grafica" ${product.category === 'grafica' ? 'selected' : ''}>Gráfica Offset</option>
-                                <option value="servico" ${product.category === 'servico' ? 'selected' : ''}>Serviços</option>
-                                <option value="outro" ${product.category === 'outro' ? 'selected' : ''}>Outros</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="product-type">Tipo de Produto</label>
-                            <select id="product-type" class="form-control" required>
-                                <option value="standard" ${(product.productType === 'standard' || !product.productType) ? 'selected' : ''}>Padrão</option>
-                                <option value="custom_size" ${product.productType === 'custom_size' ? 'selected' : ''}>Medida Personalizada</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="product-active">Status</label>
-                            <select id="product-active" class="form-control">
-                                <option value="true" ${product.active !== false ? 'selected' : ''}>Ativo</option>
-                                <option value="false" ${product.active === false ? 'selected' : ''}>Inativo</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group full-width">
-                            <label for="product-description">Descrição</label>
-                            <textarea id="product-description" class="form-control" rows="3">${product.description || ''}</textarea>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>Precificação</h3>
-                    
-                    <div class="form-row">
-                        <div class="form-group" id="pricing-type-group">
-                            <label for="product-pricing-type">Tipo de Precificação</label>
-                            <select id="product-pricing-type" class="form-control" required>
-                                <option value="unit" ${product.pricingType === 'unit' ? 'selected' : ''}>Unitário</option>
-                                <option value="area" ${product.pricingType === 'area' ? 'selected' : ''}>Por Área (m²)</option>
-                                <option value="hour" ${product.pricingType === 'hour' ? 'selected' : ''}>Por Hora</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group" id="price-group-final">
-                            <label for="product-price-final" id="price-label-final">Preço (Cliente Final)</label>
-                            <div class="input-group">
-                                <span class="input-group-text">R$</span>
-                                <input type="number" id="product-price-final" class="form-control" step="0.01" min="0" value="${product.priceFinal || product.price || 0}">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group" id="price-group-reseller">
-                            <label for="product-price-reseller" id="price-label-reseller">Preço (Revenda)</label>
-                            <div class="input-group">
-                                <span class="input-group-text">R$</span>
-                                <input type="number" id="product-price-reseller" class="form-control" step="0.01" min="0" value="${product.priceReseller || (product.price ? (product.price * 0.8).toFixed(2) : 0)}">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="product-min-price">Preço Mínimo</label>
-                            <div class="input-group">
-                                <span class="input-group-text">R$</span>
-                                <input type="number" id="product-min-price" class="form-control" step="0.01" min="0" value="${product.minPrice || 0}">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="product-unit">Unidade</label>
-                            <input type="text" id="product-unit" class="form-control" value="${product.unit || ''}" placeholder="un, m², hora, etc.">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="product-min-quantity">Quantidade Mínima</label>
-                            <input type="number" id="product-min-quantity" class="form-control" min="0" value="${product.minQuantity || ''}">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="product-lead-time">Prazo de Produção (dias)</label>
-                            <input type="number" id="product-lead-time" class="form-control" min="0" value="${product.leadTime || 1}">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3>Informações Adicionais</h3>
-                    
-                    <div class="form-row">
-                        <div class="form-group full-width">
-                            <label for="product-notes">Observações Internas</label>
-                            <textarea id="product-notes" class="form-control" rows="3">${product.notes || ''}</textarea>
-                        </div>
-                    </div>
-                </div>
-            </form>
         `;
         
         this.container.innerHTML = html;
         
-        // Adiciona eventos
-        document.getElementById('back-to-list').addEventListener('click', () => {
+        // Adicionando os listeners de evento diretamente
+        this.container.querySelector('#back-to-list').addEventListener('click', () => {
             this.currentView = 'list';
             this.renderCurrentView();
         });
-        
-        document.getElementById('save-product-btn').addEventListener('click', () => this.saveProduct(isEdit));
-        
-        // Evento para atualizar a interface com base no tipo de produto
-        const productTypeSelect = document.getElementById('product-type');
-        if (productTypeSelect) {
-            // Atualiza o formulário baseado no tipo de produto atual
-            this.updateFormBasedOnProductType(productTypeSelect.value);
-            
-            // Adiciona evento para mudanças futuras
-            productTypeSelect.addEventListener('change', (e) => {
+
+        this.container.querySelector('#product-form').addEventListener('submit', (e) => this.saveProduct(e, isEdit));
+
+        const pricingTypeSelect = this.container.querySelector('#product-pricing-type');
+        if (pricingTypeSelect) {
+            pricingTypeSelect.addEventListener('change', (e) => {
                 this.updateFormBasedOnProductType(e.target.value);
             });
+            this.updateFormBasedOnProductType(pricingTypeSelect.value);
         }
     }
-    
-    // Método para atualizar o formulário baseado no tipo de produto
+
     updateFormBasedOnProductType(productType) {
-        const priceLabelElement = document.getElementById('price-label');
-        
-        if (productType === 'custom_size') {
-            // Atualiza o label do preço para produtos com medida personalizada
-            if (priceLabelElement) {
-                priceLabelElement.textContent = 'Preço por Metro Quadrado (R$/m²)';
-            }
-            
-            // Força a opção "Por Área" no tipo de precificação
-            const pricingTypeSelect = document.getElementById('product-pricing-type');
-            if (pricingTypeSelect) {
-                pricingTypeSelect.value = 'area';
-                pricingTypeSelect.disabled = true;
-            }
-        } else {
-            // Restaura o label padrão
-            if (priceLabelElement) {
-                priceLabelElement.textContent = 'Preço';
-            }
-            
-            // Habilita o tipo de precificação para produtos padrão
-            const pricingTypeSelect = document.getElementById('product-pricing-type');
-            if (pricingTypeSelect) {
-                pricingTypeSelect.disabled = false;
-            }
-        }
+        // Lógica para mostrar/ocultar campos com base no tipo de precificação (se necessário)
     }
-    
+
     // Salva o produto
-    async saveProduct(isEdit) {
+    async saveProduct(event, isEdit) {
+        event.preventDefault();
+        
+        const form = this.container.querySelector('#product-form');
+        const selectedMaterials = [...form.querySelectorAll('input[name="materiais"]:checked')].map(cb => cb.value);
+
+        const productData = {
+            name: document.getElementById('product-name').value.trim(),
+            description: document.getElementById('product-description').value.trim(),
+            category: document.getElementById('product-category').value,
+            active: document.getElementById('product-active').value === 'true',
+            pricingType: document.getElementById('product-pricing-type').value,
+            price: parseFloat(document.getElementById('product-price').value) || 0,
+            priceReseller: parseFloat(document.getElementById('product-price-reseller').value) || 0,
+            minPrice: parseFloat(document.getElementById('product-min-price').value) || 0,
+            unit: document.getElementById('product-unit').value.trim(),
+            minQuantity: parseInt(document.getElementById('product-min-quantity').value, 10) || 1,
+            leadTime: parseInt(document.getElementById('product-lead-time').value, 10) || 0,
+            materiaisAssociados: selectedMaterials, // Salva o array de IDs
+            lastUpdate: new Date()
+        };
+
+        if (!productData.name) {
+            ui.showNotification('O nome do produto é obrigatório.', 'error');
+            return;
+        }
+
+        ui.showLoading('Salvando produto...');
+
         try {
-            // Obtém os dados do formulário
-            const name = document.getElementById('product-name')?.value || '';
-            
-            if (!name.trim()) {
-                ui.showNotification('Por favor, informe o nome do produto.', 'error');
-                return;
-            }
-            
-            const productType = document.getElementById('product-type')?.value || 'standard';
-            let pricingType = document.getElementById('product-pricing-type')?.value || 'unit';
-            
-            // Se for um produto de medida personalizada, força o tipo de precificação como 'area'
-            if (productType === 'custom_size') {
-                pricingType = 'area';
-            }
-            
-            const priceFinal = parseFloat(document.getElementById('product-price-final')?.value || 0);
-            const priceReseller = parseFloat(document.getElementById('product-price-reseller')?.value || 0);
-            
-            const productData = {
-                name: name.trim(),
-                category: document.getElementById('product-category')?.value || 'outro',
-                productType: productType,
-                active: document.getElementById('product-active')?.value === 'true',
-                description: document.getElementById('product-description')?.value || '',
-                pricingType: pricingType,
-                price: priceFinal, // Mantém o campo original para compatibilidade
-                priceFinal: priceFinal, // Preço para cliente final
-                priceReseller: priceReseller, // Preço para revenda
-                minPrice: parseFloat(document.getElementById('product-min-price')?.value || 0),
-                unit: document.getElementById('product-unit')?.value || '',
-                minQuantity: parseInt(document.getElementById('product-min-quantity')?.value || 0),
-                leadTime: parseInt(document.getElementById('product-lead-time')?.value || 1),
-                notes: document.getElementById('product-notes')?.value || '',
-                lastUpdate: new Date()
-            };
-            
-            // Validação adicional
-            if (productData.priceFinal <= 0) {
-                ui.showNotification('O preço para cliente final deve ser maior que zero.', 'error');
-                return;
-            }
-            
-            if (productData.priceReseller <= 0) {
-                ui.showNotification('O preço para revenda deve ser maior que zero.', 'error');
-                return;
-            }
-            
-            // Exibe indicador de carregamento
-            ui.showLoading('Salvando produto...');
-            
-            // Salva no Firestore
             if (isEdit) {
                 await db.collection('products').doc(this.currentProductId).update(productData);
                 ui.showNotification('Produto atualizado com sucesso!', 'success');
             } else {
-                // Adiciona data de criação para novos produtos
                 productData.createdAt = new Date();
-                
                 const docRef = await db.collection('products').add(productData);
                 this.currentProductId = docRef.id;
-                ui.showNotification('Produto criado com sucesso!', 'success');
+                ui.showNotification('Produto cadastrado com sucesso!', 'success');
             }
-            
-            // Oculta indicador de carregamento
-            ui.hideLoading();
-            
-            // Recarrega os produtos e volta para a lista
             await this.loadProducts();
             this.currentView = 'list';
             this.renderCurrentView();
         } catch (error) {
-            console.error('Erro ao salvar produto:', error);
+            console.error("Erro ao salvar produto: ", error);
+            ui.showNotification('Erro ao salvar o produto.', 'error');
+        } finally {
             ui.hideLoading();
-            ui.showNotification('Erro ao salvar produto. Por favor, tente novamente.', 'error');
         }
     }
     

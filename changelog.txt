@@ -1,3 +1,23 @@
+Versão 2.75 - 30/07/2024
+- Melhoria: A página de Estoque agora está disponível para todos os setores.
+- Melhoria: Interface de Estoque adaptada para mostrar opções de edição apenas para administradores.
+- Melhoria: Adicionada permissão "view_inventory" para todos os setores.
+
+Versão 2.74 - 29/07/2024
+- Corrigido: Itens não apareciam na lista ao serem adicionados na página de 'Novo Pedido'.
+- Melhoria: O campo de seleção de produto agora é desativado após adicionar um item, garantindo que novos itens sejam adicionados apenas pelo botão 'Adicionar Item'.
+
+Versão 2.73 - 26/07/2024
+- Melhorado: A impressão da página de "Detalhes do Pedido" agora é idêntica à visualização em tela, capturando todo o conteúdo sem cortes.
+- Corrigido: Removidos e ajustados os arquivos de estilo de impressão que causavam inconsistências no layout.
+- Confirmado: A lógica de exibição de pedidos foi verificada para garantir que pedidos com status "Cancelado" apareçam apenas na listagem geral e na página de busca, sendo ocultados das telas de fluxo de trabalho.
+- Corrigido o problema que fazia com que o campo de frete não fosse exibido corretamente ao carregar um pedido salvo com o tipo de entrega "Entrega".
+- Implementada a funcionalidade de salvar e carregar corretamente os custos de entrega e serviços extras ao criar e editar pedidos.
+
+Versão 2.72 - 26/07/2024
+- (Atualização manual do usuário)
+- Adicionada a capacidade de salvar e carregar os valores de custo de entrega e serviços extras no formulário de pedidos.
+
 Versão 2.41 - 25/07/2024
 - Ampliada a busca por "Entregas Próximas" no dashboard para incluir todos os status de produção relevantes, aumentando a chance de exibição correta dos pedidos.
 

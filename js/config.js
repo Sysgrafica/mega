@@ -35,37 +35,37 @@ const SYSTEM_CONFIG = {
         seller: {
             name: "Vendedor",
             level: 3,
-            menuAccess: ["dashboard", "workflow", "orders", "clients", "products"]
+            menuAccess: ["dashboard", "workflow", "orders", "clients", "products", "inventory"]
         },
         designer: {
             name: "Designer",
             level: 2,
-            menuAccess: ["dashboard", "workflow", "orders", "products"]
+            menuAccess: ["dashboard", "workflow", "orders", "products", "inventory"]
         },
         production: {
             name: "Produção",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "impressao", "orders"]
+            menuAccess: ["dashboard", "workflow", "impressao", "orders", "inventory"]
         },
         impressor: {
             name: "Impressor",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "impressao", "orders"]
+            menuAccess: ["dashboard", "workflow", "impressao", "orders", "inventory"]
         },
         acabamento: {
             name: "Acabamento",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "acabamento", "orders", "aplicacao"]
+            menuAccess: ["dashboard", "workflow", "acabamento", "orders", "aplicacao", "inventory"]
         },
         cortesEspeciais: {
             name: "Cortes Especiais",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "cortes-especiais", "orders"]
+            menuAccess: ["dashboard", "workflow", "cortes-especiais", "orders", "inventory"]
         },
         aplicador: {
             name: "Aplicador",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "orders", "aplicacao"]
+            menuAccess: ["dashboard", "workflow", "orders", "aplicacao", "inventory"]
         }
     },
     // Lista de todas as páginas do sistema
@@ -83,7 +83,8 @@ const SYSTEM_CONFIG = {
         { id: "employees", name: "Funcionários" },
         { id: "suppliers", name: "Fornecedores" },
         { id: "reports", name: "Relatórios" },
-        { id: "permissions", name: "Gerenciar Permissões" }
+        { id: "permissions", name: "Gerenciar Permissões" },
+        { id: "inventory", name: "Estoque" }
     ],
     // Lista de todas as funcionalidades do sistema
     features: [
@@ -91,6 +92,7 @@ const SYSTEM_CONFIG = {
         { id: "view_dashboard", name: "Ver Dashboard", category: "geral" },
         { id: "view_workflow", name: "Ver Fluxo de Trabalho", category: "geral" },
         { id: "view_impressao", name: "Ver Página de Impressão", category: "geral" },
+        { id: "view_inventory", name: "Ver Estoque", category: "geral" },
         
         // Funcionalidades de Pedidos
         { id: "view_orders", name: "Ver Pedidos", category: "pedidos" },

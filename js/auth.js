@@ -131,64 +131,64 @@ class AuthSystem {
                     
                     // Para vendedores, concede permissões relacionadas a clientes e pedidos
                     'seller': {
-                        pages: ["dashboard", "workflow", "orders", "clients", "products"],
+                        pages: ["dashboard", "workflow", "orders", "clients", "products", "inventory"],
                         features: [
                             "view_dashboard", "view_workflow", "view_orders", "create_order", 
                             "edit_order", "delete_order", "view_order_details", "print_order", "view_clients", 
-                            "create_client", "edit_client", "view_products"
+                            "create_client", "edit_client", "view_products", "view_inventory"
                         ]
                     },
                     
                     // Para designers, concede permissões relacionadas a pedidos
                     'designer': {
-                        pages: ["dashboard", "workflow", "orders", "products"],
+                        pages: ["dashboard", "workflow", "orders", "products", "inventory"],
                         features: [
                             "view_dashboard", "view_workflow", "view_orders", 
-                            "view_order_details", "view_products"
+                            "view_order_details", "view_products", "view_inventory"
                         ]
                     },
                     
                     // Para produção, concede permissões básicas para acompanhar o fluxo de pedidos
                     'production': {
-                        pages: ["dashboard", "workflow", "impressao", "orders"],
+                        pages: ["dashboard", "workflow", "impressao", "orders", "inventory"],
                         features: [
                             "view_dashboard", "view_workflow", "view_impressao", "view_orders", 
-                            "view_order_details", "change_order_status"
+                            "view_order_details", "change_order_status", "view_inventory"
                         ]
                     },
                     
                     // Para impressores, permissões para acompanhar pedidos e alterar status
                     'impressor': {
-                        pages: ["dashboard", "workflow", "impressao", "orders"],
+                        pages: ["dashboard", "workflow", "impressao", "orders", "inventory"],
                         features: [
                             "view_dashboard", "view_workflow", "view_impressao", "view_orders", 
-                            "view_order_details", "change_order_status"
+                            "view_order_details", "change_order_status", "mark_print_item", "view_inventory"
                             // Removido intencionalmente: "edit_order", "delete_order"
                         ]
                     },
                     
                     'acabamento': {
-                        pages: ["dashboard", "workflow", "orders"],
+                        pages: ["dashboard", "workflow", "orders", "inventory"],
                         features: [
                             "view_dashboard", "view_workflow", "view_orders", 
-                            "view_order_details", "change_order_status"
+                            "view_order_details", "change_order_status", "mark_finishing_item", "view_inventory"
                             // Removido intencionalmente: "edit_order", "delete_order"
                         ]
                     },
                     
                     'cortesEspeciais': {
-                        pages: ["dashboard", "workflow", "orders"],
+                        pages: ["dashboard", "workflow", "orders", "inventory"],
                         features: [
                             "view_dashboard", "view_workflow", "view_orders", 
-                            "view_order_details", "change_order_status"
+                            "view_order_details", "change_order_status", "mark_special_cut_item", "view_inventory"
                         ]
                     },
                     
                     'aplicador': {
-                        pages: ["dashboard", "workflow", "orders"],
+                        pages: ["dashboard", "workflow", "orders", "inventory"],
                         features: [
                             "view_dashboard", "view_workflow", "view_orders", 
-                            "view_order_details", "change_order_status"
+                            "view_order_details", "change_order_status", "view_inventory"
                         ]
                     }
                 };
@@ -400,12 +400,24 @@ class AuthSystem {
     hasFeaturePermission(featureId) {
         if (!this.currentUser) return false;
         
-        // Administradores sempre têm acesso a tudo
+        // Administradores têm acesso a tudo
         if (this.currentUser.role === 'admin') return true;
+
+        // Tratamento especial para marcação de itens, garantindo que funcione mesmo se as permissões no DB não estiverem atualizadas
+        if (featureId === 'mark_print_item') {
+            return this.currentUser.role === 'impressor';
+        }
+        if (featureId === 'mark_finishing_item') {
+            return this.currentUser.role === 'acabamento';
+        }
+        if (featureId === 'mark_special_cut_item') {
+            return this.currentUser.role === 'cortesEspeciais';
+        }
         
-        // Verifica nas permissões dinâmicas
-        if (this.currentUser.permissions && this.currentUser.permissions.features) {
-            return this.currentUser.permissions.features.includes(featureId);
+        // Para outras funcionalidades, verifica as permissões carregadas do cache
+        const userPermissions = this.permissionsCache[this.currentUser.role];
+        if (userPermissions && userPermissions.features) {
+            return userPermissions.features.includes(featureId);
         }
         
         return false;

@@ -29,35 +29,6 @@
 
 /* --- Estilos Otimizados para Impressão --- */
 @media print {
-    body {
-        background-color: #fff !important; /* Fundo branco para impressão */
-        padding: 0 !important;
-    }
-    
-    .order-detail-container {
-        background-color: #fff !important;
-        padding: 0 !important;
-    }
-    
-    .page {
-        width: 100% !important;
-        min-height: initial !important;
-        margin: 0 !important;
-        padding: 10mm !important;
-        box-shadow: none !important; /* Remove a sombra na impressão */
-        border-radius: 0 !important;
-    }
-    
-    .print-button, .top-bar, .back-button-wrapper, .action-buttons, .action-panel, button {
-        display: none !important; /* Oculta o botão de impressão e outros elementos de navegação */
-    }
-    
-    .main-footer {
-        position: fixed !important;
-        bottom: 0 !important;
-        width: calc(100% - 20mm) !important; /* Garante que o rodapé não ultrapasse a área de impressão */
-        text-align: center !important;
-    }
 }
 
 /* --- Cabeçalho --- */
@@ -222,6 +193,14 @@
 
 .dark-mode .finishing-checked {
     border-right: 4px solid var(--blue-600, #3182ce);
+}
+
+.special-cut-checked {
+    border-left: 4px solid var(--yellow-500, #ecc94b);
+}
+
+.dark-mode .special-cut-checked {
+    border-left: 4px solid var(--yellow-600, #d69e2e);
 }
 
 /* --- Estilos para Checkbox e Indicador de Informação --- */
@@ -998,8 +977,8 @@
 }
 
 .dark-mode .status-badge {
-    background-color: #2d3748;
-    color: #cbd5e0;
+    background-color: #ffb244;
+    color: #000000;
 }
 
 .dark-mode .status-badge.ontime {
@@ -1019,4 +998,64 @@
 
 .dark-mode .status-updated-info {
     color: #a0aec0;
+}
+
+.dark-mode .finishing-checkbox:checked ~ .finishing-checkbox-label {
+    background-color: var(--blue-600, #3182ce);
+    border-color: var(--blue-500, #4299e1);
+}
+
+.special-cut-checkbox-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.special-cut-checkbox {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.special-cut-checkbox-label {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: #e2e8f0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.special-cut-checkbox:checked ~ .special-cut-checkbox-label {
+    background-color: var(--yellow-500, #ecc94b);
+}
+
+.special-cut-checkbox-label .checkmark {
+    stroke: white;
+    width: 14px;
+    height: 14px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.special-cut-checkbox:checked ~ .special-cut-checkbox-label .checkmark {
+    opacity: 1;
+}
+
+.special-cut-checkbox-label:hover {
+    background-color: #cbd5e0;
+}
+
+.dark-mode .special-cut-checkbox-label {
+    background-color: var(--gray-600, #4a5568);
+}
+
+.dark-mode .special-cut-checkbox:checked ~ .special-cut-checkbox-label {
+    background-color: var(--yellow-600, #d69e2e);
 } 

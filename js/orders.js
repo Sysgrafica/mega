@@ -1712,13 +1712,25 @@ class OrdersComponent {
                 userName = window.auth.currentUser.name || 'Usuário desconhecido';
             }
             
-            // Atualiza o documento no Firestore
-            await firebase.firestore().collection('orders').doc(orderId).update({
+            // Objeto de dados para atualização
+            const updateData = {
                 status: newStatus,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 statusUpdatedBy: userName,
                 statusUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            };
+
+            // Se o status for 'Entregue' ou 'Cancelado', trava a situação
+            if (newStatus === 'delivered' || newStatus === 'cancelled') {
+                const order = this.orders.find(o => o.id === orderId);
+                if (order) {
+                    const situacaoFinal = this.getSituacaoHTML(order);
+                    updateData.finalSituacao = situacaoFinal.text; // Salva o texto da situação
+                }
+            }
+
+            // Atualiza o documento no Firestore
+            await firebase.firestore().collection('orders').doc(orderId).update(updateData);
             
             // Atualiza o objeto local
             const orderIndex = this.orders.findIndex(o => o.id === orderId);
@@ -1727,6 +1739,11 @@ class OrdersComponent {
                 this.orders[orderIndex].updatedAt = new Date();
                 this.orders[orderIndex].statusUpdatedBy = userName;
                 this.orders[orderIndex].statusUpdatedAt = new Date();
+                
+                // Se a situação final foi definida, atualiza localmente também
+                if (updateData.finalSituacao) {
+                    this.orders[orderIndex].finalSituacao = updateData.finalSituacao;
+                }
                 
                 console.log("Pedido atualizado localmente:", {
                     status: newStatus,
@@ -1753,6 +1770,19 @@ class OrdersComponent {
     
     // Calcula e formata a situação do pedido
     getSituacaoHTML(order) {
+        // Se a situação final já foi definida (travada), retorna ela
+        if (order.finalSituacao) {
+            let situacaoClass = 'situacao-default';
+            switch (order.finalSituacao) {
+                case 'Atrasado': situacaoClass = 'situacao-atrasado'; break;
+                case 'Apresse': situacaoClass = 'situacao-apresse'; break;
+                case 'No prazo': situacaoClass = 'situacao-no-prazo'; break;
+                case 'A combinar': situacaoClass = 'situacao-combinar'; break;
+                case 'Pendente': situacaoClass = 'situacao-pendente'; break;
+            }
+            return { text: order.finalSituacao, class: situacaoClass };
+        }
+
         if (order.toArrange) {
             return { text: 'A combinar', class: 'situacao-combinar' };
         }
@@ -1971,6 +2001,9 @@ class OrdersComponent {
         // Calcula o saldo
         const balance = Math.max(0, finalTotal - paidValue);
         
+        // Formatar valor para exibição
+        const formattedValue = this.formatCurrency(finalTotal);
+        
         // Extrair data e hora separadamente para exibição
         let deliveryDateDisplay = '-';
         let deliveryTimeDisplay = '-';
@@ -2073,7 +2106,7 @@ class OrdersComponent {
                             </div>
                             <div class="info-item">
                                 <span class="label">Previsão de Entrega</span>
-                                <span class="value">${order.deliveryDate ? this.formatDateTime(order.deliveryDate) : 'A combinar'}</span>
+                                <span class="value">${deliveryDateDisplay} ${deliveryTimeDisplay}</span>
                             </div>
                             <div class="info-item">
                                 <span class="label">Situação</span>
@@ -2143,6 +2176,22 @@ class OrdersComponent {
                                 <h3 class="card-title">Itens do Pedido</h3>
                                 ${order.items && order.items.length > 0 ? 
                                     order.items.map((item, index) => {
+                                        // Variáveis de controle para o checkbox de acabamento
+                                        const canMarkFinishing = this.checkIsFinishingUser();
+                                        let finishingTooltip = 'Aguardando acabamento';
+                                        if (item.finishingChecked) {
+                                            const finishingDate = item.finishingCheckedAt ? this.formatDateTime(item.finishingCheckedAt) : 'data desconhecida';
+                                            finishingTooltip = `Acabamento por: ${item.finishingCheckedBy}<br>Em: ${finishingDate}`;
+                                        }
+
+                                        // Variáveis de controle para o checkbox de cortes especiais
+                                        const canMarkSpecialCut = this.checkIsSpecialCutUser();
+                                        let specialCutTooltip = 'Aguardando corte especial';
+                                        if (item.specialCutChecked) {
+                                            const specialCutDate = item.specialCutCheckedAt ? this.formatDateTime(item.specialCutCheckedAt) : 'data desconhecida';
+                                            specialCutTooltip = `Corte por: ${item.specialCutCheckedBy}<br>Em: ${specialCutDate}`;
+                                        }
+
                                         // Código para verificação de status de impressão e acabamento foi removido
                                         const itemClasses = ["order-item", "visible-item"];
                                         
@@ -2218,6 +2267,22 @@ class OrdersComponent {
                                                         ${item.finishingChecked && item.finishingCheckedBy ? 
                                                           `Acabado por: ${item.finishingCheckedBy}<br>Em: ${item.finishingCheckedAt ? this.formatDateTime(item.finishingCheckedAt) : '-'}` : 
                                                           'Aguardando acabamento'}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Checkbox e indicador para controle de Cortes Especiais -->
+                                                <div class="special-cut-checkbox-container">
+                                                    <input type="checkbox" id="special-cut-check-${order.id}-${index}" class="special-cut-checkbox" data-order-id="${order.id}" data-item-index="${index}" ${item.specialCutChecked ? 'checked' : ''} ${!canMarkSpecialCut ? 'disabled' : ''} title="Apenas funcionários de cortes especiais e administradores podem marcar itens">
+                                                    <label for="special-cut-check-${order.id}-${index}" class="special-cut-checkbox-label">
+                                                        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"></path>
+                                                        </svg>
+                                                    </label>
+                                                </div>
+                                                <div class="info-indicator" data-order-id="${order.id}" data-item-index="${index}">
+                                                    !
+                                                    <div class="info-tooltip" id="special-cut-tooltip-${order.id}-${index}">
+                                                        ${specialCutTooltip}
                                                     </div>
                                                 </div>
                                             </div>
@@ -2350,6 +2415,7 @@ class OrdersComponent {
         // Adiciona event listeners
         this.setupPrintCheckboxListeners(order.id);
         this.setupFinishingCheckboxListeners(order.id);
+        this.setupSpecialCutCheckboxListeners(order.id);
         
         const backButton = document.getElementById('back-to-orders');
         if (backButton) {
@@ -2360,6 +2426,13 @@ class OrdersComponent {
         if (deleteButton) {
             deleteButton.addEventListener('click', () => {
                 this.confirmDeleteOrder(orderId);
+            });
+        }
+        
+        const editButton = document.querySelector('.edit-order-btn');
+        if (editButton) {
+            editButton.addEventListener('click', () => {
+                this.showEditView(orderId);
             });
         }
         
@@ -2526,7 +2599,10 @@ class OrdersComponent {
                     printCheckedAt: item.printCheckedAt || null,
                     finishingChecked: item.finishingChecked || false,
                     finishingCheckedBy: item.finishingCheckedBy || null,
-                    finishingCheckedAt: item.finishingCheckedAt || null
+                    finishingCheckedAt: item.finishingCheckedAt || null,
+                    specialCutChecked: item.specialCutChecked || false,
+                    specialCutCheckedBy: item.specialCutCheckedBy || null,
+                    specialCutCheckedAt: item.specialCutCheckedAt || null
                 };
             }),
             payments: this.formData.payments.map(payment => {
@@ -3271,16 +3347,12 @@ class OrdersComponent {
 
     // Verifica se o usuário logado pertence ao setor de impressão
     checkIsPrinterUser() {
-        const user = window.auth.currentUser;
-        // Verifica se a role é 'printer' ou se tem permissão específica
-        return user && (user.role === 'printer' || window.auth.hasPermission('view_printer_queue'));
+        return window.auth.hasFeaturePermission('mark_print_item');
     }
 
     // Verifica se o usuário logado pertence ao setor de acabamento
     checkIsFinishingUser() {
-        const user = window.auth.currentUser;
-        // Verifica se a role é 'finishing' ou se tem permissão específica
-        return user && (user.role === 'finishing' || window.auth.hasPermission('view_finishing_queue'));
+        return window.auth.hasFeaturePermission('mark_finishing_item');
     }
 
     // Aplica os filtros padrão para o setor de impressão
@@ -3312,6 +3384,62 @@ class OrdersComponent {
         
         // Aplica os filtros na tabela
         setTimeout(() => this.applyFilters(), 100);
+    }
+
+    // Listener para checkboxes de cortes especiais
+    setupSpecialCutCheckboxListeners(orderId) {
+        const specialCutCheckboxes = document.querySelectorAll(`.special-cut-checkbox[data-order-id="${orderId}"]`);
+        const isSpecialCutUser = this.checkIsSpecialCutUser();
+
+        specialCutCheckboxes.forEach(checkbox => {
+            if (!isSpecialCutUser) {
+                checkbox.disabled = true;
+                return;
+            }
+
+            checkbox.addEventListener('change', async (e) => {
+                if (!e.target.checked) {
+                    e.target.checked = true;
+                    window.ui.showNotification('A ação de desmarcar ainda não é permitida.', 'warning');
+                    return;
+                }
+
+                const itemIndex = parseInt(e.target.dataset.itemIndex, 10);
+                const orderRef = db.collection('orders').doc(orderId);
+                const user = window.auth.getCurrentUser();
+
+                try {
+                    const orderDoc = await orderRef.get();
+                    if (orderDoc.exists) {
+                        const orderData = orderDoc.data();
+                        const items = orderData.items;
+
+                        if (items[itemIndex]) {
+                            items[itemIndex].specialCutChecked = true;
+                            items[itemIndex].specialCutCheckedBy = user.name;
+                            items[itemIndex].specialCutCheckedAt = new Date();
+
+                            await orderRef.update({ items });
+                            window.ui.showNotification('Item marcado para corte especial!', 'success');
+
+                            const tooltip = document.getElementById(`special-cut-tooltip-${orderId}-${itemIndex}`);
+                            if (tooltip) {
+                                tooltip.innerHTML = `Corte por: ${user.name}<br>Em: ${new Date().toLocaleString('pt-BR')}`;
+                            }
+                            e.target.disabled = true;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Erro ao atualizar status de corte especial:", error);
+                    window.ui.showNotification('Erro ao marcar item.', 'error');
+                    e.target.checked = false;
+                }
+            });
+        });
+    }
+
+    checkIsSpecialCutUser() {
+        return window.auth.hasFeaturePermission('mark_special_cut_item');
     }
 }
 

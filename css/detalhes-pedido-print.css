@@ -465,107 +465,40 @@ body {
     }
 }
 
-/* ---- OTIMIZAÇÃO PARA IMPRESSÃO A4 ---- */
+/* ---- OTIMIZAÇÃO PARA IMPRESSÃO ---- */
 @media print {
-    @page {
-        size: A4;
-        margin: 15mm;
+    body, html {
+        height: auto;
+        overflow: visible;
+        background-color: #fff;
     }
-    
-    body {
-        background-color: white !important;
-        padding: 0 !important;
-        font-size: 12pt;
-        line-height: 1.3;
-        color: black !important;
-    }
-    
-    .container {
-        max-width: 100%;
-        width: 100%;
-        padding: 0;
+
+    #main-app, #main-content, .container {
+        height: auto;
+        overflow: visible;
         box-shadow: none;
-        border-radius: 0;
-    }
-    
-    .card {
         border: none;
-        box-shadow: none;
-        padding: 0.5rem 0;
-        page-break-inside: avoid;
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
     }
-    
-    .main-layout {
-        display: block;
-    }
-    
-    .financial-summary {
-        margin-top: 1.5rem;
-        border-top: 1px solid #000;
-        padding-top: 1rem;
-    }
-    
-    .summary-line.balance {
-        background-color: transparent;
-        border: 1px solid #000;
-    }
-    
-    .page-header,
-    .back-button,
-    .edit-order-btn,
-    .print-button,
-    .no-print {
+
+    .no-print, .top-bar, #system-footer, .page-header {
         display: none !important;
     }
-    
-    .header {
-        border-bottom: 1px solid #000;
+
+    .main-layout {
+        display: block; /* Garante que as colunas não fiquem lado a lado */
     }
-    
-    .card-title {
-        border-bottom: 1px solid #000;
+
+    .card {
+        page-break-inside: avoid; /* Evita que os cards quebrem entre páginas */
     }
-    
-    .order-item {
-        border-bottom: 1px dashed #000;
+
+    /* Garante que a impressão não tenha margens ou paddings desnecessários do body */
+    body {
+        padding: 0;
+        margin: 0;
     }
-    
-    .item-notes {
-        background-color: transparent;
-        border: 1px solid #000;
-    }
-    
-    .footer {
-        border-top: 1px solid #000;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        width: 100%;
-        padding: 1rem 0;
-        margin-top: 2rem;
-    }
-    
-    .status-badge {
-        border: 1px solid #000;
-        background-color: transparent !important;
-        color: black !important;
-    }
-    
-    .summary-line.total,
-    .summary-line.paid span:last-child,
-    .summary-line.balance,
-    .payment-amount,
-    .company-name,
-    .order-title h2 strong,
-    .item-header,
-    .info-item .value,
-    .item-specs strong,
-    .delivery-details strong {
-        color: black !important;
-    }
-    
-    .summary-divider {
-        border-top: 1px solid #000;
-    }
-} 
+}

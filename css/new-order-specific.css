@@ -1,7 +1,7 @@
-/* Estilos específicos para o componente de novo pedido */
+/* Estilos especÃ­ficos para o componente de novo pedido */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
 
-/* Variáveis de Cores */
+/* VariÃ¡veis de Cores */
 :root {
     --no-primary-color: #3b82f6;
     --no-primary-hover-color: #2563eb;
@@ -46,7 +46,7 @@
     line-height: 1.6;
 }
 
-/* Container do formulário */
+/* Container do formulÃ¡rio */
 #order-form-container .order-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -55,7 +55,7 @@
     gap: 0rem;
 }
 
-/* Cabeçalho da página */
+/* CabeÃ§alho da pÃ¡gina */
 #order-form-container .page-header {
     display: flex;
     justify-content: space-between;
@@ -80,7 +80,7 @@
     align-items: center;
 }
 
-/* Estilo dos botões */
+/* Estilo dos botÃµes */
 #order-form-container .btn {
     padding: 1rem 0.5rem;
     border: none;
@@ -162,7 +162,7 @@
     border-bottom: 1px solid var(--no-border-color);
 }
 
-/* Formulários */
+/* FormulÃ¡rios */
 #order-form-container .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -284,7 +284,7 @@
     margin-top: 0.5rem;
 }
 
-/* Área de upload de arquivos */
+/* Ãrea de upload de arquivos */
 #order-form-container .file-drop-area {
     border: 2px dashed var(--no-border-color);
     border-radius: 8px;
@@ -363,7 +363,7 @@
     margin-bottom: 0.5rem;
 }
 
-/* Estilo para o título h2 na seção de imagens */
+/* Estilo para o tÃ­tulo h2 na seÃ§Ã£o de imagens */
 #order-form-container h2 {
     font-size: 1.5rem;
     font-weight: 700;
@@ -372,7 +372,7 @@
     color: var(--no-primary-color);
 }
 
-/* Footer com ações */
+/* Footer com aÃ§Ãµes */
 #order-form-container .footer-actions {
     display: flex;
     justify-content: flex-end;
@@ -382,7 +382,7 @@
     border-top: 1px solid var(--no-border-color);
 }
 
-/* Utilitários */
+/* UtilitÃ¡rios */
 #order-form-container .hidden {
     display: none;
 }
@@ -419,7 +419,7 @@
     }
 }
 
-/* Input com botão */
+/* Input com botÃ£o */
 #order-form-container .input-with-button {
     position: relative;
     display: flex;
@@ -540,7 +540,7 @@
     width: 100px;
 }
 
-/* Modal de seleção de produtos */
+/* Modal de seleÃ§Ã£o de produtos */
 .modal-container {
     position: fixed;
     top: 0;
@@ -579,7 +579,7 @@
     margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
-    color: rgb(0 0 0 / 87%);
+    color: rgb(255 255 255 / 87%);
 }
 
 .close-modal {
@@ -596,6 +596,7 @@
 }
 
 .modal-body {
+    background: #030a2f;
     padding: 1.5rem;
     overflow-y: auto;
     max-height: 60vh;
@@ -612,12 +613,12 @@
 }
 
 .product-item {
-    border: 1px solid var(--no-item-border);
+    border: 1px solid #424d63;
     border-radius: 8px;
     padding: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    background-color: var(--no-item-background);
+    background-color: #000000;
 }
 
 .product-item:hover {
@@ -641,7 +642,7 @@
 
 .product-description {
     font-size: 0.9rem;
-    color: var(--no-label-color);
+    color: #d0d5db;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -657,7 +658,7 @@
     gap: 1rem;
 }
 
-/* Estilos para os campos de dimensões */
+/* Estilos para os campos de dimensÃµes */
 .dimensions-row {
     background-color: rgba(59, 130, 246, 0.05);
     padding: 0.75rem;
@@ -678,7 +679,7 @@
 /* Estilos para produtos com medida personalizada no modal */
 .custom-size-product {
     border-left: 3px solid var(--no-primary-color);
-    background-color: rgb(32 10 41);
+    background-color: rgb(0 0 0);
 }
 
 .custom-size-indicator {
@@ -720,7 +721,7 @@
     border: 1px solid #10b981;
 }
 
-/* Estilos para indicadores de preço no modal de produtos */
+/* Estilos para indicadores de preÃ§o no modal de produtos */
 .product-price-container {
     display: flex;
     align-items: center;
@@ -752,7 +753,7 @@
     color: #166534;
 }
 
-/* Destacar campos de preço editáveis */
+/* Destacar campos de preÃ§o editÃ¡veis */
 .item-price {
     background-color: #fffbea !important;
     border-color: #f59e0b !important;
@@ -767,13 +768,13 @@
     box-shadow: 0 0 0 0.2rem rgba(217, 119, 6, 0.25) !important;
 }
 
-/* Adicionar ícone de edição para campos de preço */
+/* Adicionar Ã­cone de ediÃ§Ã£o para campos de preÃ§o */
 .form-group:has(.item-price) {
     position: relative;
 }
 
 .form-group:has(.item-price)::after {
-    content: "\f044"; /* Ícone de edição do Font Awesome */
+    content: "\f044"; /* Ãcone de ediÃ§Ã£o do Font Awesome */
     font-family: "Font Awesome 5 Free";
     position: absolute;
     right: 10px;
@@ -785,7 +786,7 @@
     pointer-events: none;
 }
 
-/* Dica para campos editáveis */
+/* Dica para campos editÃ¡veis */
 .editable-hint {
     display: inline-block;
     margin-top: 0.2rem;
@@ -809,7 +810,7 @@
     margin-bottom: 0;
 }
 
-/* Tamanhos específicos para cada campo */
+/* Tamanhos especÃ­ficos para cada campo */
 .inline-item-fields .form-group:nth-child(1) { /* Produto */
     flex: 3;
 }
@@ -819,7 +820,7 @@
     flex: 1;
 }
 
-.inline-item-fields .form-group:nth-child(4) { /* Área */
+.inline-item-fields .form-group:nth-child(4) { /* Ãrea */
     flex: 1;
 }
 
@@ -827,7 +828,7 @@
     flex: 1;
 }
 
-.inline-item-fields .form-group:nth-child(6) { /* Preço */
+.inline-item-fields .form-group:nth-child(6) { /* PreÃ§o */
     flex: 1.2;
 }
 
@@ -842,7 +843,7 @@
     }
     
     .inline-item-fields .form-group {
-        flex: 1 1 30%;  /* Ajustado para criar três colunas em telas médias */
+        flex: 1 1 30%;  /* Ajustado para criar trÃªs colunas em telas mÃ©dias */
         margin-bottom: 8px;
     }
     
@@ -858,7 +859,7 @@
     }
 }
 
-/* Adicionar classe para margem na descrição que agora está na parte inferior */
+/* Adicionar classe para margem na descriÃ§Ã£o que agora estÃ¡ na parte inferior */
 .form-row.mt-3 {
     margin-top: 1rem;
 } 
@@ -899,7 +900,7 @@
   .search-container {
   display: flex;
   align-items: center;
-  background-color: #6c1a89;
+  background-color: #000000;
   padding: 2px;
   border-radius: 7px;
   width: 100%;
@@ -913,7 +914,7 @@
   border-radius: 1px;
   font-size: 16px;
   outline: none;
-  background-color: #32094d;
+  background-color: #000000;
   color: var(--text-medium);
 }
 

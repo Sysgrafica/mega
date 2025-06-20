@@ -702,11 +702,16 @@ class NewOrderComponent {
         }
         
         this.formData.items.forEach((item, index) => {
+            // Garante que o item tenha a referência completa do produto
+            if (!item.product && item.productId) {
+                item.product = this.products.find(p => p.id === item.productId);
+            }
+
             // Gera as opções de produtos
             let productOptions = '<option value="">Selecione um produto</option>';
             if (this.products && Array.isArray(this.products)) {
                 this.products.forEach(product => {
-                    const isSelected = item.product && item.product.id === product.id;
+                    const isSelected = item.productId === product.id;
                     productOptions += `<option value="${product.id}" ${isSelected ? 'selected' : ''}>${product.name}</option>`;
                 });
             }
@@ -767,7 +772,7 @@ class NewOrderComponent {
                         <div class="inline-item-fields">
                             <div class="form-group">
                                 <label>Produto</label>
-                                <select class="form-control item-product" data-index="${index}" ${item.product ? 'disabled' : ''}>
+                                <select class="form-control item-product" data-index="${index}" disabled>
                                     ${productOptions}
                                 </select>
                             </div>
@@ -1694,51 +1699,65 @@ class NewOrderComponent {
     
     // Adiciona um novo item ao pedido
     addOrderItem(productId = null) {
-        // Cria o novo item com os valores padrão
-        const newItem = {
-            product: null,
-            quantity: 1,
-            unitPrice: 0,
-            total: 0,
-            width: 1,
-            height: 1,
-            area: 1,
-            description: '',
-            hasAplicacao: false
-        };
-        
-        // Se um produto foi especificado, busca os detalhes do produto
-        if (productId && this.products) {
-            const product = this.products.find(p => p.id === productId);
-            if (product) {
-                newItem.product = product;
-                
-                // Define o preço baseado no tipo de cliente (se existir)
-                if (this.formData.client && this.formData.client.category === 'reseller') {
-                    newItem.unitPrice = product.priceReseller || (product.price * 0.8);
-                } else {
-                    newItem.unitPrice = product.price;
+        if (!productId) {
+            this.showProductSelectionModal();
+            return;
+        }
+
+        const product = this.products.find(p => p.id === productId);
+        if (product) {
+            // Verificar o estoque dos materiais associados
+            this.checkMaterialStock(product);
+
+            const clientCategory = this.formData.client?.category || 'default';
+            let unitPrice = product.price; // Preço padrão
+            if (clientCategory === 'reseller' && product.priceReseller) {
+                unitPrice = product.priceReseller;
+            }
+
+            const newItem = {
+                product: product, // Adiciona o objeto completo do produto
+                productId: product.id,
+                name: product.name,
+                description: product.description || '',
+                quantity: product.minQuantity || 1,
+                unitPrice: unitPrice,
+                total: (product.minQuantity || 1) * unitPrice,
+                unit: product.unit,
+                dimensions: { width: 0, height: 0 },
+                pricingType: product.pricingType,
+                minPrice: product.minPrice || 0,
+            };
+
+            this.formData.items.push(newItem);
+            
+            // Atualiza a interface de itens e os totais
+            this.updateOrderItems();
+            this.updateOrderTotals();
+        }
+    }
+
+    // Função para verificar o estoque de materiais de um produto
+    async checkMaterialStock(product) {
+        if (!product.materiaisAssociados || product.materiaisAssociados.length === 0) {
+            return; // Produto não tem materiais associados
+        }
+
+        const db = firebase.firestore();
+        for (const materialId of product.materiaisAssociados) {
+            try {
+                const materialDoc = await db.collection('materiais').doc(materialId).get();
+                if (materialDoc.exists) {
+                    const material = materialDoc.data();
+                    if (material.estoqueAtual <= material.estoqueMinimo) {
+                        const message = `⚠️ Atenção: O material "${material.nome}" para a produção deste item está com baixo estoque. Favor verificar com a gerência antes de confirmar o pedido.`;
+                        window.ui.showNotification(message, 'warning', 10000); // Mostra por 10 segundos
+                    }
                 }
-                
-                // Calcula o total inicial
-                newItem.total = newItem.unitPrice * newItem.quantity;
-                
-                // Copia a descrição do produto
-                newItem.description = product.description || '';
+            } catch (error) {
+                console.error(`Erro ao verificar estoque do material ${materialId}:`, error);
             }
         }
-        
-        // Adiciona o novo item ao array de itens
-        if (!this.formData.items) this.formData.items = [];
-        this.formData.items.push(newItem);
-        
-        // Recarrega os itens no DOM
-        this.updateOrderItems();
-        
-        // Recalcula os totais do pedido
-        this.updateOrderTotals();
-        
-        return newItem;
     }
     
     // Remove um item do pedido
@@ -1754,25 +1773,9 @@ class NewOrderComponent {
                 // Remove o item do array
                 this.formData.items.splice(index, 1);
                 
-                // Atualiza a interface
-                const itemsContainer = document.getElementById('items-container');
-                if (itemsContainer) {
-                    if (this.formData.items.length === 0) {
-                        // Se não há mais itens, mostra mensagem vazia
-                        itemsContainer.innerHTML = `<div class="empty-state">
-                            <p>Nenhum item adicionado. Clique em "Adicionar Item" para começar.</p>
-                        </div>`;
-                    } else {
-                        // Renderiza os itens restantes
-                        itemsContainer.innerHTML = this.renderOrderItems();
-                    }
-                    
-                    // Adiciona os event listeners para os elementos restantes
-                    this.addItemEventListeners();
-                    
-                    // Atualiza os cálculos de totais
-                    this.updateOrderTotals();
-                }
+                // Atualiza a interface de itens e os totais
+                this.updateOrderItems();
+                this.updateOrderTotals();
             }
         }
     }

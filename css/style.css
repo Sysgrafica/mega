@@ -366,7 +366,8 @@ body {
 }
 
 .modal-header h2 {
-    color: var(--text-light);
+    font-weight: 800;
+    color: #ffffff;
     font-size: 1.5rem;
 }
 
@@ -384,7 +385,7 @@ body {
 }
 
 #modal-body {
-    background: royalblue;
+    background: #0b0f13;
     padding: 1.5rem;
 }
 
@@ -399,9 +400,13 @@ body {
 
 /* Estilos personalizados para o modal de novo cliente */
 #modal-body .client-form {
+    display: inline-flex;
     background-color: rgb(11, 15, 19);
     color: rgb(233, 236, 241);
     border-radius: var(--border-radius);
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    align-items: flex-end;
 }
 
 #modal-body .client-form .form-section h3 {
@@ -426,9 +431,9 @@ body {
 }
 
 #modal-body .form-actions {
-    margin-top: 1rem;
+    margin-top: 0rem;
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
 }
 
 /* Dashboard */
@@ -612,7 +617,7 @@ body {
 }
 
 .form-section {
-    margin-bottom: 2rem;
+    margin-bottom: 0rem;
 }
 
 .form-section h3 {
