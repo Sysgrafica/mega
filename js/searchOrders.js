@@ -24,6 +24,28 @@ class SearchOrdersComponent {
             await this.loadInitialData();
             this.renderSearchPage();
             this.setupEventListeners();
+            
+            // Verifica se há um filtro pré-definido no localStorage
+            const presetFilter = localStorage.getItem('presetSearchFilter');
+            if (presetFilter) {
+                try {
+                    // Remove o filtro do localStorage para não aplicá-lo novamente em futuras navegações
+                    localStorage.removeItem('presetSearchFilter');
+                    
+                    // Aplica o filtro pré-definido
+                    const filterObj = JSON.parse(presetFilter);
+                    
+                    // Define os valores dos campos de filtro na interface
+                    if (filterObj.status) {
+                        document.getElementById('filter-status').value = filterObj.status;
+                    }
+                    
+                    // Aplica os filtros
+                    this.applyFilters();
+                } catch (error) {
+                    console.error("Erro ao aplicar filtro pré-definido:", error);
+                }
+            }
         } catch (error) {
             console.error("Erro ao renderizar a página de busca de pedidos:", error);
             this.container.innerHTML = `<div class="error-page">
@@ -225,18 +247,52 @@ class SearchOrdersComponent {
     }
 
     getSituacao(order) {
+        // Se a situação final já foi definida (travada), retorna ela
+        if (order.finalSituacao) {
+            // Usa a classe salva ou determina com base no texto
+            let situacaoClass = order.finalSituacaoClass || 'situacao-default';
+            if (!order.finalSituacaoClass) {
+                switch (order.finalSituacao) {
+                    case 'Atrasado': situacaoClass = 'situacao-atrasado'; break;
+                    case 'Apresse': situacaoClass = 'situacao-apresse'; break;
+                    case 'No prazo': situacaoClass = 'situacao-no-prazo'; break;
+                    case 'A combinar': situacaoClass = 'situacao-combinar'; break;
+                    case 'Pendente': situacaoClass = 'situacao-pendente'; break;
+                }
+            }
+            return { text: order.finalSituacao, class: situacaoClass };
+        }
+
         if (order.toArrange) return { text: 'A combinar', class: 'situacao-combinar' };
         if (!order.deliveryDate) return { text: 'Pendente', class: 'situacao-pendente' };
         
-        const diffMinutes = (order.deliveryDate.toDate().getTime() - new Date().getTime()) / (1000 * 60);
+        try {
+            const now = new Date();
+            let deliveryDate;
+            
+            if (order.deliveryDate.toDate && typeof order.deliveryDate.toDate === 'function') {
+                deliveryDate = order.deliveryDate.toDate();
+            } else if (order.deliveryDate instanceof Date) {
+                deliveryDate = order.deliveryDate;
+            } else if (order.deliveryDate.seconds) {
+                deliveryDate = new Date(order.deliveryDate.seconds * 1000);
+            } else {
+                deliveryDate = new Date(order.deliveryDate);
+            }
+            
+            const diffMinutes = (deliveryDate.getTime() - now.getTime()) / (1000 * 60);
 
-        if (diffMinutes < 0) {
-            return { text: 'Atrasado', class: 'situacao-atrasado' };
+            if (diffMinutes < 0) {
+                return { text: 'Atrasado', class: 'situacao-atrasado' };
+            }
+            if (diffMinutes <= 60) {
+                return { text: 'Apresse', class: 'situacao-apresse' };
+            }
+            return { text: 'No prazo', class: 'situacao-no-prazo' };
+        } catch (error) {
+            console.error('Erro ao calcular situação do pedido:', error);
+            return { text: 'Erro na data', class: 'situacao-default' };
         }
-        if (diffMinutes <= 60) {
-            return { text: 'Apresse', class: 'situacao-apresse' };
-        }
-        return { text: 'No prazo', class: 'situacao-no-prazo' };
     }
 
     formatDateTime(timestamp, toArrangeText = false) {

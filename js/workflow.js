@@ -17,36 +17,43 @@ class WorkflowComponent {
         ];
     }
     
-    // Renderiza o componente
+    // Renderiza o componente principal
     async render(container) {
         this.container = container;
         
-        // Exibe carregando
+        // Torna a instância disponível globalmente para que o botão "Ver mais" possa chamar o método redirectToSearchWithDeliveredFilter
+        window.workflow = this;
+        
+        // Exibe loader
         this.container.innerHTML = `
-            <div class="dashboard-loader">
-                <i class="fas fa-spinner fa-spin"></i>
+            <div class="loading-container">
+                <div class="loader"></div>
                 <p>Carregando fluxo de trabalho...</p>
             </div>
         `;
         
         try {
-            // Carrega os pedidos para cada status
+            // Carrega os pedidos agrupados por status
             await this.loadOrdersByStatus();
             
-            // Renderiza o layout da página
+            // Renderiza o fluxo de trabalho
             this.renderWorkflow();
+            
+            // Configura os listeners em tempo real
+            this.setupRealtimeListeners();
         } catch (error) {
-            console.error("Erro ao carregar fluxo de trabalho:", error);
+            console.error("Erro ao renderizar fluxo de trabalho:", error);
             this.container.innerHTML = `
-                <div class="error-page">
+                <div class="error-container">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <h2>Erro ao carregar</h2>
-                    <p>Ocorreu um erro ao carregar os dados do fluxo de trabalho.</p>
-                    <button class="btn btn-primary" id="retry-button">Tentar Novamente</button>
+                    <h2>Erro ao carregar fluxo de trabalho</h2>
+                    <p>${error.message}</p>
+                    <button class="btn btn-primary" id="retry-workflow">Tentar novamente</button>
                 </div>
             `;
             
-            document.getElementById('retry-button').addEventListener('click', () => {
+            // Adiciona event listener para o botão de tentar novamente
+            document.getElementById('retry-workflow').addEventListener('click', () => {
                 this.render(container);
             });
         }
@@ -81,7 +88,12 @@ class WorkflowComponent {
                         deliveryDate: order.deliveryDate,
                         totalValue: order.totalValue,
                         status: status,
-                        createdAt: order.createdAt
+                        createdAt: order.createdAt,
+                        toArrange: order.toArrange || false,
+                        delivered: order.delivered || false,
+                        // Adiciona as propriedades de situação final
+                        finalSituacao: order.finalSituacao || null,
+                        finalSituacaoClass: order.finalSituacaoClass || null
                     });
                 }
             });
@@ -187,8 +199,24 @@ class WorkflowComponent {
     
     // Calcula e formata a situação do pedido
     getSituacaoHTML(order) {
+        // Se a situação final já foi definida (travada), retorna ela
+        if (order.finalSituacao) {
+            // Usa a classe salva ou determina com base no texto
+            let situacaoClass = order.finalSituacaoClass || '';
+            if (!situacaoClass) {
+                switch (order.finalSituacao) {
+                    case 'Atrasado': situacaoClass = 'situacao-atrasado'; break;
+                    case 'Apresse': situacaoClass = 'situacao-apresse'; break;
+                    case 'No prazo': situacaoClass = 'situacao-no-prazo'; break;
+                    case 'A combinar': situacaoClass = 'situacao-combinar'; break;
+                    case 'Pendente': situacaoClass = 'situacao-pendente'; break;
+                }
+            }
+            return `<span class="${situacaoClass}">${order.finalSituacao}</span>`;
+        }
+
         if (order.toArrange) {
-            return '<span>A combinar</span>';
+            return '<span class="situacao-combinar">A combinar</span>';
         } else if (order.delivered) {
             return '<span>Entregue</span>';
         } else if (order.deliveryDate) {
@@ -217,7 +245,7 @@ class WorkflowComponent {
                 return '<span class="situacao-no-prazo">No prazo</span>';
             }
         } else {
-            return '<span>Pendente</span>';
+            return '<span class="situacao-pendente">Pendente</span>';
         }
     }
     
@@ -230,11 +258,13 @@ class WorkflowComponent {
         
         let html = '<div class="workflow-orders-list">';
         
-        orders.forEach(order => {
+        // Se for o status "delivered" (entregue), limita a 10 pedidos
+        const displayOrders = status === 'delivered' ? orders.slice(0, 10) : orders;
+        
+        displayOrders.forEach(order => {
             // Formata a data de entrega
             let deliveryDate = order.deliveryDate;
             let deliveryTimeDisplay = '-';
-            let deliverySituation = 'Pendente';
             
             if (deliveryDate) {
                 if (deliveryDate.toDate) {
@@ -258,13 +288,6 @@ class WorkflowComponent {
                 alertClass = 'order-late';
             } else if (isCloseToDeadline) {
                 alertClass = 'order-urgent';
-            }
-            
-            // Define a situação
-            if (order.toArrange) {
-                deliverySituation = 'A combinar';
-            } else if (order.delivered) {
-                deliverySituation = 'Entregue';
             }
             
             // Cria o card do pedido
@@ -297,6 +320,18 @@ class WorkflowComponent {
         });
         
         html += '</div>';
+        
+        // Adiciona o botão "Ver mais" apenas para a seção "Entregue" se houver mais de 10 pedidos
+        if (status === 'delivered' && orders.length > 10) {
+            html += `
+                <div class="see-more-container">
+                    <button id="see-more-delivered" class="btn btn-secondary see-more-btn" onclick="window.workflow.redirectToSearchWithDeliveredFilter()">
+                        <i class="fas fa-list"></i> Ver Todos os Pedidos Entregues
+                    </button>
+                </div>
+            `;
+        }
+        
         return html;
     }
     
@@ -311,7 +346,8 @@ class WorkflowComponent {
         if (order) {
             // Usa a função global do UI para consistência e passa um callback para recarregar
             await window.ui.showChangeStatusDialog(orderId, order.status, () => {
-                this.render(this.container); // Recarrega os dados na página de workflow
+                // Recarrega os dados na página de workflow após a alteração do status
+                this.render(this.container);
             });
         } else {
             window.ui.showNotification('Ocorreu um erro ao encontrar o pedido para alterar o status.', 'error');
@@ -325,6 +361,132 @@ class WorkflowComponent {
             if (order) return order;
         }
         return null;
+    }
+    
+    // Configura listeners para atualização em tempo real
+    setupRealtimeListeners() {
+        // Limpa o listener anterior se existir
+        if (this.ordersListener) {
+            this.ordersListener();
+        }
+        
+        // Listener para alterações em pedidos
+        this.ordersListener = db.collection('orders')
+            .where('status', 'in', this.workflowStatuses)
+            .onSnapshot(snapshot => {
+                let hasChanges = false;
+                
+                snapshot.docChanges().forEach(change => {
+                    const order = change.doc.data();
+                    const orderId = change.doc.id;
+                    const status = order.status;
+                    
+                    // Verifica se o status está sendo monitorado
+                    if (!this.statusBlocks.hasOwnProperty(status)) {
+                        return;
+                    }
+                    
+                    if (change.type === 'added') {
+                        // Verifica se já existe na lista
+                        const existingIndex = this.statusBlocks[status].findIndex(o => o.id === orderId);
+                        if (existingIndex === -1) {
+                            // Adiciona o novo pedido ao bloco correspondente
+                            this.statusBlocks[status].push({
+                                id: orderId,
+                                orderNumber: order.orderNumber,
+                                clientName: order.clientName,
+                                deliveryDate: order.deliveryDate,
+                                totalValue: order.totalValue,
+                                status: status,
+                                createdAt: order.createdAt,
+                                toArrange: order.toArrange || false,
+                                delivered: order.delivered || false,
+                                finalSituacao: order.finalSituacao || null,
+                                finalSituacaoClass: order.finalSituacaoClass || null
+                            });
+                            hasChanges = true;
+                        }
+                    } else if (change.type === 'modified') {
+                        // Primeiro, verifica se o pedido existe em algum bloco e o remove
+                        let found = false;
+                        for (const blockStatus in this.statusBlocks) {
+                            const index = this.statusBlocks[blockStatus].findIndex(o => o.id === orderId);
+                            if (index !== -1) {
+                                this.statusBlocks[blockStatus].splice(index, 1);
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        // Adiciona o pedido atualizado ao bloco correto
+                        this.statusBlocks[status].push({
+                            id: orderId,
+                            orderNumber: order.orderNumber,
+                            clientName: order.clientName,
+                            deliveryDate: order.deliveryDate,
+                            totalValue: order.totalValue,
+                            status: status,
+                            createdAt: order.createdAt,
+                            toArrange: order.toArrange || false,
+                            delivered: order.delivered || false,
+                            finalSituacao: order.finalSituacao || null,
+                            finalSituacaoClass: order.finalSituacaoClass || null
+                        });
+                        
+                        hasChanges = true;
+                    } else if (change.type === 'removed') {
+                        // Remove o pedido do bloco
+                        for (const blockStatus in this.statusBlocks) {
+                            const index = this.statusBlocks[blockStatus].findIndex(o => o.id === orderId);
+                            if (index !== -1) {
+                                this.statusBlocks[blockStatus].splice(index, 1);
+                                hasChanges = true;
+                                break;
+                            }
+                        }
+                    }
+                });
+                
+                // Reordena os blocos por data de entrega
+                if (hasChanges) {
+                    for (const status in this.statusBlocks) {
+                        this.statusBlocks[status].sort((a, b) => {
+                            const dateA = a.deliveryDate && a.deliveryDate.toDate ? a.deliveryDate.toDate() : new Date(a.deliveryDate);
+                            const dateB = b.deliveryDate && b.deliveryDate.toDate ? b.deliveryDate.toDate() : new Date(b.deliveryDate);
+                            return dateA - dateB;
+                        });
+                    }
+                    
+                    // Renderiza novamente o fluxo de trabalho
+                    this.renderWorkflow();
+                }
+            }, error => {
+                console.error("Erro no listener de pedidos do fluxo de trabalho:", error);
+            });
+    }
+    
+    // Limpa os listeners quando o componente é desmontado
+    cleanup() {
+        if (this.ordersListener) {
+            this.ordersListener();
+            this.ordersListener = null;
+        }
+        
+        // Remove a referência global
+        if (window.workflow === this) {
+            window.workflow = null;
+        }
+    }
+    
+    // Redireciona para a página de Buscar Pedidos com o filtro pré-definido como "Entregue"
+    redirectToSearchWithDeliveredFilter() {
+        // Salva o filtro no localStorage para que a página de busca possa usá-lo
+        localStorage.setItem('presetSearchFilter', JSON.stringify({
+            status: 'delivered'
+        }));
+        
+        // Navega para a página de busca de pedidos
+        ui.navigateTo('search-orders');
     }
 }
 

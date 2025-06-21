@@ -23,6 +23,8 @@ class OrdersComponent {
         this.container = container;
         this.isLoading = true;
         
+        console.log('OrdersComponent: Iniciando renderização...');
+        
         // Exibe loader
         this.renderLoader();
         
@@ -38,19 +40,22 @@ class OrdersComponent {
                 
                 // Abre a tela de criação de pedido
                 this.currentView = 'create';
-                console.log('Abrindo tela de criação de pedido');
+                console.log('OrdersComponent: Abrindo tela de criação de pedido');
             }
             // Verifica se há um pedido para visualizar (vindo do fluxo de trabalho)
             else {
                 const viewOrderId = localStorage.getItem('viewOrderId');
+                console.log('OrdersComponent: ID do pedido para visualizar encontrado no localStorage:', viewOrderId);
+                
                 if (viewOrderId) {
                     // Remove do localStorage para não abrir novamente em futuras navegações
                     localStorage.removeItem('viewOrderId');
+                    console.log('OrdersComponent: ID do pedido removido do localStorage');
                     
                     // Abre o pedido em detalhes
                     this.currentView = 'detail';
                     this.currentOrderId = viewOrderId;
-                    console.log('Abrindo pedido do fluxo de trabalho:', viewOrderId);
+                    console.log('OrdersComponent: Definindo visualização para detalhes do pedido:', viewOrderId);
                 }
                 
                 // Verifica se há um pedido para editar
@@ -62,11 +67,12 @@ class OrdersComponent {
                     // Abre o pedido para edição
                     this.currentView = 'edit';
                     this.currentOrderId = editOrderId;
-                    console.log('Abrindo pedido para edição:', editOrderId);
+                    console.log('OrdersComponent: Definindo visualização para edição do pedido:', editOrderId);
                 }
             }
             
             // Renderiza a visualização atual
+            console.log('OrdersComponent: Renderizando visualização atual:', this.currentView);
             this.renderCurrentView();
             
             // Configura os listeners em tempo real
@@ -270,19 +276,25 @@ class OrdersComponent {
     
     // Renderiza a visualização atual
     renderCurrentView() {
+        console.log('OrdersComponent: renderCurrentView - Visualização atual:', this.currentView);
+        
         switch (this.currentView) {
             case 'list':
+                console.log('OrdersComponent: Renderizando lista de pedidos');
                 this.renderOrdersList();
                 break;
             case 'detail':
+                console.log('OrdersComponent: Renderizando detalhes do pedido:', this.currentOrderId);
                 this.renderOrderDetail(this.currentOrderId);
                 break;
             case 'create':
+                console.log('OrdersComponent: Renderizando formulário de criação de pedido');
                 this.renderOrderForm();
                 this.setupDeliveryToArrangeHandler();
                 this.setupDeliveryTypeHandler();
                 break;
             case 'edit':
+                console.log('OrdersComponent: Renderizando formulário de edição do pedido:', this.currentOrderId);
                 this.renderOrderForm(this.currentOrderId);
                 this.setupDeliveryToArrangeHandler();
                 this.setupDeliveryTypeHandler();
@@ -1724,8 +1736,14 @@ class OrdersComponent {
             if (newStatus === 'delivered' || newStatus === 'cancelled') {
                 const order = this.orders.find(o => o.id === orderId);
                 if (order) {
-                    const situacaoFinal = this.getSituacaoHTML(order);
-                    updateData.finalSituacao = situacaoFinal.text; // Salva o texto da situação
+                    const situacao = this.getSituacaoHTML(order);
+                    // Salva tanto o texto quanto a classe da situação para preservar a formatação visual
+                    updateData.finalSituacao = situacao.text;
+                    updateData.finalSituacaoClass = situacao.class;
+                    console.log("Travando situação do pedido:", {
+                        situacao: situacao.text,
+                        classe: situacao.class
+                    });
                 }
             }
 
@@ -1743,12 +1761,14 @@ class OrdersComponent {
                 // Se a situação final foi definida, atualiza localmente também
                 if (updateData.finalSituacao) {
                     this.orders[orderIndex].finalSituacao = updateData.finalSituacao;
+                    this.orders[orderIndex].finalSituacaoClass = updateData.finalSituacaoClass;
                 }
                 
                 console.log("Pedido atualizado localmente:", {
                     status: newStatus,
                     statusUpdatedBy: userName,
-                    userName: userName
+                    userName: userName,
+                    finalSituacao: updateData.finalSituacao || 'Não definida'
                 });
             }
             
@@ -1772,13 +1792,16 @@ class OrdersComponent {
     getSituacaoHTML(order) {
         // Se a situação final já foi definida (travada), retorna ela
         if (order.finalSituacao) {
-            let situacaoClass = 'situacao-default';
-            switch (order.finalSituacao) {
-                case 'Atrasado': situacaoClass = 'situacao-atrasado'; break;
-                case 'Apresse': situacaoClass = 'situacao-apresse'; break;
-                case 'No prazo': situacaoClass = 'situacao-no-prazo'; break;
-                case 'A combinar': situacaoClass = 'situacao-combinar'; break;
-                case 'Pendente': situacaoClass = 'situacao-pendente'; break;
+            // Usa a classe salva ou determina com base no texto
+            let situacaoClass = order.finalSituacaoClass || 'situacao-default';
+            if (!order.finalSituacaoClass) {
+                switch (order.finalSituacao) {
+                    case 'Atrasado': situacaoClass = 'situacao-atrasado'; break;
+                    case 'Apresse': situacaoClass = 'situacao-apresse'; break;
+                    case 'No prazo': situacaoClass = 'situacao-no-prazo'; break;
+                    case 'A combinar': situacaoClass = 'situacao-combinar'; break;
+                    case 'Pendente': situacaoClass = 'situacao-pendente'; break;
+                }
             }
             return { text: order.finalSituacao, class: situacaoClass };
         }
@@ -1939,13 +1962,18 @@ class OrdersComponent {
     
     // Renderiza os detalhes de um pedido
     renderOrderDetail(orderId, customContainer = null) {
+        console.log('OrdersComponent: renderOrderDetail - ID do pedido:', orderId);
+        
         // Encontra o pedido pelo ID
         const order = this.orders.find(o => o.id === orderId);
         
         if (!order) {
+            console.error('OrdersComponent: Pedido não encontrado:', orderId);
             this.renderError(`Pedido não encontrado: ${orderId}`);
             return;
         }
+        
+        console.log('OrdersComponent: Pedido encontrado:', order);
         
         // Carrega o CSS específico para detalhes do pedido em formato A4
         if (!document.querySelector('link[href="css/detalhes-pedido-print.css"]')) {
@@ -1967,7 +1995,7 @@ class OrdersComponent {
                           { name: 'Desconhecido', color: '' };
         
         // Log para depuração das informações de status e usuário
-        console.log("Detalhes do pedido:", {
+        console.log("OrdersComponent: Detalhes do pedido:", {
             id: order.id,
             status: order.status,
             statusName: statusObj.name,

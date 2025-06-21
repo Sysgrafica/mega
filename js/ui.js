@@ -1505,12 +1505,59 @@ class UI {
                         changedBy: user ? user.name : 'Sistema'
                     };
 
-                    await db.collection('orders').doc(orderId).update({ 
+                    // Preparar os dados para atualização
+                    const updateData = {
                         status: newStatus,
                         statusUpdatedBy: user ? user.name : 'Sistema',
                         statusUpdatedAt: new Date(),
                         statusHistory: firebase.firestore.FieldValue.arrayUnion(historyEntry)
-                    });
+                    };
+
+                    // Se o status for 'delivered' ou 'cancelled', trava a situação
+                    if (newStatus === 'delivered' || newStatus === 'cancelled') {
+                        // Busca o pedido para calcular a situação atual
+                        const orderDoc = await db.collection('orders').doc(orderId).get();
+                        if (orderDoc.exists) {
+                            const order = orderDoc.data();
+                            
+                            // Determina a situação do pedido
+                            let situacaoText = 'Desconhecida';
+                            let situacaoClass = '';
+                            
+                            if (order.toArrange) {
+                                situacaoText = 'A combinar';
+                                situacaoClass = 'situacao-combinar';
+                            } else if (!order.deliveryDate) {
+                                situacaoText = 'Pendente';
+                                situacaoClass = 'situacao-pendente';
+                            } else {
+                                const deliveryDate = order.deliveryDate.toDate ? order.deliveryDate.toDate() : new Date(order.deliveryDate);
+                                const diffMinutes = (deliveryDate.getTime() - new Date().getTime()) / (1000 * 60);
+                                
+                                if (diffMinutes < 0) {
+                                    situacaoText = 'Atrasado';
+                                    situacaoClass = 'situacao-atrasado';
+                                } else if (diffMinutes <= 60) {
+                                    situacaoText = 'Apresse';
+                                    situacaoClass = 'situacao-apresse';
+                                } else {
+                                    situacaoText = 'No prazo';
+                                    situacaoClass = 'situacao-no-prazo';
+                                }
+                            }
+                            
+                            // Salva a situação final
+                            updateData.finalSituacao = situacaoText;
+                            updateData.finalSituacaoClass = situacaoClass;
+                            
+                            console.log("Travando situação do pedido:", {
+                                situacao: situacaoText,
+                                classe: situacaoClass
+                            });
+                        }
+                    }
+
+                    await db.collection('orders').doc(orderId).update(updateData);
 
                     this.hideLoading();
                     this.showNotification('Status do pedido atualizado com sucesso!', 'success');

@@ -2815,3 +2815,50 @@ body {
     display: flex;
     gap: 0.75rem;
 }
+
+.workflow-block-content .see-more-container {
+    text-align: center;
+    margin-top: 15px;
+    padding: 10px;
+}
+
+.workflow-block-content .see-more-btn {
+    background-color: #4a6da7;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+    width: 100%;
+}
+
+.workflow-block-content .see-more-btn:hover {
+    background-color: #3a5a8f;
+}
+
+.workflow-block-content .see-more-btn i {
+    margin-right: 8px;
+}
+
+/* Responsividade para telas menores */
+@media (max-width: 768px) {
+    .workflow-container {
+        grid-template-columns: 1fr;
+        overflow-x: auto;
+        gap: 1rem;
+    }
+    
+    .workflow-block {
+        max-height: 50vh;
+    }
+    
+    .workflow-block-content {
+        max-height: calc(50vh - 4rem);
+    }
+}

@@ -30,42 +30,42 @@ const SYSTEM_CONFIG = {
         admin: {
             name: "Administrador",
             level: 4,
-            menuAccess: ["dashboard", "workflow", "impressao", "acabamento", "cortes-especiais", "orders", "clients", "products", "employees", "suppliers", "reports", "permissions"]
+            menuAccess: ["dashboard", "workflow", "impressao", "acabamento", "cortes-especiais", "orders", "search-orders", "clients", "products", "employees", "suppliers", "reports", "permissions"]
         },
         seller: {
             name: "Vendedor",
             level: 3,
-            menuAccess: ["dashboard", "workflow", "orders", "clients", "products", "inventory"]
+            menuAccess: ["dashboard", "workflow", "orders", "search-orders", "clients", "products", "inventory"]
         },
         designer: {
             name: "Designer",
             level: 2,
-            menuAccess: ["dashboard", "workflow", "orders", "products", "inventory"]
+            menuAccess: ["dashboard", "workflow", "orders", "search-orders", "products", "inventory"]
         },
         production: {
             name: "Produção",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "impressao", "orders", "inventory"]
+            menuAccess: ["dashboard", "workflow", "impressao", "orders", "search-orders", "inventory"]
         },
         impressor: {
             name: "Impressor",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "impressao", "orders", "inventory"]
+            menuAccess: ["dashboard", "workflow", "impressao", "orders", "search-orders", "inventory"]
         },
         acabamento: {
             name: "Acabamento",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "acabamento", "orders", "aplicacao", "inventory"]
+            menuAccess: ["dashboard", "workflow", "acabamento", "orders", "search-orders", "aplicacao", "inventory"]
         },
         cortesEspeciais: {
             name: "Cortes Especiais",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "cortes-especiais", "orders", "inventory"]
+            menuAccess: ["dashboard", "workflow", "cortes-especiais", "orders", "search-orders", "inventory"]
         },
         aplicador: {
             name: "Aplicador",
             level: 1,
-            menuAccess: ["dashboard", "workflow", "orders", "aplicacao", "inventory"]
+            menuAccess: ["dashboard", "workflow", "orders", "search-orders", "aplicacao", "inventory"]
         }
     },
     // Lista de todas as páginas do sistema

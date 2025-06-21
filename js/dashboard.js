@@ -5,8 +5,8 @@ class DashboardComponent {
         this.statsData = {
             dailyOrders: 0,
             pendingOrders: 0,
-            monthlyRevenue: 0,
             monthlyOrders: 0,
+            monthlyRevenue: 0,
             totalClients: 0
         };
         this.upcomingDeliveries = [];
@@ -94,6 +94,15 @@ class DashboardComponent {
                 entregue: 10
             }
         };
+        
+        // Propriedades para paginação de entregas próximas
+        this.lastUpcomingDeliveryDoc = null;
+        this.hasMoreUpcomingDeliveries = true;
+        this.loadingMoreDeliveries = false;
+        this.upcomingDeliveriesLimit = 10;
+        
+        // Bind dos métodos
+        this.loadMoreUpcomingDeliveries = this.loadMoreUpcomingDeliveries.bind(this);
     }
     
     // Renderiza o dashboard na área de conteúdo
@@ -745,6 +754,14 @@ class DashboardComponent {
         try {
             this.isLoading = true;
             
+            // Limpa o cache para garantir dados atualizados
+            localStorage.removeItem('latestOrders');
+            localStorage.removeItem('latestOrdersTime');
+            localStorage.removeItem('dashboardStats');
+            localStorage.removeItem('dashboardStatsTime');
+            localStorage.removeItem('controlPoints');
+            localStorage.removeItem('controlPointsTime');
+            
             // Carrega estatísticas gerais
             await this.loadStatistics();
             
@@ -837,7 +854,7 @@ class DashboardComponent {
     }
     
     // Carrega entregas próximas
-    async loadUpcomingDeliveries() {
+    async loadUpcomingDeliveries(isInitialLoad = true) {
         try {
             console.log("Carregando entregas próximas...");
             const today = new Date();
@@ -846,34 +863,71 @@ class DashboardComponent {
             const limitDate = new Date();
             limitDate.setDate(today.getDate() + 7);
             
-            // Usando o índice composto status+deliveryDate
-            const snapshot = await db.collection('orders')
+            // Consulta base
+            let query = db.collection('orders')
                 .where('deliveryType', '==', 'entrega')
                 .where('status', 'in', ['pending', 'approved', 'production', 'ready', 'printing', 'cutting', 'finishing', 'application'])
                 .where('deliveryDate', '>=', today)
                 .where('deliveryDate', '<=', limitDate)
                 .orderBy('deliveryDate', 'asc')
-                .limit(10)
-                .get();
+                .limit(this.upcomingDeliveriesLimit);
+            
+            // Se não for o carregamento inicial, use o último documento como ponto de partida
+            if (!isInitialLoad && this.lastUpcomingDeliveryDoc) {
+                query = query.startAfter(this.lastUpcomingDeliveryDoc);
+            } else if (isInitialLoad) {
+                // Resetar as propriedades de paginação em um carregamento inicial
+                this.lastUpcomingDeliveryDoc = null;
+                this.hasMoreUpcomingDeliveries = true;
+                this.upcomingDeliveries = [];
+            }
+            
+            const snapshot = await query.get();
             
             console.log(`Entregas próximas encontradas: ${snapshot.size}`);
-            this.upcomingDeliveries = [];
             
+            // Verificar se há mais resultados
+            this.hasMoreUpcomingDeliveries = snapshot.size === this.upcomingDeliveriesLimit;
+            
+            // Se não houver documentos, não há mais para carregar
+            if (snapshot.empty) {
+                this.hasMoreUpcomingDeliveries = false;
+                return;
+            }
+            
+            // Guardar o último documento para paginação
+            this.lastUpcomingDeliveryDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Processar os documentos
+            const newDeliveries = [];
             snapshot.forEach(doc => {
                 const order = doc.data();
-                this.upcomingDeliveries.push({
+                newDeliveries.push({
                     id: doc.id,
                     clientName: order.clientName,
                     deliveryDate: order.deliveryDate,
                     toArrange: order.toArrange || false,
                     delivered: order.delivered || false,
-                    status: order.status
+                    status: order.status,
+                    // Adiciona as propriedades de situação final
+                    finalSituacao: order.finalSituacao || null,
+                    finalSituacaoClass: order.finalSituacaoClass || null
                 });
             });
             
+            // Adicionar os novos resultados ao array existente ou substituir se for carregamento inicial
+            if (isInitialLoad) {
+                this.upcomingDeliveries = newDeliveries;
+            } else {
+                this.upcomingDeliveries = [...this.upcomingDeliveries, ...newDeliveries];
+            }
+            
         } catch (error) {
             console.error("Erro ao carregar entregas próximas:", error);
-            this.upcomingDeliveries = [];
+            if (isInitialLoad) {
+                this.upcomingDeliveries = [];
+            }
+            this.hasMoreUpcomingDeliveries = false;
         }
     }
     
@@ -942,7 +996,10 @@ class DashboardComponent {
                     toArrange: order.toArrange || false,
                     delivered: order.delivered || false,
                     status: order.status,
-                    createdAt: order.createdAt
+                    createdAt: order.createdAt,
+                    // Adiciona as propriedades de situação final
+                    finalSituacao: order.finalSituacao || null,
+                    finalSituacaoClass: order.finalSituacaoClass || null
                 });
             });
             
@@ -1063,10 +1120,44 @@ class DashboardComponent {
                 }
                 
                 let newOrders = false;
+                let updatedOrders = [];
                 
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added' || change.type === 'modified') {
                         newOrders = true;
+                        
+                        // Processa o pedido atualizado para incluir as propriedades necessárias
+                        const order = change.doc.data();
+                        let processedDeliveryDate = null;
+                        
+                        if (order.deliveryDate) {
+                            try {
+                                if (order.deliveryDate.toDate && typeof order.deliveryDate.toDate === 'function') {
+                                    processedDeliveryDate = order.deliveryDate.toDate();
+                                } else if (order.deliveryDate instanceof Date) {
+                                    processedDeliveryDate = order.deliveryDate;
+                                } else if (order.deliveryDate.seconds) {
+                                    processedDeliveryDate = new Date(order.deliveryDate.seconds * 1000);
+                                } else {
+                                    processedDeliveryDate = new Date(order.deliveryDate);
+                                }
+                            } catch (e) {
+                                console.error('Erro ao processar data de entrega em tempo real:', e);
+                            }
+                        }
+                        
+                        // Adiciona o pedido processado à lista de atualizações
+                        updatedOrders.push({
+                            id: change.doc.id,
+                            clientName: order.clientName,
+                            deliveryDate: processedDeliveryDate,
+                            toArrange: order.toArrange || false,
+                            delivered: order.delivered || false,
+                            status: order.status,
+                            createdAt: order.createdAt,
+                            finalSituacao: order.finalSituacao || null,
+                            finalSituacaoClass: order.finalSituacaoClass || null
+                        });
                     }
                 });
                 
@@ -1079,27 +1170,53 @@ class DashboardComponent {
                     this.updateTimeout = setTimeout(() => {
                         // Verifica novamente se o componente ainda está ativo
                         if (this.isActive) {
-                            // Recarrega apenas os últimos pedidos em vez de todos os dados
-                            this.loadLatestOrders().then(() => {
-                                const clipboardListEl = document.querySelector('.table-card .fa-clipboard-list');
-                                // Verificar se o elemento existe antes de chamar closest()
-                                if (clipboardListEl) {
-                                    const ordersSection = clipboardListEl.closest('.table-card');
-                                    if (ordersSection) {
-                                        const header = ordersSection.querySelector('h3');
-                                        if (header) {
-                                            ordersSection.innerHTML = '';
-                                            ordersSection.appendChild(header);
-                                            ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
-                                            
-                                            // Reativa os event listeners para os pedidos clicáveis
-                                            this.setupClickableRows();
-                                        }
+                            // Atualiza os pedidos localmente com os dados processados
+                            if (updatedOrders.length > 0) {
+                                // Atualiza os pedidos existentes ou adiciona novos
+                                updatedOrders.forEach(updatedOrder => {
+                                    const existingIndex = this.latestOrders.findIndex(o => o.id === updatedOrder.id);
+                                    if (existingIndex >= 0) {
+                                        this.latestOrders[existingIndex] = updatedOrder;
+                                    } else {
+                                        this.latestOrders.unshift(updatedOrder);
+                                    }
+                                });
+                                
+                                // Mantém apenas os 10 pedidos mais recentes
+                                if (this.latestOrders.length > 10) {
+                                    this.latestOrders = this.latestOrders.slice(0, 10);
+                                }
+                                
+                                // Atualiza o cache
+                                try {
+                                    localStorage.setItem('latestOrders', JSON.stringify(this.latestOrders));
+                                    localStorage.setItem('latestOrdersTime', new Date().getTime().toString());
+                                } catch (cacheError) {
+                                    console.warn("Erro ao salvar cache dos últimos pedidos:", cacheError);
+                                }
+                            } else {
+                                // Se não houver pedidos atualizados, recarrega todos os dados
+                                this.loadLatestOrders();
+                            }
+                            
+                            // Atualiza a interface
+                            const clipboardListEl = document.querySelector('.table-card .fa-clipboard-list');
+                            if (clipboardListEl) {
+                                const ordersSection = clipboardListEl.closest('.table-card');
+                                if (ordersSection) {
+                                    const header = ordersSection.querySelector('h3');
+                                    if (header) {
+                                        ordersSection.innerHTML = '';
+                                        ordersSection.appendChild(header);
+                                        ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
+                                        
+                                        // Reativa os event listeners para os pedidos clicáveis
+                                        this.setupClickableRows();
                                     }
                                 }
-                            });
+                            }
                         }
-                    }, 5000); // Aumentado para 5 segundos antes de atualizar
+                    }, 2000); // Reduzido para 2 segundos para melhor experiência do usuário
                 }
             }, error => {
                 console.error("Erro no listener de pedidos:", error);
@@ -1141,7 +1258,7 @@ class DashboardComponent {
                                 }
                             }
                         });
-                    }, 10000); // Aumentado para 10 segundos antes de atualizar
+                    }, 10000); // 10 segundos antes de atualizar
                 }, error => {
                     console.error("Erro no listener de pontos de controle:", error);
                 });
@@ -1178,12 +1295,16 @@ class DashboardComponent {
             <div class="dashboard-tables">
                 <div class="table-card">
                     <h3><i class="fas fa-exclamation-circle"></i> Entregas Próximas</h3>
-                    ${this.renderUpcomingDeliveries()}
+                    <div class="table-card-content">
+                        ${this.renderUpcomingDeliveries()}
+                    </div>
                 </div>
                 
                 <div class="table-card">
                     <h3><i class="fas fa-clipboard-list"></i> Últimos Pedidos</h3>
-                    ${this.renderLatestOrders()}
+                    <div class="table-card-content">
+                        ${this.renderLatestOrders()}
+                    </div>
                 </div>
             </div>
         `;
@@ -1320,6 +1441,17 @@ class DashboardComponent {
             </table>
         `;
         
+        // Adiciona o botão "Ver mais" apenas se houver mais entregas para carregar
+        if (this.hasMoreUpcomingDeliveries) {
+            html += `
+                <div class="see-more-container">
+                    <button id="load-more-deliveries" class="btn btn-secondary see-more-btn">
+                        <i class="fas fa-plus"></i> Ver Mais
+                    </button>
+                </div>
+            `;
+        }
+        
         return html;
     }
     
@@ -1373,6 +1505,13 @@ class DashboardComponent {
         html += `
                 </tbody>
             </table>
+            
+            <!-- Botão Ver Mais -->
+            <div class="see-more-container">
+                <button id="see-more-orders" class="btn btn-secondary see-more-btn" onclick="ui.navigateTo('orders')">
+                    <i class="fas fa-list"></i> Ver Todos os Pedidos
+                </button>
+            </div>
         `;
         
         return html;
@@ -1463,8 +1602,24 @@ class DashboardComponent {
     
     // Calcula e formata a situação do pedido
     getSituacaoHTML(order) {
+        // Se a situação final já foi definida (travada), retorna ela
+        if (order.finalSituacao) {
+            // Usa a classe salva ou determina com base no texto
+            let situacaoClass = order.finalSituacaoClass || '';
+            if (!situacaoClass) {
+                switch (order.finalSituacao) {
+                    case 'Atrasado': situacaoClass = 'situacao-atrasado'; break;
+                    case 'Apresse': situacaoClass = 'situacao-apresse'; break;
+                    case 'No prazo': situacaoClass = 'situacao-no-prazo'; break;
+                    case 'A combinar': situacaoClass = 'situacao-combinar'; break;
+                    case 'Pendente': situacaoClass = 'situacao-pendente'; break;
+                }
+            }
+            return `<span class="${situacaoClass}">${order.finalSituacao}</span>`;
+        }
+
         if (order.toArrange) {
-            return '<span>A combinar</span>';
+            return '<span class="situacao-combinar">A combinar</span>';
         } else if (order.delivered) {
             return '<span>Entregue</span>';
         } else if (order.deliveryDate) {
@@ -1506,7 +1661,7 @@ class DashboardComponent {
                 return '<span>Erro na data</span>';
             }
         } else {
-            return '<span>Pendente</span>';
+            return '<span class="situacao-pendente">Pendente</span>';
         }
     }
     
@@ -1519,10 +1674,14 @@ class DashboardComponent {
                 
                 const orderId = row.getAttribute('data-id');
                 if (orderId) {
+                    console.log('Dashboard: Clique em pedido detectado, ID:', orderId);
+                    
                     // Salva o ID do pedido para a página de pedidos poder abri-lo
                     localStorage.setItem('viewOrderId', orderId);
+                    console.log('Dashboard: ID do pedido salvo no localStorage:', orderId);
                     
                     // Navega para a página de pedidos
+                    console.log('Dashboard: Navegando para a página de pedidos...');
                     ui.navigateTo('orders');
                 }
             });
@@ -1533,6 +1692,7 @@ class DashboardComponent {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const orderId = e.currentTarget.getAttribute('data-id');
+                console.log('Dashboard: Clique no botão de visualizar pedido, ID:', orderId);
                 localStorage.setItem('viewOrderId', orderId);
                 ui.navigateTo('orders');
             });
@@ -1542,6 +1702,7 @@ class DashboardComponent {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const orderId = e.currentTarget.getAttribute('data-id');
+                console.log('Dashboard: Clique no botão de editar pedido, ID:', orderId);
                 localStorage.setItem('editOrderId', orderId);
                 ui.navigateTo('orders');
             });
@@ -1554,6 +1715,12 @@ class DashboardComponent {
                 this.showChangeStatusDialog(orderId);
             });
         });
+        
+        // Adiciona event listener para o botão "Ver mais" das entregas próximas
+        const loadMoreBtn = document.getElementById('load-more-deliveries');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => this.loadMoreUpcomingDeliveries());
+        }
     }
     
     // Limpa os listeners quando o componente é desmontado
@@ -1624,6 +1791,39 @@ class DashboardComponent {
                     try {
                         ui.showLoading('Atualizando status do pedido...');
                         
+                        // Obtém informações do usuário atual
+                        let userName = 'Usuário desconhecido';
+                        if (window.auth && window.auth.currentUser) {
+                            userName = window.auth.currentUser.name || 'Usuário desconhecido';
+                        }
+                        
+                        // Prepara os dados para atualização
+                        const updateData = {
+                            status: newStatus,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            statusUpdatedBy: userName,
+                            statusUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+                        
+                        // Se o status for 'delivered' ou 'cancelled', trava a situação
+                        if (newStatus === 'delivered' || newStatus === 'cancelled') {
+                            // Calcula a situação atual do pedido
+                            const situacaoHTML = this.getSituacaoHTML(order);
+                            // Extrai o texto da situação do HTML
+                            const situacaoText = situacaoHTML.match(/>([^<]+)<\/span>/)?.[1] || 'Desconhecida';
+                            // Extrai a classe da situação do HTML
+                            const situacaoClass = situacaoHTML.match(/class="([^"]+)"/)?.[1] || '';
+                            
+                            // Salva a situação final
+                            updateData.finalSituacao = situacaoText;
+                            updateData.finalSituacaoClass = situacaoClass;
+                            
+                            console.log("Travando situação do pedido:", {
+                                situacao: situacaoText,
+                                classe: situacaoClass
+                            });
+                        }
+                        
                         // Se o status for 'cancelled', pergunta o motivo
                         if (newStatus === 'cancelled') {
                             const reason = await this.askCancellationReason();
@@ -1631,18 +1831,11 @@ class DashboardComponent {
                                 ui.hideLoading();
                                 return; // Cancelou a operação
                             }
-                            
-                            await db.collection('orders').doc(orderId).update({
-                                status: newStatus,
-                                cancellationReason: reason,
-                                lastUpdate: new Date()
-                            });
-                        } else {
-                            await db.collection('orders').doc(orderId).update({
-                                status: newStatus,
-                                lastUpdate: new Date()
-                            });
+                            updateData.cancellationReason = reason;
                         }
+                        
+                        // Atualiza o documento no Firestore
+                        await db.collection('orders').doc(orderId).update(updateData);
                         
                         ui.showNotification('Status do pedido atualizado com sucesso!', 'success');
                         
@@ -1660,7 +1853,7 @@ class DashboardComponent {
             });
         }).catch(error => {
             console.error('Erro ao buscar pedido:', error);
-            ui.showNotification('Erro ao buscar informações do pedido.', 'error');
+            ui.showNotification('Erro ao buscar dados do pedido.', 'error');
         });
     }
     
@@ -1678,6 +1871,44 @@ class DashboardComponent {
                 }
             );
         });
+    }
+    
+    // Método para carregar mais entregas próximas
+    async loadMoreUpcomingDeliveries() {
+        if (this.loadingMoreDeliveries || !this.hasMoreUpcomingDeliveries) return;
+        
+        try {
+            this.loadingMoreDeliveries = true;
+            
+            // Atualiza o botão para mostrar carregamento
+            const loadMoreBtn = document.getElementById('load-more-deliveries');
+            if (loadMoreBtn) {
+                loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Carregando...';
+                loadMoreBtn.disabled = true;
+            }
+            
+            // Carrega mais entregas
+            await this.loadUpcomingDeliveries(false);
+            
+            // Atualiza apenas a tabela de entregas próximas
+            const upcomingDeliveriesContainer = document.querySelector('.table-card:nth-child(1) .table-card-content');
+            if (upcomingDeliveriesContainer) {
+                upcomingDeliveriesContainer.innerHTML = this.renderUpcomingDeliveries();
+                this.setupClickableRows();
+            }
+        } catch (error) {
+            console.error("Erro ao carregar mais entregas:", error);
+            ui.showNotification("Erro ao carregar mais entregas", "error");
+            
+            // Restaura o botão em caso de erro
+            const loadMoreBtn = document.getElementById('load-more-deliveries');
+            if (loadMoreBtn) {
+                loadMoreBtn.innerHTML = '<i class="fas fa-plus"></i> Ver Mais';
+                loadMoreBtn.disabled = false;
+            }
+        } finally {
+            this.loadingMoreDeliveries = false;
+        }
     }
 }
 

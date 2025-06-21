@@ -1,10 +1,43 @@
-
-
 /* Estilos para o container do botão "Carregar mais" */
 .load-more-container {
     text-align: center;
     margin-top: 15px;
     padding: 10px;
+}
+
+/* Estilos para o container do botão "Ver mais" */
+.see-more-container {
+    text-align: right;
+    margin-top: 15px;
+    padding: 10px;
+}
+
+.see-more-btn {
+    background-color: #4a6da7;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+}
+
+.see-more-btn:hover {
+    background-color: #3a5a8f;
+}
+
+.see-more-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.see-more-btn i {
+    margin-right: 8px;
 }
 
 .btn-secondary {
