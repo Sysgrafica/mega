@@ -31,6 +31,12 @@ class ErrorHandler {
     }
     
     handleError(errorInfo) {
+        // Filtra erros genéricos ou irrelevantes
+        if (this.shouldIgnoreError(errorInfo)) {
+            console.warn('Erro ignorado:', errorInfo.message);
+            return;
+        }
+        
         console.error('Erro capturado:', errorInfo);
         
         // Adiciona à fila de erros
@@ -49,11 +55,51 @@ class ErrorHandler {
         // Tenta registrar no Firebase se disponível
         this.logErrorToFirebase(errorInfo);
         
-        // Mostra notificação amigável para o usuário
-        if (window.ui) {
+        // Mostra notificação amigável para o usuário apenas para erros relevantes
+        if (window.ui && this.shouldShowNotification(errorInfo)) {
             const userMessage = this.getUserFriendlyMessage(errorInfo);
             window.ui.showNotification(userMessage, 'error');
         }
+    }
+    
+    shouldIgnoreError(errorInfo) {
+        // Ignora "Script error" genéricos que geralmente são erros de CORS ou scripts de terceiros
+        if (errorInfo.message === 'Script error.' && 
+            errorInfo.filename === '' && 
+            errorInfo.lineno === 0 && 
+            errorInfo.colno === 0) {
+            return true;
+        }
+        
+        // Ignora erros relacionados ao Eruda (ferramenta de debug do Replit)
+        if (errorInfo.filename && errorInfo.filename.includes('eruda')) {
+            return true;
+        }
+        
+        // Ignora erros de extensões do navegador
+        if (errorInfo.filename && (
+            errorInfo.filename.includes('extension://') ||
+            errorInfo.filename.includes('chrome-extension://') ||
+            errorInfo.filename.includes('moz-extension://')
+        )) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    shouldShowNotification(errorInfo) {
+        // Não mostra notificação para erros de scripts de terceiros
+        if (errorInfo.filename && !errorInfo.filename.includes(window.location.origin)) {
+            return false;
+        }
+        
+        // Não mostra notificação para erros de validação (já tratados em outros lugares)
+        if (errorInfo.type === 'validation') {
+            return false;
+        }
+        
+        return true;
     }
     
     async logErrorToFirebase(errorInfo) {

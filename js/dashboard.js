@@ -103,6 +103,9 @@ class DashboardComponent {
         
         // Bind dos métodos
         this.loadMoreUpcomingDeliveries = this.loadMoreUpcomingDeliveries.bind(this);
+        this.handleOrdersUpdate = this.handleOrdersUpdate.bind(this);
+        this.handleClientsUpdate = this.handleClientsUpdate.bind(this);
+        this.handleProductsUpdate = this.handleProductsUpdate.bind(this);
     }
     
     // Renderiza o dashboard na área de conteúdo
@@ -1108,12 +1111,21 @@ class DashboardComponent {
             this.loadControlPoints();
         }, 1000);
 
+        // Bind dos métodos para garantir que o contexto seja mantido
+        const handleOrdersUpdate = this.handleOrdersUpdate.bind(this);
+        const handleClientsUpdate = this.handleClientsUpdate.bind(this);
+        const handleProductsUpdate = this.handleProductsUpdate.bind(this);
+
         // Escuta mudanças em pedidos
         this.ordersListener = db.collection('orders')
             .onSnapshot((snapshot) => {
                 console.log('Mudanças detectadas em pedidos');
-                this.handleOrdersUpdate(snapshot);
-                debouncedUpdate();
+                try {
+                    handleOrdersUpdate(snapshot);
+                    debouncedUpdate();
+                } catch (error) {
+                    console.error('Erro ao processar mudanças em pedidos:', error);
+                }
             }, (error) => {
                 console.error('Erro no listener de pedidos:', error);
             });
@@ -1123,7 +1135,11 @@ class DashboardComponent {
             .limit(100) // Limita para melhorar performance
             .onSnapshot((snapshot) => {
                 console.log('Mudanças detectadas em clientes');
-                this.handleClientsUpdate(snapshot);
+                try {
+                    handleClientsUpdate(snapshot);
+                } catch (error) {
+                    console.error('Erro ao processar mudanças em clientes:', error);
+                }
             }, (error) => {
                 console.error('Erro no listener de clientes:', error);
             });
@@ -1133,7 +1149,11 @@ class DashboardComponent {
             .limit(100) // Limita para melhorar performance
             .onSnapshot((snapshot) => {
                 console.log('Mudanças detectadas em produtos');
-                this.handleProductsUpdate(snapshot);
+                try {
+                    handleProductsUpdate(snapshot);
+                } catch (error) {
+                    console.error('Erro ao processar mudanças em produtos:', error);
+                }
             }, (error) => {
                 console.error('Erro no listener de produtos:', error);
             });
