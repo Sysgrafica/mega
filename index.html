@@ -150,13 +150,25 @@
                     configScript.src = 'js/config.js';
                     configScript.onload = () => {
                         console.log('Config carregado após Firebase estar disponível');
-                        resolve();
+                        // Aguarda um pouco para garantir que o config foi processado
+                        setTimeout(() => {
+                            resolve();
+                        }, 100);
                     };
                     configScript.onerror = () => {
                         console.error('Erro ao carregar config.js');
                         resolve(); // Continua mesmo com erro
                     };
                     document.head.appendChild(configScript);
+                });
+            })
+            .then(() => {
+                // Aguarda um pouco mais para garantir que todos os scripts subsequentes tenham acesso ao Firebase
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        console.log('Scripts do sistema prontos para carregar');
+                        resolve();
+                    }, 200);
                 });
             })
             .catch(error => {

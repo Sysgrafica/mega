@@ -28,6 +28,8 @@ class AuthSystem {
     
     // Inicializa o sistema de autenticação
     async init() {
+        console.log('Inicializando sistema de autenticação...');
+        
         // Aguarda um pouco para garantir que o Firebase foi inicializado
         await this.waitForFirebase();
         
@@ -36,6 +38,8 @@ class AuthSystem {
         if (savedUser) {
             try {
                 this.currentUser = JSON.parse(savedUser);
+                console.log('Usuário recuperado da sessão:', this.currentUser.name);
+                
                 // Carrega as permissões do usuário se ele já estava logado
                 if (this.currentUser) {
                     await this.loadUserPermissions(this.currentUser.role);
@@ -46,6 +50,8 @@ class AuthSystem {
                 console.error("Erro ao recuperar sessão:", error);
                 this.logout();
             }
+        } else {
+            console.log('Nenhum usuário encontrado na sessão');
         }
         
         // Carrega códigos de acesso do Firestore
@@ -53,6 +59,20 @@ class AuthSystem {
         
         // Configura listeners para eventos
         this.setupEventListeners();
+        
+        console.log('Sistema de autenticação inicializado');
+        console.log('Códigos de acesso disponíveis:', Object.keys(this.accessCodes));
+        
+        // Mostra dicas de códigos de demonstração se estiver usando-os
+        if (this.accessCodes === this.demoUsers || 
+            JSON.stringify(this.accessCodes) === JSON.stringify(this.demoUsers)) {
+            console.log('====== CÓDIGOS DE DEMONSTRAÇÃO DISPONÍVEIS ======');
+            console.log('123456 - Administrador');
+            console.log('234567 - Vendedor');
+            console.log('345678 - Designer');
+            console.log('456789 - Produção');
+            console.log('==================================================');
+        }
     }
     
     // Aguarda o Firebase estar completamente inicializado
@@ -77,47 +97,78 @@ class AuthSystem {
         console.warn('Firebase não foi completamente inicializado após aguardar');
     }
     
-    // Carrega códigos de acesso do Firestore
+    // Carrega códigos de acesso do Firestore com retry automático
     async loadAccessCodes() {
-        try {
-            // Verifica se o Firebase está disponível e inicializado
-            if (typeof firebase === 'undefined' || 
-                !firebase.firestore || 
-                typeof db === 'undefined' || 
-                !db) {
-                console.log("Firebase ou Firestore não está disponível, usando códigos de demonstração");
-                this.accessCodes = this.demoUsers;
-                return;
-            }
-            
-            // Aguarda um pouco para garantir que o Firestore está completamente inicializado
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            const snapshot = await db.collection('employees').get();
-            snapshot.forEach(doc => {
-                const employee = doc.data();
-                if (employee.accessCode) {
-                    this.accessCodes[employee.accessCode] = {
-                        id: doc.id,
-                        name: employee.name,
-                        role: employee.role
-                    };
-                }
-            });
-            console.log("Códigos de acesso carregados do Firestore");
-            
-            // Se não houver códigos de acesso no Firestore, usa os de demonstração
-            if (Object.keys(this.accessCodes).length === 0) {
-                console.log("Usando códigos de acesso de demonstração");
-                this.accessCodes = this.demoUsers;
+        const maxRetries = 3;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`Tentativa ${attempt} de ${maxRetries} para carregar códigos de acesso`);
                 
-                // Cria os usuários de demonstração no Firestore
-                this.createDemoUsers();
+                // Verifica se o Firebase está disponível e inicializado
+                if (typeof firebase === 'undefined' || 
+                    !firebase.firestore || 
+                    typeof db === 'undefined' || 
+                    !db) {
+                    console.log("Firebase ou Firestore não está disponível, usando códigos de demonstração");
+                    this.accessCodes = this.demoUsers;
+                    return;
+                }
+                
+                // Aguarda um pouco para garantir que o Firestore está completamente inicializado
+                await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+                
+                // Tenta carregar os códigos de acesso
+                const snapshot = await Promise.race([
+                    db.collection('employees').get(),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout')), 5000)
+                    )
+                ]);
+                
+                // Limpa códigos anteriores antes de carregar novos
+                this.accessCodes = {};
+                
+                snapshot.forEach(doc => {
+                    const employee = doc.data();
+                    if (employee.accessCode) {
+                        this.accessCodes[employee.accessCode] = {
+                            id: doc.id,
+                            name: employee.name,
+                            role: employee.role
+                        };
+                    }
+                });
+                
+                console.log(`Códigos de acesso carregados do Firestore (${Object.keys(this.accessCodes).length} códigos)`);
+                
+                // Se não houver códigos de acesso no Firestore, usa os de demonstração
+                if (Object.keys(this.accessCodes).length === 0) {
+                    console.log("Nenhum código encontrado no Firestore, usando códigos de demonstração");
+                    this.accessCodes = this.demoUsers;
+                    
+                    // Cria os usuários de demonstração no Firestore apenas na primeira tentativa
+                    if (attempt === 1) {
+                        this.createDemoUsers();
+                    }
+                } else {
+                    // Adiciona os códigos de demonstração como fallback
+                    Object.assign(this.accessCodes, this.demoUsers);
+                }
+                
+                return; // Sucesso, sai do loop
+                
+            } catch (error) {
+                console.error(`Erro na tentativa ${attempt} ao carregar códigos de acesso:`, error);
+                
+                if (attempt === maxRetries) {
+                    console.log("Todas as tentativas falharam. Usando códigos de demonstração");
+                    this.accessCodes = this.demoUsers;
+                } else {
+                    console.log(`Tentando novamente em ${1000 * attempt}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                }
             }
-        } catch (error) {
-            console.error("Erro ao carregar códigos de acesso:", error);
-            console.log("Usando códigos de acesso de demonstração");
-            this.accessCodes = this.demoUsers;
         }
     }
     
@@ -292,70 +343,107 @@ class AuthSystem {
     async attemptLogin() {
         const accessCode = this.accessCodeInput.value.trim();
         
+        console.log('Tentativa de login com código:', accessCode ? 'código fornecido' : 'código vazio');
+        
         if (!accessCode) {
             this.showError("Por favor, digite seu código de acesso.");
             return;
         }
         
-        // Verifica se o código existe
-        if (this.accessCodes[accessCode]) {
-            const user = this.accessCodes[accessCode];
+        // Desabilita o botão de login durante o processamento
+        if (this.loginBtn) {
+            this.loginBtn.disabled = true;
+            this.loginBtn.textContent = 'Entrando...';
+        }
+        
+        try {
+            // Verifica se os códigos de acesso estão carregados
+            if (!this.accessCodes || Object.keys(this.accessCodes).length === 0) {
+                console.log('Códigos de acesso não carregados, recarregando...');
+                await this.loadAccessCodes();
+            }
             
-            // Carrega as permissões do usuário
-            await this.loadUserPermissions(user.role);
+            console.log('Códigos de acesso disponíveis:', Object.keys(this.accessCodes));
             
-            this.currentUser = {
-                id: user.id,
-                name: user.name,
-                role: user.role,
-                roleInfo: SYSTEM_CONFIG.roles[user.role],
-                permissions: this.permissionsCache[user.role] || {
-                    pages: SYSTEM_CONFIG.roles[user.role].menuAccess || [],
-                    features: []
+            // Verifica se o código existe
+            if (this.accessCodes[accessCode]) {
+                const user = this.accessCodes[accessCode];
+                console.log('Usuário encontrado:', user.name, 'Role:', user.role);
+                
+                // Carrega as permissões do usuário
+                await this.loadUserPermissions(user.role);
+                
+                this.currentUser = {
+                    id: user.id,
+                    name: user.name,
+                    role: user.role,
+                    roleInfo: SYSTEM_CONFIG.roles[user.role],
+                    permissions: this.permissionsCache[user.role] || {
+                        pages: SYSTEM_CONFIG.roles[user.role].menuAccess || [],
+                        features: []
+                    }
+                };
+                
+                // Salva no localStorage para persistência de sessão
+                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                
+                // Salva também no formato userConfig para compatibilidade com o módulo de pedidos
+                localStorage.setItem('userConfig', JSON.stringify({
+                    role: user.role,
+                    name: user.name,
+                    id: user.id
+                }));
+                
+                // Registra o login no histórico
+                this.logUserActivity('login');
+                
+                // Limpa o campo de entrada
+                this.accessCodeInput.value = '';
+                this.hideError();
+                
+                // Mostra a aplicação principal
+                this.showMainApp();
+                this.updateUserInfo();
+                
+                // Notifica o usuário
+                if (window.ui) {
+                    ui.showNotification('Bem-vindo, ' + this.currentUser.name + '!', 'success');
                 }
-            };
-            
-            // Salva no localStorage para persistência de sessão
-            localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-            
-            // Salva também no formato userConfig para compatibilidade com o módulo de pedidos
-            localStorage.setItem('userConfig', JSON.stringify({
-                role: user.role,
-                name: user.name,
-                id: user.id
-            }));
-            
-            // Registra o login no histórico
-            this.logUserActivity('login');
-            
-            // Limpa o campo de entrada
-            this.accessCodeInput.value = '';
-            this.hideError();
-            
-            // Mostra a aplicação principal
-            this.showMainApp();
-            this.updateUserInfo();
-            
-            // Notifica o usuário
-            ui.showNotification('Bem-vindo, ' + this.currentUser.name + '!', 'success');
-            
-            // Gera o menu e carrega a página inicial
-            ui.generateMenu();
-            ui.navigateTo('dashboard');
-            
-            // Força um reflow para aplicar as mudanças de estilo
-            setTimeout(() => {
-                // Verifica se o auth-container ainda está visível e força a remoção
-                if (this.authContainer.offsetHeight > 0) {
-                    console.log("Forçando remoção da tela de login");
-                    this.authContainer.classList.add('hidden');
-                    this.authContainer.style.display = 'none';
-                    this.mainApp.classList.remove('hidden');
-                    this.mainApp.style.display = 'block';
+                
+                // Gera o menu e carrega a página inicial
+                if (window.ui) {
+                    ui.generateMenu();
+                    ui.navigateTo('dashboard');
                 }
-            }, 300);
-        } else {
-            this.showError("Código de acesso inválido. Tente novamente.");
+                
+                // Força um reflow para aplicar as mudanças de estilo
+                setTimeout(() => {
+                    // Verifica se o auth-container ainda está visível e força a remoção
+                    if (this.authContainer && this.authContainer.offsetHeight > 0) {
+                        console.log("Forçando remoção da tela de login");
+                        this.authContainer.classList.add('hidden');
+                        this.authContainer.style.display = 'none';
+                        this.mainApp.classList.remove('hidden');
+                        this.mainApp.style.display = 'block';
+                    }
+                }, 300);
+                
+                console.log('Login realizado com sucesso para:', user.name);
+                
+            } else {
+                console.log('Código de acesso não encontrado:', accessCode);
+                this.showError("Código de acesso inválido. Tente novamente.");
+            }
+            
+        } catch (error) {
+            console.error('Erro durante tentativa de login:', error);
+            this.showError("Erro ao tentar fazer login. Tente novamente.");
+        } finally {
+            // Reabilita o botão de login
+            if (this.loginBtn) {
+                this.loginBtn.disabled = false;
+                this.loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i> Entrar';
+            }
         }
     }
     
