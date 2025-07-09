@@ -28,6 +28,9 @@ class AuthSystem {
     
     // Inicializa o sistema de autenticação
     async init() {
+        // Aguarda um pouco para garantir que o Firebase foi inicializado
+        await this.waitForFirebase();
+        
         // Verifica se há um usuário em sessão no localStorage
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
@@ -52,15 +55,43 @@ class AuthSystem {
         this.setupEventListeners();
     }
     
+    // Aguarda o Firebase estar completamente inicializado
+    async waitForFirebase() {
+        let attempts = 0;
+        const maxAttempts = 30;
+        
+        while (attempts < maxAttempts) {
+            if (typeof firebase !== 'undefined' && 
+                firebase.apps && 
+                firebase.apps.length > 0 && 
+                firebase.firestore && 
+                typeof db !== 'undefined') {
+                console.log('Firebase completamente inicializado para autenticação');
+                return;
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
+        console.warn('Firebase não foi completamente inicializado após aguardar');
+    }
+    
     // Carrega códigos de acesso do Firestore
     async loadAccessCodes() {
         try {
-            // Verifica se o Firebase está disponível
-            if (typeof firebase === 'undefined' || !firebase.firestore) {
-                console.log("Firebase não está disponível, usando códigos de demonstração");
+            // Verifica se o Firebase está disponível e inicializado
+            if (typeof firebase === 'undefined' || 
+                !firebase.firestore || 
+                typeof db === 'undefined' || 
+                !db) {
+                console.log("Firebase ou Firestore não está disponível, usando códigos de demonstração");
                 this.accessCodes = this.demoUsers;
                 return;
             }
+            
+            // Aguarda um pouco para garantir que o Firestore está completamente inicializado
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             const snapshot = await db.collection('employees').get();
             snapshot.forEach(doc => {
@@ -338,7 +369,12 @@ class AuthSystem {
         
         try {
             // Verifica se o Firebase está disponível antes de tentar carregar
-            if (typeof firebase === 'undefined' || !firebase.firestore || !db) {
+            if (typeof firebase === 'undefined' || 
+                !firebase.firestore || 
+                typeof db === 'undefined' || 
+                !db ||
+                !firebase.apps || 
+                firebase.apps.length === 0) {
                 console.log(`Firebase não disponível, usando permissões padrão para ${role}`);
                 this.permissionsCache[role] = {
                     pages: SYSTEM_CONFIG.roles[role].menuAccess || [],
