@@ -91,49 +91,41 @@ const SYSTEM_CONFIG = {
         // Funcionalidades gerais
         { id: "view_dashboard", name: "Ver Dashboard", category: "geral" },
         { id: "view_workflow", name: "Ver Fluxo de Trabalho", category: "geral" },
-        { id: "view_impressao", name: "Ver Página de Impressão", category: "geral" },
-        { id: "view_inventory", name: "Ver Estoque", category: "geral" },
-        
+        { id: "view_impressao", name: "Ver Impressão", category: "producao" },
+        { id: "view_aplicacao", name: "Ver Aplicação", category: "producao" },
+        { id: "view_acabamento", name: "Ver Acabamento", category: "producao" },
+        { id: "view_cortes_especiais", name: "Ver Cortes Especiais", category: "producao" },
+
         // Funcionalidades de Pedidos
         { id: "view_orders", name: "Ver Pedidos", category: "pedidos" },
         { id: "create_order", name: "Criar Pedido", category: "pedidos" },
         { id: "edit_order", name: "Editar Pedido", category: "pedidos" },
         { id: "delete_order", name: "Excluir Pedido", category: "pedidos" },
-        { id: "change_order_status", name: "Alterar Status de Pedido", category: "pedidos" },
         { id: "view_order_details", name: "Ver Detalhes do Pedido", category: "pedidos" },
-        { id: "print_order", name: "Imprimir Pedido", category: "pedidos" },
-        
+        { id: "change_order_status", name: "Alterar Status do Pedido", category: "pedidos" },
+        { id: "search_orders", name: "Buscar Pedidos", category: "pedidos" },
+
         // Funcionalidades de Clientes
         { id: "view_clients", name: "Ver Clientes", category: "clientes" },
         { id: "create_client", name: "Criar Cliente", category: "clientes" },
         { id: "edit_client", name: "Editar Cliente", category: "clientes" },
         { id: "delete_client", name: "Excluir Cliente", category: "clientes" },
-        
+
         // Funcionalidades de Produtos
         { id: "view_products", name: "Ver Produtos", category: "produtos" },
         { id: "create_product", name: "Criar Produto", category: "produtos" },
         { id: "edit_product", name: "Editar Produto", category: "produtos" },
         { id: "delete_product", name: "Excluir Produto", category: "produtos" },
-        
-        // Funcionalidades de Funcionários
-        { id: "view_employees", name: "Ver Funcionários", category: "funcionarios" },
-        { id: "create_employee", name: "Criar Funcionário", category: "funcionarios" },
-        { id: "edit_employee", name: "Editar Funcionário", category: "funcionarios" },
-        { id: "delete_employee", name: "Excluir Funcionário", category: "funcionarios" },
-        
-        // Funcionalidades de Fornecedores
-        { id: "view_suppliers", name: "Ver Fornecedores", category: "fornecedores" },
-        { id: "create_supplier", name: "Criar Fornecedor", category: "fornecedores" },
-        { id: "edit_supplier", name: "Editar Fornecedor", category: "fornecedores" },
-        { id: "delete_supplier", name: "Excluir Fornecedor", category: "fornecedores" },
-        
-        // Funcionalidades de Relatórios
-        { id: "view_reports", name: "Ver Relatórios", category: "relatorios" },
-        { id: "generate_report", name: "Gerar Relatório", category: "relatorios" },
-        { id: "export_report", name: "Exportar Relatório", category: "relatorios" },
-        
-        // Funcionalidades de Permissões
-        { id: "manage_permissions", name: "Gerenciar Permissões", category: "sistema" }
+
+        // Funcionalidades de Estoque
+        { id: "view_inventory", name: "Ver Estoque", category: "estoque" },
+        { id: "manage_inventory", name: "Gerenciar Estoque", category: "estoque" },
+
+        // Funcionalidades de Produção
+        { id: "mark_print_item", name: "Marcar Item na Impressão", category: "producao" },
+        { id: "mark_finishing_item", name: "Marcar Item no Acabamento", category: "producao" },
+        { id: "mark_application_item", name: "Marcar Item na Aplicação", category: "producao" },
+        { id: "mark_special_cut_item", name: "Marcar Item nos Cortes Especiais", category: "producao" }
     ],
     // Definição das categorias de funcionalidades para organização na tela
     featureCategories: [
@@ -141,6 +133,8 @@ const SYSTEM_CONFIG = {
         { id: "pedidos", name: "Pedidos" },
         { id: "clientes", name: "Clientes" },
         { id: "produtos", name: "Produtos" },
+        { id: "estoque", name: "Estoque" },
+        { id: "producao", name: "Produção" },
         { id: "funcionarios", name: "Funcionários" },
         { id: "fornecedores", name: "Fornecedores" },
         { id: "relatorios", name: "Relatórios" },
@@ -166,4 +160,4 @@ const SYSTEM_CONFIG = {
         { id: "check", name: "Cheque" },
         { id: "other", name: "Outro" }
     ]
-}; 
+};

@@ -185,10 +185,10 @@ class AuthSystem {
                     },
                     
                     'aplicador': {
-                        pages: ["dashboard", "workflow", "orders", "inventory"],
+                        pages: ["dashboard", "workflow", "orders", "aplicacao", "inventory"],
                         features: [
                             "view_dashboard", "view_workflow", "view_orders", 
-                            "view_order_details", "change_order_status", "view_inventory"
+                            "view_order_details", "change_order_status", "mark_application_item", "view_inventory"
                         ]
                     }
                 };
@@ -589,4 +589,4 @@ class AuthSystem {
 window.auth = new AuthSystem();
 
 // Registra o componente globalmente
-window.AuthSystem = AuthSystem; 
+window.AuthSystem = AuthSystem;

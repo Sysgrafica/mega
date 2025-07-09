@@ -1,16 +1,20 @@
+
 {
-  "name": "grafsys-teste-desempenho",
-  "version": "1.0.0",
-  "description": "Scripts para teste de desempenho do sistema GrafSys",
-  "main": "script-teste-desempenho.js",
+  "name": "grafsys-sistema-gestao",
+  "version": "2.81.0",
+  "description": "Sistema de Gestão para Gráficas - GrafSys",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "gerar-pedidos": "node script-teste-desempenho.js",
-    "limpar-pedidos": "node script-limpeza-dados-teste.js"
+    "start": "node index.js",
+    "dev": "node index.js"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "JeffWeb3",
+  "license": "MIT",
   "dependencies": {
-    "firebase-admin": "^11.10.1"
-  }
-} 
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["grafsys", "gestao", "grafica", "sistema"]
+}
