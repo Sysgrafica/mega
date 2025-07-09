@@ -1152,6 +1152,77 @@ class DashboardComponent {
         };
     }
     
+    // Handler para mudanças em pedidos
+    handleOrdersUpdate(snapshot) {
+        console.log('Processando mudanças em pedidos no dashboard');
+        
+        // Invalida o cache para forçar atualização
+        localStorage.removeItem('latestOrders');
+        localStorage.removeItem('latestOrdersTime');
+        localStorage.removeItem('dashboardStats');
+        localStorage.removeItem('dashboardStatsTime');
+        
+        // Agenda uma atualização suave dos dados
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout);
+        }
+        
+        this.updateTimeout = setTimeout(() => {
+            if (this.container && this.container.querySelector) {
+                // Atualiza apenas se o dashboard ainda estiver visível
+                this.loadLatestOrders().then(() => {
+                    const ordersSection = this.container.querySelector('.table-card .fa-clipboard-list');
+                    if (ordersSection) {
+                        const tableCard = ordersSection.closest('.table-card');
+                        if (tableCard) {
+                            const contentDiv = tableCard.querySelector('.table-card-content');
+                            if (contentDiv) {
+                                contentDiv.innerHTML = this.renderLatestOrders();
+                                this.setupClickableRows();
+                            }
+                        }
+                    }
+                }).catch(error => {
+                    console.error('Erro ao atualizar últimos pedidos:', error);
+                });
+            }
+        }, 2000);
+    }
+    
+    // Handler para mudanças em clientes
+    handleClientsUpdate(snapshot) {
+        console.log('Processando mudanças em clientes no dashboard');
+        
+        // Invalida o cache de estatísticas
+        localStorage.removeItem('dashboardStats');
+        localStorage.removeItem('dashboardStatsTime');
+        
+        // Agenda uma atualização das estatísticas
+        if (this.clientsTimeout) {
+            clearTimeout(this.clientsTimeout);
+        }
+        
+        this.clientsTimeout = setTimeout(() => {
+            if (this.container && this.container.querySelector) {
+                this.loadStatistics().then(() => {
+                    const statsSection = this.container.querySelector('.dashboard-stats');
+                    if (statsSection) {
+                        statsSection.innerHTML = this.renderStatsCards();
+                    }
+                }).catch(error => {
+                    console.error('Erro ao atualizar estatísticas após mudança de clientes:', error);
+                });
+            }
+        }, 3000);
+    }
+    
+    // Handler para mudanças em produtos
+    handleProductsUpdate(snapshot) {
+        console.log('Processando mudanças em produtos no dashboard');
+        // Para produtos, não precisamos atualizar nada no dashboard no momento
+        // Mas o método precisa existir para evitar erros
+    }
+    
     // Renderiza o conteúdo do dashboard
     renderDashboard() {
         // Obtém o nome do usuário atual
@@ -1626,10 +1697,25 @@ class DashboardComponent {
             this.controlPointsTimeout = null;
         }
         
+        if (this.clientsTimeout) {
+            clearTimeout(this.clientsTimeout);
+            this.clientsTimeout = null;
+        }
+        
         // Desativa os listeners do Firestore
         if (this.ordersListener) {
             this.ordersListener();
             this.ordersListener = null;
+        }
+        
+        if (this.clientsListener) {
+            this.clientsListener();
+            this.clientsListener = null;
+        }
+        
+        if (this.productsListener) {
+            this.productsListener();
+            this.productsListener = null;
         }
         
         if (this.controlPointsListener) {

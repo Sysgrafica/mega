@@ -58,16 +58,41 @@ class ErrorHandler {
     
     async logErrorToFirebase(errorInfo) {
         try {
-            if (typeof firebase !== 'undefined' && firebase.firestore && window.auth?.currentUser) {
-                await firebase.firestore().collection('error_logs').add({
-                    ...errorInfo,
-                    userId: window.auth.currentUser.id,
-                    userName: window.auth.currentUser.name,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+            // Verifica se o Firebase está completamente inicializado
+            if (typeof firebase !== 'undefined' && 
+                firebase.firestore && 
+                firebase.apps && 
+                firebase.apps.length > 0 &&
+                window.auth?.currentUser &&
+                window.auth.currentUser.id &&
+                window.auth.currentUser.name) {
+                
+                // Valida os dados antes de enviar
+                const logData = {
+                    type: errorInfo.type || 'unknown',
+                    message: String(errorInfo.message || '').substring(0, 500), // Limita o tamanho
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userId: String(window.auth.currentUser.id),
+                    userName: String(window.auth.currentUser.name),
+                    userAgent: String(navigator.userAgent || '').substring(0, 200),
+                    url: String(window.location.href || '').substring(0, 200)
+                };
+                
+                // Adiciona informações opcionais apenas se válidas
+                if (errorInfo.filename && typeof errorInfo.filename === 'string') {
+                    logData.filename = errorInfo.filename.substring(0, 200);
+                }
+                if (errorInfo.lineno && typeof errorInfo.lineno === 'number') {
+                    logData.lineno = errorInfo.lineno;
+                }
+                if (errorInfo.colno && typeof errorInfo.colno === 'number') {
+                    logData.colno = errorInfo.colno;
+                }
+                
+                await firebase.firestore().collection('error_logs').add(logData);
             }
         } catch (firebaseError) {
-            console.error('Erro ao registrar no Firebase:', firebaseError);
+            console.warn('Não foi possível registrar o erro no Firebase:', firebaseError.message);
         }
     }
     
