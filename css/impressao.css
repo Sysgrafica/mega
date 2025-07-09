@@ -165,10 +165,10 @@
 
 
 /* Cores de Status Vibrantes com Gradiente */
-.situacao-atrasado { background: linear-gradient(45deg, #f53d3d, #d62828); }
+.situacao-atrasado {width: 100%;padding: 3px;display: flex;background: linear-gradient(45deg, #f53d3d, #d62828);justify-content: center;}
 .situacao-urgente { background: linear-gradient(45deg, #ff9f1c, #f77f00); }
 .situacao-atencao { background: linear-gradient(45deg, #fee155, #fcc419); color: #333 !important; }
-.situacao-no-prazo {padding: 2px;display: inline-block;background: linear-gradient(45deg, #2a9d8f, #264653);}
+.situacao-no-prazo {width: 100%;padding: 3px;display: flex;background: linear-gradient(45deg, #2a9d8f, #264653);justify-content: center;}
 .situacao-combinar, .situacao-pendente {
     background-color: var(--color-background-tag);
     color: var(--color-text-secondary) !important;

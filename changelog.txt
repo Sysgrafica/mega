@@ -1,3 +1,47 @@
+======================= VERSÃO 2.81 =======================
+Data: 01/12/2023
+- Corrigido: Problema de visibilidade de textos claros em fundos brancos no modo claro
+- Adicionado: Sistema dinâmico de ajuste de cores conforme o tema (claro/escuro)
+- Melhorado: Contraste de textos e elementos visuais para garantir legibilidade
+- Corrigido: Variáveis CSS para cores de texto e fundo em ambos os modos
+- Refinado: Estilo dos cards, tabelas e componentes para maior coerência visual
+- Adicionado: Classes auxiliares para gerenciar texto em diferentes modos
+- Implementado: Ajuste automático de cores em elementos dinâmicos ao trocar o tema
+- Atualizado: CSS para dashboard, produtos, pedidos e clientes com melhores contrastes
+
+======================= VERSÃO 2.80 =======================
+Data: 30/11/2023
+- Implementação completa do tema visual Argon Dashboard 2 PRO em todas as páginas do sistema
+- Atualização do estilo da página de Dashboard com novos cards estatísticos e indicadores visuais
+- Reformulação completa da página de Clientes seguindo o tema Argon Dashboard 2 PRO
+- Redesign da página de Produtos com cards modernos e layout responsivo
+- Atualização da página de Pedidos com tabelas e elementos visuais do Argon 2 PRO
+- Melhorias de usabilidade em formulários e elementos interativos
+- Refinamento do modo escuro em todas as páginas para maior consistência visual
+- Otimização de espaçamentos e tipografia em todo o sistema
+- Implementação de novos componentes visuais como badges, ícones e indicadores
+- Melhoria da responsividade para dispositivos móveis e tablets
+
+======================= VERSÃO 2.79 =======================
+Data: 26/11/2023
+- Implementação do tema visual Argon Dashboard 2 PRO
+- Melhorias na interface de usuário e experiência visual
+- Novos estilos para componentes como cards, botões e formulários
+- Suporte aprimorado para modo escuro
+- Compatibilidade com dispositivos móveis reforçada
+- Atualização da página de pedidos para o novo tema visual
+- Refinamento de elementos como cards, botões e tabelas nas páginas de pedido
+- Aplicação do tema Argon na página de Controle de Estoque
+- Melhorias visuais nos elementos da página de estoque (tabelas, botões e modal de formulário)
+- Aplicação do tema Argon na página de Novo Pedido
+- Melhorias na interface de criação de pedidos com estilo Argon
+- Reformulação do sistema de grid e responsividade na página de Novo Pedido
+- Aplicação do tema Argon na página de Detalhes do Pedido (modo claro)
+- Melhorias na visualização de detalhes de pedidos com estilo Argon no modo claro
+- Refinamento visual dos cards de informação, checkboxes e indicadores de status
+- Otimização da experiência visual para impressão de pedidos
+- Implementação do tema visual Argon Dashboard 2 PRO na página de login
+
 Versão 2.75 - 30/07/2024
 - Melhoria: A página de Estoque agora está disponível para todos os setores.
 - Melhoria: Interface de Estoque adaptada para mostrar opções de edição apenas para administradores.

@@ -14,6 +14,12 @@ class OrdersComponent {
             payments: []
         };
         
+        // Configurações de paginação
+        this.ordersPerPage = 25;
+        this.lastVisibleOrder = null;
+        this.hasMoreOrders = true;
+        this.isLoadingMore = false;
+        
         // Inicializa o listener de colagem para Ctrl+V
         this.setupPasteListener();
     }
@@ -91,25 +97,25 @@ class OrdersComponent {
                 // Carrega pedidos com limite e ordenação
                 db.collection('orders')
                     .orderBy('createdAt', 'desc')
-                    .limit(100) // Limita para melhor performance
+                    .limit(this.ordersPerPage)
                     .get(),
                 
                 // Carrega clientes
                 db.collection('clients')
-                    .orderBy('name') // Ordenação consistente
+                    .orderBy('name')
                     .limit(100)
                     .get(),
                 
                 // Carrega produtos ativos
                 db.collection('products')
                     .where('active', '==', true)
-                    .orderBy('name') // Usando índice composto (active + name)
+                    .orderBy('name')
                     .get(),
                 
                 // Carrega funcionários ativos
                 db.collection('employees')
                     .where('active', '==', true)
-                    .orderBy('name') // Usando índice composto (active + name)
+                    .orderBy('name')
                     .get()
             ]);
                 
@@ -122,6 +128,14 @@ class OrdersComponent {
                     ...order
                 });
             });
+
+            // Atualiza o último pedido visível para paginação
+            if (this.orders.length > 0) {
+                this.lastVisibleOrder = ordersSnapshot.docs[ordersSnapshot.docs.length - 1];
+                this.hasMoreOrders = this.orders.length >= this.ordersPerPage;
+            } else {
+                this.hasMoreOrders = false;
+            }
             
             // Processa os clientes
             this.clients = [];
@@ -186,7 +200,7 @@ class OrdersComponent {
         // Listener para alterações em pedidos
         this.unsubscribeOrders = db.collection('orders')
             .orderBy('createdAt', 'desc')
-            .limit(50) // Limita a quantidade de pedidos para melhor performance
+            .limit(this.ordersPerPage)
             .onSnapshot(snapshot => {
                 let hasChanges = false;
                 
@@ -574,169 +588,213 @@ class OrdersComponent {
     
     // Renderiza a lista de pedidos
     renderOrdersList(resetFilters = true) {
-        console.log('-------------------------------------------------------');
-        console.log('Renderizando lista de pedidos, resetFilters =', resetFilters);
+        if (!this.container) return;
         
-        // Debug para entender os status disponíveis
-        this.debugOrderStatuses();
-        
-        // Restaura valores de filtros salvos, se não for para resetar
-        if (!resetFilters) {
-            this.restoreFilterValues();
+        // Reseta os filtros se necessário
+        if (resetFilters) {
+            this.clearAllFilters();
         }
-        
-        const currentUser = window.auth.getCurrentUser();
-        const userRole = currentUser ? currentUser.role : null;
-        // Apenas vendedores e administradores podem criar novos pedidos
-        const canCreateOrder = userRole === 'admin' || userRole === 'vendedor' || userRole === 'seller';
 
-        // Cabeçalho da página
-        let html = `
-            <div class="page-header">
-                <h1>Gestão de Pedidos</h1>
-                ${canCreateOrder ? `
-                <button id="new-order-btn" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Novo Pedido
-                </button>
+        // Conteúdo principal
+        let content = `
+            <div class="orders-container">
+                <div class="orders-header">
+                    <h2>Pedidos</h2>
+                    <button id="new-order-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Novo Pedido
+                    </button>
+                </div>
+
+                ${this.renderFilters()}
+
+                <div class="orders-list" id="orders-list">
+                    ${this.renderOrdersTable()}
+                </div>
+
+                ${this.hasMoreOrders ? `
+                    <div class="load-more-container">
+                        <button id="load-more-btn" class="btn btn-secondary" ${this.isLoadingMore ? 'disabled' : ''}>
+                            ${this.isLoadingMore ? '<i class="fas fa-spinner fa-spin"></i> Carregando...' : 'Ver Mais'}
+                        </button>
+                    </div>
                 ` : ''}
             </div>
         `;
+
+        this.container.innerHTML = content;
+
+        // Configura eventos
+        this.setupFilterEvents();
         
-        // Barra de filtros simplificada
-        html += `
-            <div class="filters-bar">
-                <div class="search-box">
-                    <input type="text" id="order-search" placeholder="Buscar por Nº do pedido, cliente, produto..." class="search-input">
-                    <i class="fas fa-search search-icon"></i>
-                </div>
-                <div class="filter-group">
-                    <select id="sort-orders" class="filter-select">
-                        <option value="date-desc">Mais recentes</option>
-                        <option value="date-asc">Mais antigos</option>
-                        <option value="delivery-asc">Próximos da entrega</option>
-                        <option value="value-desc">Maior valor</option>
-                        <option value="value-asc">Menor valor</option>
-                    </select>
-                </div>
-                <button id="advanced-filters-toggle" class="btn btn-secondary"><i class="fas fa-filter"></i> Filtros</button>
-            </div>
-            <div id="advanced-filters" style="display: none;">
-                <!-- Outros filtros podem ser adicionados aqui -->
-            </div>
-        `;
-        
-        // Conteúdo principal - lista de pedidos ou mensagem vazia
-        if (this.orders.length === 0) {
-            html += `
-                <div class="empty-state">
-                    <i class="fas fa-clipboard-list empty-icon"></i>
-                    <h3>Nenhum pedido encontrado</h3>
-                    <p>Você ainda não possui pedidos cadastrados.</p>
-                    ${canCreateOrder ? `<button id="empty-new-order-btn" class="btn btn-primary">Cadastrar Primeiro Pedido</button>` : ''}
-                </div>
-            `;
-        } else {
-            html += `
-                <div class="data-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th data-sort="orderNumber">Nº Pedido <i class="fas fa-sort"></i></th>
-                                <th data-sort="clientName">Cliente <i class="fas fa-sort"></i></th>
-                                <th data-sort="status">Status <i class="fas fa-sort"></i></th>
-                                <th>Situação</th> 
-                                <th data-sort="totalValue">Valor Total <i class="fas fa-sort"></i></th>
-                                <th data-sort="deliveryDate">Data de Entrega <i class="fas fa-sort"></i></th>
-                                <th class="actions-header">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            // Renderiza cada pedido como uma linha na tabela
-            this.orders.forEach(order => {
-                // Obter o objeto de status
-                const statusObj = SYSTEM_CONFIG.orderStatus.find(s => s.id === order.status) || {
-                    name: 'Status Desconhecido',
-                    color: 'status-pending'
+        // Configura o botão de novo pedido
+        const newOrderBtn = this.container.querySelector('#new-order-btn');
+        if (newOrderBtn) {
+            newOrderBtn.addEventListener('click', () => this.showCreateView());
+        }
+
+        // Configura o botão "Ver mais"
+        const loadMoreBtn = this.container.querySelector('#load-more-btn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => {
+                // Obtém os filtros atuais
+                const filters = {
+                    status: document.querySelector('#status-filter')?.value,
+                    seller: document.querySelector('#seller-filter')?.value,
+                    client: document.querySelector('#client-filter')?.value,
+                    dateStart: document.querySelector('#date-start-filter')?.value,
+                    dateEnd: document.querySelector('#date-end-filter')?.value
                 };
                 
-                // Formatar data de criação
-                const createdDate = order.createdAt ? this.formatDateTime(order.createdAt) : '-';
-                
-                // Formatar data de entrega
-                let deliveryDate = '-';
-                if (order.toArrange) {
-                    deliveryDate = 'A combinar';
-                } else if (order.deliveryDate) {
-                    deliveryDate = this.formatDateTime(order.deliveryDate);
-                }
-                
-                // Formatar valor
-                const totalValue = order.totalValue || 
-                          (order.items && Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (item.total || 0), 0) : 0);
-                
-                // Calcula o valor pago
-                const paidValue = order.payments && Array.isArray(order.payments) ? order.payments.reduce((sum, payment) => {
-                    // Se o pagamento tem data futura, ainda considerar o valor para exibição
-                    const paymentAmount = payment.amount !== undefined ? payment.amount : (payment.value || 0);
-                    return sum + parseFloat(paymentAmount || 0);
-                }, 0) : 0;
-                
-                // Calcula o subtotal (soma dos totais dos itens)
-                const subtotal = order.items && Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
-                
-                // Calcula o total final (subtotal + extras + entrega - desconto)
-                const finalTotal = (subtotal + (order.extraServices || 0) + (order.deliveryCost || 0)) - (order.discount || 0);
-                
-                // Calcula o saldo
-                const balance = Math.max(0, finalTotal - paidValue);
-                
-                // Formatar valor para exibição
-                const formattedValue = this.formatCurrency(finalTotal);
-                
-                // Obter situação do pedido
-                const situacao = this.getSituacaoHTML(order);
-
-                html += `
-                    <tr class="order-row" data-id="${order.id}">
-                        <td>${order.orderNumber || '-'}</td>
-                        <td>${order.clientName || 'Cliente não identificado'}</td>
-                        <td><span class="status-tag ${statusObj.color}">${statusObj.name}</span></td>
-                        <td class="${situacao.class}">${situacao.text}</td>
-                        <td>${formattedValue}</td>
-                        <td>${deliveryDate}</td>
-                        <td>
-                            <button class="btn-icon view-order" data-id="${order.id}" title="Ver Detalhes">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            ${window.auth.hasFeaturePermission('edit_order') ? `
-                            <button class="btn-icon edit-order" data-id="${order.id}" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>` : ''}
-                            ${window.auth.hasFeaturePermission('delete_order') ? `
-                            <button class="btn-icon delete-order" data-id="${order.id}" title="Excluir">
-                                <i class="fas fa-trash"></i>
-                            </button>` : ''}
-                            <button class="btn-icon change-status" data-id="${order.id}" title="Alterar Status">
-                                <i class="fas fa-exchange-alt"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                // Carrega mais pedidos com os filtros atuais
+                this.loadMoreOrders(filters);
             });
-            
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
         }
-        
-        // Após renderizar o HTML
-        this.container.innerHTML = html;
+    }
+    
+    // Novo método para configurar os eventos de filtros
+    setupFilterEvents() {
+        // Botão de aplicar filtros
+        const applyFiltersBtn = this.container.querySelector('#apply-filters');
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', () => {
+                // Reseta o estado da paginação
+                this.lastVisibleOrder = null;
+                this.hasMoreOrders = true;
+                this.orders = [];
+                
+                // Obtém os valores dos filtros
+                const filters = {
+                    status: document.querySelector('#status-filter')?.value,
+                    seller: document.querySelector('#seller-filter')?.value,
+                    client: document.querySelector('#client-filter')?.value,
+                    dateStart: document.querySelector('#date-start-filter')?.value,
+                    dateEnd: document.querySelector('#date-end-filter')?.value
+                };
 
-        // Adiciona event listeners diretos para cada botão de ação para maior robustez
+                // Constrói a query com os filtros
+                let query = db.collection('orders');
+
+                // Para evitar o erro de índice, não aplicamos múltiplos filtros sem ter o índice adequado
+                // Verificando se estamos aplicando filtros que requerem índices compostos
+                const isUsingMultipleFilters = 
+                    (filters.seller && (filters.dateStart || filters.dateEnd || filters.status)) || 
+                    ((filters.dateStart || filters.dateEnd) && filters.status);
+                
+                if (isUsingMultipleFilters) {
+                    window.ui.showNotification(
+                        'Para usar múltiplos filtros, é necessário criar um índice no Firebase. Por favor, acesse a URL mostrada no console para criar o índice necessário.',
+                        'warning',
+                        10000
+                    );
+                }
+
+                // Aplicamos um ordenação padrão
+                query = query.orderBy('createdAt', 'desc');
+
+                // Aplicamos filtros individuais
+                if (filters.status) query = query.where('status', '==', filters.status);
+                if (filters.seller && !isUsingMultipleFilters) query = query.where('seller.id', '==', filters.seller);
+                if (filters.client) query = query.where('client.id', '==', filters.client);
+                if (filters.dateStart && !isUsingMultipleFilters) {
+                    const startDate = new Date(filters.dateStart);
+                    startDate.setHours(0, 0, 0, 0);
+                    query = query.where('createdAt', '>=', startDate);
+                }
+                if (filters.dateEnd && !isUsingMultipleFilters) {
+                    const endDate = new Date(filters.dateEnd);
+                    endDate.setHours(23, 59, 59, 999);
+                    query = query.where('createdAt', '<=', endDate);
+                }
+
+                // Aplica o limite
+                query = query.limit(this.ordersPerPage);
+
+                // Executa a query
+                query.get().then(snapshot => {
+                    this.orders = [];
+                    snapshot.forEach(doc => {
+                        const order = doc.data();
+                        this.orders.push({
+                            id: doc.id,
+                            ...order
+                        });
+                    });
+
+                    // Atualiza o estado da paginação
+                    if (this.orders.length > 0) {
+                        this.lastVisibleOrder = snapshot.docs[snapshot.docs.length - 1];
+                        this.hasMoreOrders = this.orders.length >= this.ordersPerPage;
+                    } else {
+                        this.hasMoreOrders = false;
+                    }
+
+                    // Renderiza a lista atualizada
+                    this.renderOrdersList(false);
+                }).catch(error => {
+                    console.error('Erro ao aplicar filtros:', error);
+                    if (error.message && error.message.includes('index')) {
+                        const indexUrl = error.message.split('You can create it here: ')[1];
+                        window.ui.showNotification(
+                            `É necessário criar um índice no Firebase. Um administrador deve acessar: ${indexUrl}`, 
+                            'error',
+                            15000
+                        );
+                    } else {
+                        window.ui.showNotification('Erro ao aplicar filtros. Por favor, tente novamente.', 'error');
+                    }
+                });
+            });
+        }
+
+        // Botão de limpar filtros
+        const clearFiltersBtn = this.container.querySelector('#clear-filters');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                // Limpa os valores dos filtros
+                const filterInputs = this.container.querySelectorAll('.filter-select, .filter-input');
+                filterInputs.forEach(input => {
+                    input.value = '';
+                });
+
+                // Reseta o estado da paginação
+                this.lastVisibleOrder = null;
+                this.hasMoreOrders = true;
+                this.orders = [];
+
+                // Carrega os dados iniciais novamente
+                db.collection('orders')
+                    .orderBy('createdAt', 'desc')
+                    .limit(this.ordersPerPage)
+                    .get()
+                    .then(snapshot => {
+                        this.orders = [];
+                        snapshot.forEach(doc => {
+                            const order = doc.data();
+                            this.orders.push({
+                                id: doc.id,
+                                ...order
+                            });
+                        });
+
+                        // Atualiza o estado da paginação
+                        if (this.orders.length > 0) {
+                            this.lastVisibleOrder = snapshot.docs[snapshot.docs.length - 1];
+                            this.hasMoreOrders = this.orders.length >= this.ordersPerPage;
+                        } else {
+                            this.hasMoreOrders = false;
+                        }
+
+                        // Renderiza a lista atualizada
+                        this.renderOrdersList(false);
+                    })
+                    .catch(error => {
+                        console.error('Erro ao limpar filtros:', error);
+                        window.ui.showNotification('Erro ao limpar filtros. Por favor, tente novamente.', 'error');
+                    });
+            });
+        }
+
+        // Configura os event listeners para os botões de ação
         this.container.querySelectorAll('.view-order').forEach(btn => {
             btn.addEventListener('click', () => this.showDetailView(btn.dataset.id));
         });
@@ -752,75 +810,6 @@ class OrdersComponent {
         this.container.querySelectorAll('.change-status').forEach(btn => {
             btn.addEventListener('click', () => this.showChangeStatusDialog(btn.dataset.id));
         });
-        
-        // Configurar eventos para os filtros e botões
-        const newOrderBtn = document.getElementById('new-order-btn');
-        if (newOrderBtn) {
-            newOrderBtn.addEventListener('click', () => this.showCreateView());
-        }
-        
-        // Toggle para filtros avançados
-        const advancedFiltersToggle = document.getElementById('advanced-filters-toggle');
-        const advancedFilters = document.getElementById('advanced-filters');
-        
-        if (advancedFiltersToggle && advancedFilters) {
-            // Verifica se os filtros avançados estavam abertos
-            const filtersOpen = localStorage.getItem('ordersAdvancedFiltersOpen') === 'true';
-            if (filtersOpen) {
-                advancedFilters.style.display = 'block';
-            }
-            
-            advancedFiltersToggle.addEventListener('click', () => {
-                const isVisible = advancedFilters.style.display === 'block';
-                advancedFilters.style.display = isVisible ? 'none' : 'block';
-                localStorage.setItem('ordersAdvancedFiltersOpen', !isVisible);
-            });
-        }
-        
-        // Botão para limpar filtros
-        const clearFiltersBtn = document.getElementById('clear-filters');
-        if (clearFiltersBtn) {
-            clearFiltersBtn.addEventListener('click', () => {
-                console.log('Botão Limpar Filtros clicado');
-                this.clearAllFilters();
-            });
-        }
-
-        // Setup dos eventos de filtro
-        this.setupFilterEvents();
-        
-        // Aplicar os filtros salvos se não for resetar filtros
-        if (!resetFilters) {
-            console.log('Aplicando filtros salvos no localStorage');
-            setTimeout(() => this.applyFilters(), 100);
-        }
-        
-        console.log('Renderização da lista de pedidos finalizada');
-        console.log('-------------------------------------------------------');
-    }
-    
-    // Novo método para configurar os eventos de filtros
-    setupFilterEvents() {
-        const addListener = (id, event, handler) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.addEventListener(event, handler);
-            } else {
-                console.warn(`Elemento de filtro não encontrado: ${id}`);
-            }
-        };
-
-        addListener('order-search', 'input', () => this.applyFilters());
-        addListener('sort-orders', 'change', () => this.applyFilters());
-
-        // Verificar se estamos na situação de lista vazia
-        const emptyNewOrderBtn = document.getElementById('empty-new-order-btn');
-        if (emptyNewOrderBtn) {
-            emptyNewOrderBtn.addEventListener('click', () => this.showCreateView());
-        }
-        
-        // Eventos para os botões de visualizar e editar
-        // Removido daqui e centralizado na delegação de eventos em renderOrdersList
     }
     
     // Aplica ordenação nos pedidos
@@ -892,8 +881,16 @@ class OrdersComponent {
     applyFilters() {
         try {
             const searchTerm = document.getElementById('order-search')?.value.toLowerCase().trim();
-            const tbody = document.querySelector('.data-table tbody');
-
+            // Corrigindo o seletor para encontrar corretamente a tabela de pedidos
+            const ordersList = document.querySelector('#orders-list');
+            
+            if (!ordersList) {
+                console.warn('Container de pedidos não encontrado. Abortando a aplicação de filtros.');
+                return;
+            }
+            
+            const tbody = ordersList.querySelector('.data-table tbody');
+            
             if (!tbody) {
                 console.warn('Tabela de pedidos não encontrada. Abortando a aplicação de filtros.');
                 return;
@@ -2100,8 +2097,8 @@ class OrdersComponent {
                         <i class="fas fa-trash"></i> Excluir
                     </button>
                     ` : ''}
-                    <button class="btn btn-outline-secondary print-button" onclick="window.print()">
-                        <i class="fas fa-print"></i> Imprimir
+                    <button class="btn-icon change-status" data-id="${order.id}" title="Alterar Status">
+                        <i class="fas fa-exchange-alt"></i>
                     </button>
                 </div>
             </div>
@@ -3468,6 +3465,195 @@ class OrdersComponent {
 
     checkIsSpecialCutUser() {
         return window.auth.hasFeaturePermission('mark_special_cut_item');
+    }
+
+    // Carrega mais pedidos
+    async loadMoreOrders(filters = null) {
+        if (this.isLoadingMore || !this.hasMoreOrders) return;
+        
+        this.isLoadingMore = true;
+        try {
+            let query = db.collection('orders')
+                .orderBy('createdAt', 'desc')
+                .startAfter(this.lastVisibleOrder)
+                .limit(this.ordersPerPage);
+
+            // Aplica filtros se existirem
+            if (filters) {
+                if (filters.status) query = query.where('status', '==', filters.status);
+                if (filters.seller) query = query.where('seller.id', '==', filters.seller);
+                if (filters.client) query = query.where('client.id', '==', filters.client);
+                if (filters.dateStart) {
+                    const startDate = new Date(filters.dateStart);
+                    startDate.setHours(0, 0, 0, 0);
+                    query = query.where('createdAt', '>=', startDate);
+                }
+                if (filters.dateEnd) {
+                    const endDate = new Date(filters.dateEnd);
+                    endDate.setHours(23, 59, 59, 999);
+                    query = query.where('createdAt', '<=', endDate);
+                }
+            }
+
+            const snapshot = await query.get();
+            
+            const newOrders = [];
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                newOrders.push({
+                    id: doc.id,
+                    ...order
+                });
+            });
+
+            // Atualiza o estado
+            this.orders = [...this.orders, ...newOrders];
+            
+            if (newOrders.length > 0) {
+                this.lastVisibleOrder = snapshot.docs[snapshot.docs.length - 1];
+                this.hasMoreOrders = newOrders.length >= this.ordersPerPage;
+            } else {
+                this.hasMoreOrders = false;
+            }
+
+            // Renderiza a lista atualizada
+            this.renderOrdersList(false);
+        } catch (error) {
+            console.error('Erro ao carregar mais pedidos:', error);
+            window.ui.showNotification('Erro ao carregar mais pedidos. Por favor, tente novamente.', 'error');
+        } finally {
+            this.isLoadingMore = false;
+        }
+    }
+
+    // Renderiza a tabela de pedidos
+    renderOrdersTable() {
+        if (this.orders.length === 0) {
+            return `
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-list empty-icon"></i>
+                    <h3>Nenhum pedido encontrado</h3>
+                    <p>Não há pedidos para exibir com os filtros atuais.</p>
+                </div>
+            `;
+        }
+
+        return `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Nº Pedido</th>
+                        <th>Cliente</th>
+                        <th>Status</th>
+                        <th>Situação</th>
+                        <th>Valor Total</th>
+                        <th>Data de Entrega</th>
+                        <th class="actions-header">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${this.orders.map(order => {
+                        const statusObj = SYSTEM_CONFIG.orderStatus.find(s => s.id === order.status) || {
+                            name: 'Status Desconhecido',
+                            color: 'status-pending'
+                        };
+                        
+                        const deliveryDate = order.toArrange ? 'A combinar' : 
+                            (order.deliveryDate ? this.formatDateTime(order.deliveryDate) : '-');
+                        
+                        const subtotal = order.items?.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) || 0;
+                        const finalTotal = (subtotal + (order.extraServices || 0) + (order.deliveryCost || 0)) - (order.discount || 0);
+                        
+                        const situacao = this.getSituacaoHTML(order);
+
+                        return `
+                            <tr class="order-row" data-id="${order.id}">
+                                <td>${order.orderNumber || '-'}</td>
+                                <td>${order.clientName || 'Cliente não identificado'}</td>
+                                <td><span class="status-tag ${statusObj.color}">${statusObj.name}</span></td>
+                                <td class="${situacao.class}">${situacao.text}</td>
+                                <td>${this.formatCurrency(finalTotal)}</td>
+                                <td>${deliveryDate}</td>
+                                <td>
+                                    <button class="btn-icon view-order" data-id="${order.id}" title="Ver Detalhes">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    ${window.auth.hasFeaturePermission('edit_order') ? `
+                                    <button class="btn-icon edit-order" data-id="${order.id}" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>` : ''}
+                                    ${window.auth.hasFeaturePermission('delete_order') ? `
+                                    <button class="btn-icon delete-order" data-id="${order.id}" title="Excluir">
+                                        <i class="fas fa-trash"></i>
+                                    </button>` : ''}
+                                    <button class="btn-icon change-status" data-id="${order.id}" title="Alterar Status">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    // Renderiza os filtros
+    renderFilters() {
+        return `
+            <div class="filters-section">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="status-filter">Status</label>
+                        <select id="status-filter" class="filter-select">
+                            <option value="">Todos</option>
+                            ${SYSTEM_CONFIG.orderStatus.map(status => `
+                                <option value="${status.id}">${status.name}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="seller-filter">Vendedor</label>
+                        <select id="seller-filter" class="filter-select">
+                            <option value="">Todos</option>
+                            ${this.renderSellerFilterOptions()}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="client-filter">Cliente</label>
+                        <select id="client-filter" class="filter-select">
+                            <option value="">Todos</option>
+                            ${this.clients.map(client => `
+                                <option value="${client.id}">${client.name}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="date-start-filter">Data Inicial</label>
+                        <input type="date" id="date-start-filter" class="filter-input">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="date-end-filter">Data Final</label>
+                        <input type="date" id="date-end-filter" class="filter-input">
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button id="apply-filters" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Aplicar Filtros
+                        </button>
+                        <button id="clear-filters" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Limpar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 }
 

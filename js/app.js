@@ -1,10 +1,23 @@
-// Arquivo principal da aplicação
+// Arquivo principal da aplicação GrafSys - Tema Argon Dashboard 2 PRO
+
+// Configurações globais
+const APP_CONFIG = {
+    name: 'GrafSys',
+    version: '2.81',
+    // ... existing code ...
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log("[App] DOM totalmente carregado e processado.");
     // Inicializa os módulos principais
     window.ui = new UI();
     window.auth = new AuthSystem();
     window.profile = new Profile();
+    
+    // Carrega a preferência de tema do usuário
+    if (window.ui && typeof window.ui.loadThemePreference === 'function') {
+        window.ui.loadThemePreference();
+    }
     
     // Flag global para controle de carregamento de dados
     window.isLoadingData = false;

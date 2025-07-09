@@ -1,23 +1,72 @@
-/* Variáveis globais para facilitar personalização */
+/* Variáveis globais para o tema Argon Dashboard 2 PRO */
 :root {
-    --primary-color: #6200ea;
-    --primary-light: #9d46ff;
-    --primary-dark: #0a00b6;
-    --accent-color: #00e676;
-    --dark-bg: #121212;
-    --dark-surface: #1e1e1e;
-    --dark-card: #2d2d2d;
-    --text-light: #ffffff;
-    --text-medium: rgba(255, 255, 255, 0.87);
-    --text-disabled: rgba(255, 255, 255, 0.60);
-    --error-color: #cf6679;
-    --warning-color: #ffab40;
-    --success-color: #00e676;
-    --info-color: #29b6f6;
-    --border-radius: 8px;
-    --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    /* Cores primárias do Argon Dashboard 2 PRO */
+    --blue: #5e72e4;
+    --indigo: #5603ad;
+    --purple: #8965e0;
+    --pink: #f3a4b5;
+    --red: #ff3100;
+    --orange: #fb6340;
+    --yellow: #ffd600;
+    --green: #2dce89;
+    --teal: #11cdef;
+    --cyan: #2bffc6;
+    --gray: #8898aa;
+    --gray-dark: #32325d;
+    --light: #ced4da;
+    --lighter: #f8f9fe;
+    
+    /* Cores semânticas */
+    --primary: var(--blue);
+    --primary-light: #7789e8;
+    --primary-dark: #324cdd;
+    --secondary: #8392ab;
+    --success: var(--green);
+    --info: var(--teal);
+    --warning: var(--orange);
+    --danger: var(--red);
+    --dark: #344767;
+    --default: #344767;
+    --white: #fff;
+    --neutral: #f8f9fe;
+    --darker: black;
+    
+    /* Cores de texto específicas do Argon 2 */
+    --text-primary: #344767;
+    --text-secondary: #67748e;
+    --text-muted: #8392ab;
+    --text-light: #fff;
+    --text-medium: #67748e;
+    --text-disabled: rgba(103, 116, 142, 0.6);
+    --error-color: var(--danger);
+    
+    /* Bordas e sombras */
+    --border-radius: .5rem;
+    --border-radius-sm: .25rem;
+    --border-radius-lg: .75rem;
+    --border-radius-xl: 1rem;
+    --border-width: 1px;
+    --border-color: #dee2e6;
+    
+    /* Sombras do Argon Dashboard 2 PRO */
+    --box-shadow: 0 7px 14px rgba(50, 50, 93, .1), 0 3px 6px rgba(0, 0, 0, .08);
+    --box-shadow-sm: 0 .125rem .25rem rgba(0, 0, 0, .075);
+    --box-shadow-lg: 0 1rem 3rem rgba(0, 0, 0, .175);
+    --box-shadow-inset: inset 0 1px 2px rgba(0, 0, 0, .075);
+    --box-shadow-primary: 0 4px 6px rgba(50, 50, 93, .11), 0 1px 3px rgba(0, 0, 0, .08);
+    
+    /* Outras variáveis */
     --transition: all 0.3s ease;
-    --footer-bg: #1a1a1a;
+    --footer-bg: #f8f9fe;
+    
+    /* Variáveis específicas para o modo claro */
+    --card-bg: var(--white);
+    --body-bg: #f8f9fe;
+    --modal-bg: var(--white);
+    --input-bg: var(--white);
+    --notification-bg: var(--white);
+    --border-color-light: #e9ecef;
+    --top-bar-bg: var(--white);
 }
 
 /* Reset e estilos base */
@@ -28,19 +77,36 @@
 }
 
 body {
-    font-family: 'Poppins', sans-serif;
-    font-size: 16px;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.875rem;
     line-height: 1.5;
-    color: var(--text-medium);
-    background-color: var(--dark-bg);
+    color: var(--text-primary);
+    background-color: var(--body-bg);
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Temas */
 .dark-mode {
-    background-color: var(--dark-bg);
-    color: var(--text-medium);
+    background-color: #1a1c24;
+    color: var(--text-light);
+}
+
+.dark-mode {
+    --text-primary: var(--text-light);
+    --text-secondary: #ced4da;
+    --text-medium: rgba(255, 255, 255, 0.87);
+    --text-disabled: rgba(255, 255, 255, 0.60);
+    --footer-bg: #2a2e3c;
+    --card-bg: #2a2e3c;
+    --body-bg: #1a1c24;
+    --modal-bg: #2a2e3c;
+    --input-bg: #343a40;
+    --notification-bg: #2a2e3c;
+    --border-color-light: #464c5c;
+    --top-bar-bg: #2a2e3c;
 }
 
 /* Utilidades */
@@ -50,59 +116,72 @@ body {
 
 .btn {
     display: inline-block;
-    padding: 0.8rem 1.5rem;
+    padding: 0.625rem 1.25rem;
     border-radius: var(--border-radius);
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
-    border: none;
+    border: var(--border-width) solid transparent;
     outline: none;
     text-align: center;
-    font-size: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    letter-spacing: -0.025em;
 }
 
 .btn-primary {
-    background: linear-gradient(45deg, var(--primary-color), var(--primary-light));
-    color: var(--text-light);
+    background-color: var(--primary);
+    color: var(--white);
+    box-shadow: var(--box-shadow-primary);
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
+    background-color: var(--primary-dark);
+    transform: translateY(-3px);
+    box-shadow: var(--box-shadow);
 }
 
 .btn-secondary {
-    background-color: transparent;
-    border: 2px solid var(--primary-color);
-    color: var(--primary-light);
+    background-color: var(--secondary);
+    border-color: var(--secondary);
+    color: var(--white);
 }
 
 .btn-secondary:hover {
-    background-color: rgba(98, 0, 234, 0.1);
+    background-color: #6c7c95;
+    transform: translateY(-3px);
+    box-shadow: var(--box-shadow);
 }
 
 .btn-danger {
-    background-color: #b10020;
-    color: #ffffff;
+    background-color: var(--danger);
+    color: var(--white);
+}
+
+.btn-danger:hover {
+    background-color: #ea2c4e;
+    transform: translateY(-3px);
+    box-shadow: var(--box-shadow);
 }
 
 .btn-sm {
     padding: 0.5rem 1rem;
-    font-size: 0.9rem;
+    font-size: 0.75rem;
 }
 
 .card {
-    background-color: var(--dark-card);
+    background-color: var(--card-bg);
     border-radius: var(--border-radius);
     padding: 1.5rem;
-    box-shadow: var(--shadow);
+    box-shadow: var(--box-shadow);
     margin-bottom: 1.5rem;
     transition: var(--transition);
+    border: var(--border-width) solid rgba(0, 0, 0, .05);
 }
 
 .card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--box-shadow-lg);
 }
 
 .input-group {
@@ -112,86 +191,42 @@ body {
 .input-group label {
     display: block;
     margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: var(--text-medium);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
 }
 
 .input-group input, 
 .input-group select, 
 .input-group textarea {
     width: 100%;
-    padding: 0.8rem;
+    padding: 0.75rem 1rem;
     border-radius: var(--border-radius);
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--text-light);
-    font-family: 'Poppins', sans-serif;
+    background-color: var(--input-bg);
+    border: var(--border-width) solid var(--border-color);
+    color: var(--text-primary);
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.875rem;
+    transition: all .2s ease-in-out;
 }
 
 .input-group input:focus, 
 .input-group select:focus, 
 .input-group textarea:focus {
     outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(98, 0, 234, 0.3);
+    border-color: var(--primary);
+    box-shadow: 0 3px 9px rgba(50, 50, 93, 0), 3px 4px 8px rgba(94, 114, 228, .1);
 }
 
 .error-message {
     color: var(--error-color);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     margin-top: 0.5rem;
-    display: none;
+    font-weight: 500;
 }
 
 .error-message.active {
     display: block;
-}
-
-/* Área de Autenticação */
-#auth-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background: linear-gradient(135deg, var(--dark-bg), #3d002c);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1050;
-}
-
-#auth-container.active {
-    opacity: 1;
-    visibility: visible;
-}
-
-.auth-card {
-    background-color: var(--dark-card);
-    border-radius: var(--border-radius);
-    padding: 2rem;
-    width: 90%;
-    max-width: 400px;
-    box-shadow: var(--shadow);
-}
-
-.auth-card .logo {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.auth-card .logo h1 {
-    color: var(--primary-light);
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.auth-card .auth-form h2 {
-    margin-bottom: 1.5rem;
-    color: var(--text-light);
 }
 
 /* Layout Principal */
@@ -213,8 +248,8 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
-    background-color: var(--dark-surface);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    background-color: var(--top-bar-bg);
+    box-shadow: var(--box-shadow);
     position: fixed;
     top: 0;
     left: 0;
@@ -223,11 +258,10 @@ body {
 }
 
 .top-bar .logo {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     font-weight: 700;
-    color: var(--primary-light);
-    font-family: 'Poppins';
-    font-size: 35px;
+    color: var(--primary);
+    letter-spacing: -0.025em;
 }
 
 #main-menu {
@@ -236,18 +270,19 @@ body {
 }
 
 #main-menu a {
-    color: var(--text-medium);
+    color: var(--text-secondary);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
     transition: var(--transition);
-    padding: 0.5rem;
-    font-family: 'Poppins';
-    font-size: larger;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
 }
 
 #main-menu a:hover, 
 #main-menu a.active {
-    color: var(--primary-light);
+    color: var(--primary);
+    background-color: rgba(94, 114, 228, 0.1);
 }
 
 .user-info {
@@ -348,7 +383,8 @@ body {
 }
 
 .modal-content {
-    background-color: var(--dark-card);
+    background-color: var(--modal-bg);
+    color: var(--text-primary);
     border-radius: var(--border-radius);
     width: 90%;
     max-width: 600px;
@@ -359,7 +395,7 @@ body {
 
 .modal-header {
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: var(--border-width) solid var(--border-color-light);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -438,10 +474,11 @@ body {
 
 /* Dashboard */
 .dashboard-stats {
-    display: grid;
+    display: flex;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     grid-gap: 1.5rem;
     margin-bottom: 2rem;
+    align-content: center;
 }
 
 .stat-card {
@@ -503,8 +540,9 @@ body {
 }
 
 .data-table td {
+    text-align: center;
     padding: 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgb(255 255 255 / 0%);
     font-family: 'Poppins';
 }
 
@@ -561,8 +599,11 @@ body {
 }
 
 .situacao-apresse {
+    display: flex;
+    padding: 3px;
     color: #ffc107;
     font-weight: bold;
+    justify-content: center;
 }
 
 .situacao-no-prazo {
@@ -1191,7 +1232,7 @@ body {
 }
 
 .control-point-item {
-    background-color: var(--dark-surface);
+    background-color: var(--top-bar-bg);
     border-radius: var(--border-radius);
     padding: 1rem;
     min-width: 110px;
@@ -1306,14 +1347,14 @@ body {
 
 .workflow-order-item {
     display: flex;
-    background-color: var(--dark-surface);
+    background-color: var(--top-bar-bg);
     padding: 0.75rem;
     border-radius: var(--border-radius);
     cursor: pointer;
     transition: var(--transition);
-    border-left: 3px solid transparent;
-    flex-direction: column;
+    border-left: 4px solid transparent;
     align-items: center;
+    flex-direction: column;
 }
 
 .workflow-order-item:hover {
@@ -1322,7 +1363,7 @@ body {
 }
 
 .workflow-order-item.order-late {
-    border-left-color: var(--error-color);
+    border-left-color: #00000024;
 }
 
 .workflow-order-item.order-urgent {
@@ -1462,8 +1503,9 @@ body {
 }
 
 .notification {
-    background-color: var(--dark-card);
-    border-left: 4px solid var(--primary-color);
+    background-color: var(--notification-bg);
+    color: var(--text-primary);
+    border: var(--border-width) solid var(--border-color-light);
     border-radius: var(--border-radius);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     padding: 15px;
@@ -2647,7 +2689,7 @@ body {
 /* Estilos do Rodapé */
 #system-footer {
     background-color: var(--footer-bg);
-    color: var(--text-medium);
+    color: var(--text-primary);
     padding: 2rem 0 1rem;
     margin-top: 3rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -2665,7 +2707,7 @@ body {
 }
 
 .benefits-section h3 {
-    color: var(--primary-light);
+    color: var(--text-primary);
     font-size: 1.3rem;
     margin-bottom: 1.5rem;
     font-weight: 600;
@@ -2861,4 +2903,116 @@ body {
     .workflow-block-content {
         max-height: calc(50vh - 4rem);
     }
+}
+
+/* Estilos para o botão de alternância de tema */
+#theme-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0.5rem;
+    margin-right: 0.75rem;
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#theme-toggle-btn:hover {
+    color: var(--primary);
+    background-color: rgba(94, 114, 228, 0.1);
+}
+
+.dark-mode #theme-toggle-btn {
+    color: var(--text-light);
+}
+
+.dark-mode #theme-toggle-btn:hover {
+    color: var(--primary);
+    background-color: rgba(94, 114, 228, 0.2);
+}
+
+/* Animação para alternar o ícone */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+#theme-toggle-btn i.animate {
+    animation: spin 0.5s ease;
+}
+
+/* Classes para melhorar legibilidade de texto */
+.light-text {
+    color: var(--text-primary) !important;
+}
+
+.dark-text {
+    color: var(--text-light) !important;
+}
+
+.dynamic-text {
+    transition: color 0.3s ease;
+}
+
+/* Ajustes adicionais para o tema claro */
+body:not(.dark-mode) .btn-outline-light {
+    border-color: var(--gray);
+    color: var(--gray-dark);
+}
+
+body:not(.dark-mode) .btn-outline-light:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--gray-dark);
+}
+
+body:not(.dark-mode) .text-light {
+    color: var(--text-primary) !important;
+}
+
+body:not(.dark-mode) .bg-dark {
+    background-color: var(--primary) !important;
+}
+
+/* Ajustes específicos para cards e tabelas no tema claro */
+body:not(.dark-mode) .card-header {
+    color: var(--text-primary);
+}
+
+body:not(.dark-mode) .text-white {
+    color: var(--text-primary) !important;
+}
+
+/* Exceções para elementos que devem manter texto branco mesmo no modo claro */
+.btn-primary .text-white,
+.btn-secondary .text-white,
+.btn-success .text-white,
+.btn-danger .text-white,
+.btn-warning .text-white,
+.btn-info .text-white,
+.btn-dark .text-white,
+.badge .text-white,
+.alert-primary .text-white,
+.alert-secondary .text-white,
+.alert-success .text-white,
+.alert-danger .text-white,
+.alert-warning .text-white,
+.alert-info .text-white,
+.alert-dark .text-white,
+[class*="bg-"] .text-white {
+    color: var(--white) !important;
+}
+
+/* Ajustes para badges no tema claro */
+body:not(.dark-mode) .badge-light {
+    background-color: var(--light);
+    color: var(--text-primary);
+}
+
+body:not(.dark-mode) .badge-dark {
+    background-color: var(--gray-dark);
+    color: var(--white);
 }

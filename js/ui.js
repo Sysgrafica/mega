@@ -9,10 +9,12 @@ class UI {
         this.modalTitle = document.getElementById('modal-title');
         this.modalBody = document.getElementById('modal-body');
         this.closeModalBtn = document.getElementById('close-modal');
+        this.themeToggleBtn = document.getElementById('theme-toggle-btn');
         
         // Estados
         this.currentPage = null;
         this.notificationTimeout = null;
+        this.isDarkMode = document.body.classList.contains('dark-mode');
         this.menuItems = [
             { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie', component: 'DashboardComponent' },
             { id: 'workflow', label: 'Fluxo de Trabalho', icon: 'fa-tasks', component: 'WorkflowComponent' },
@@ -38,6 +40,7 @@ class UI {
     // Inicialização
     init() {
         this.setupEventListeners();
+        this.updateThemeIcon();
     }
     
     // Configura event listeners
@@ -55,6 +58,108 @@ class UI {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.quickActionModal.classList.contains('active')) {
                 this.closeModal();
+            }
+        });
+        
+        // Botão de alternar tema
+        if (this.themeToggleBtn) {
+            this.themeToggleBtn.addEventListener('click', () => this.toggleTheme());
+        }
+    }
+    
+    // Alterna entre os temas claro e escuro
+    toggleTheme() {
+        const body = document.body;
+        const themeIcon = this.themeToggleBtn.querySelector('i');
+        const isDarkMode = body.classList.toggle('dark-mode');
+        
+        // Animar o ícone
+        themeIcon.classList.add('animate');
+        setTimeout(() => {
+            themeIcon.classList.remove('animate');
+        }, 500);
+        
+        // Alternar ícone
+        if (isDarkMode) {
+            themeIcon.className = 'fas fa-sun';
+            localStorage.setItem('darkMode', 'true');
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            themeIcon.className = 'fas fa-moon';
+            localStorage.setItem('darkMode', 'false');
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+        
+        // Verificar elementos com texto que precisa ser ajustado
+        this.adjustTextColors();
+        
+        // Salva a preferência do usuário
+        this.saveThemePreference();
+        
+        // Notifica o usuário sobre a mudança de tema
+        const message = isDarkMode ? 'Modo escuro ativado' : 'Modo claro ativado';
+        this.showNotification(message, 'success', 1500);
+    }
+    
+    // Atualiza o ícone do botão de tema baseado no modo atual
+    updateThemeIcon() {
+        if (!this.themeToggleBtn) return;
+        
+        const icon = this.themeToggleBtn.querySelector('i');
+        if (icon) {
+            if (this.isDarkMode) {
+                icon.className = 'fas fa-sun';
+            } else {
+                icon.className = 'fas fa-moon';
+            }
+        }
+    }
+    
+    // Salva a preferência de tema do usuário
+    saveThemePreference() {
+        try {
+            localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light');
+        } catch (error) {
+            console.error('Não foi possível salvar a preferência de tema:', error);
+        }
+    }
+    
+    // Carrega a preferência de tema do usuário
+    loadThemePreference() {
+        try {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                this.isDarkMode = savedTheme === 'dark';
+                
+                if (this.isDarkMode) {
+                    document.body.classList.add('dark-mode');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                }
+                
+                this.updateThemeIcon();
+            }
+        } catch (error) {
+            console.error('Não foi possível carregar a preferência de tema:', error);
+        }
+        
+        // Ajustar cores de texto após carregar a preferência
+        this.adjustTextColors();
+    }
+    
+    // Ajustar cores de texto baseadas no tema atual
+    adjustTextColors() {
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        
+        // Selecionar elementos com classes específicas que precisam de ajuste
+        const textElements = document.querySelectorAll('.dynamic-text');
+        textElements.forEach(element => {
+            if (isDarkMode) {
+                element.classList.add('dark-text');
+                element.classList.remove('light-text');
+            } else {
+                element.classList.add('light-text');
+                element.classList.remove('dark-text');
             }
         });
     }
