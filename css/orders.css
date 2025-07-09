@@ -44,13 +44,33 @@
 }
 
 /* Filtros */
-.orders-filters {
+.filters-section {
     background-color: var(--card-bg);
     border-radius: var(--border-radius-lg);
     padding: 1.5rem;
     margin-bottom: 1.5rem;
     box-shadow: var(--box-shadow-sm);
     border: var(--border-width) solid rgba(0, 0, 0, .05);
+}
+
+.filters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.filters-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filters-row:last-child {
+    margin-bottom: 0;
 }
 
 .filters-title {
@@ -127,12 +147,94 @@
 }
 
 /* Lista de pedidos */
-.orders-list {
-    width: 100%;
-    overflow-x: auto;
+.orders-table-container {
     background-color: var(--card-bg);
     border-radius: var(--border-radius-lg);
     box-shadow: var(--box-shadow-sm);
+    overflow: hidden;
+}
+
+.table-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background-color: rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.results-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.data-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.orders-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.orders-table th.sortable:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.orders-table th.sortable span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sort-icon {
+    font-size: 0.75rem;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+.orders-table th.sortable:hover .sort-icon {
+    opacity: 1;
+}
+
+.orders-table th.sorted .sort-icon {
+    opacity: 1;
+    color: var(--primary);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--box-shadow-sm);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: var(--text-disabled);
+    margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.client-contact {
+    font-size: 0.75rem;
+    color: var(--text-disabled);
+    margin-top: 0.25rem;
 }
 
 .orders-table {
