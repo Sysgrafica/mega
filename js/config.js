@@ -8,23 +8,18 @@ const firebaseConfig = {
     appId: "1:301778798043:web:d4b46faf5ba727f572d3fe"
 };
 
-// Verificar se Firebase está disponível e inicializar
-if (typeof firebase !== 'undefined') {
-    // Inicializar Firebase
-    firebase.initializeApp(firebaseConfig);
+// Inicializar Firebase
+firebase.initializeApp(firebaseConfig);
 
-    // Referências para os serviços do Firebase
-    const firebaseAuth = firebase.auth();
-    const db = firebase.firestore();
-    const storage = firebase.storage();
+// Referências para os serviços do Firebase
+const firebaseAuth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-    // Configuração do Firestore (usando merge: true para evitar o aviso)
-    db.settings({ merge: true });
-    
-    console.log('Firebase inicializado com sucesso');
-} else {
-    console.error('Firebase não está disponível. Verifique se os scripts do Firebase foram carregados corretamente.');
-}
+// Configuração do Firestore (usando merge: true para evitar o aviso)
+db.settings({ merge: true });
+
+console.log('Firebase inicializado com sucesso');
 
 // Configurações do sistema
 const SYSTEM_CONFIG = {

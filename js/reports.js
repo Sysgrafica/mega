@@ -7,13 +7,9 @@ const Reports = {
     
     // Inicialização do módulo
     init: function() {
-        if (typeof firebase !== 'undefined' && firebase.firestore) {
-            this.db = firebase.firestore();
-            this.setupEventListeners();
-            console.log('Módulo Reports inicializado com sucesso');
-        } else {
-            console.error('Firebase não está disponível para o módulo Reports');
-        }
+        this.db = firebase.firestore();
+        this.setupEventListeners();
+        console.log('Módulo Reports inicializado com sucesso');
     },
     
     // Configurar listeners de eventos
