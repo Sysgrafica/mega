@@ -55,6 +55,13 @@ class AuthSystem {
     // Carrega códigos de acesso do Firestore
     async loadAccessCodes() {
         try {
+            // Verifica se o Firebase está disponível
+            if (typeof firebase === 'undefined' || !firebase.firestore) {
+                console.log("Firebase não está disponível, usando códigos de demonstração");
+                this.accessCodes = this.demoUsers;
+                return;
+            }
+            
             const snapshot = await db.collection('employees').get();
             snapshot.forEach(doc => {
                 const employee = doc.data();
@@ -330,6 +337,16 @@ class AuthSystem {
         }
         
         try {
+            // Verifica se o Firebase está disponível antes de tentar carregar
+            if (typeof firebase === 'undefined' || !firebase.firestore || !db) {
+                console.log(`Firebase não disponível, usando permissões padrão para ${role}`);
+                this.permissionsCache[role] = {
+                    pages: SYSTEM_CONFIG.roles[role].menuAccess || [],
+                    features: []
+                };
+                return this.permissionsCache[role];
+            }
+            
             console.log(`Carregando permissões para ${role} do Firestore`);
             
             // Busca as permissões no Firestore
@@ -355,15 +372,19 @@ class AuthSystem {
                     features: []
                 };
                 
-                // Cria um documento de permissões padrão para este papel
-                await db.collection('permissions').doc(role).set({
-                    role: role,
-                    roleName: SYSTEM_CONFIG.roles[role].name,
-                    pages: SYSTEM_CONFIG.roles[role].menuAccess || [],
-                    features: [],
-                    lastUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    lastUpdatedBy: "system"
-                });
+                // Tenta criar um documento de permissões padrão para este papel
+                try {
+                    await db.collection('permissions').doc(role).set({
+                        role: role,
+                        roleName: SYSTEM_CONFIG.roles[role].name,
+                        pages: SYSTEM_CONFIG.roles[role].menuAccess || [],
+                        features: [],
+                        lastUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastUpdatedBy: "system"
+                    });
+                } catch (setError) {
+                    console.log(`Não foi possível criar documento de permissões para ${role}:`, setError);
+                }
                 
                 return this.permissionsCache[role];
             }
