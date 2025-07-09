@@ -327,81 +327,60 @@ class UI {
         });
     }
     
-    // Exibe uma notificação temporária
-    showNotification(message, type = 'success', customTime = null) {
-        console.log('Exibindo notificação:', message, 'tipo:', type, 'tempo:', customTime);
-        
-        // Limpa timeout anterior, se existir
-        if (this.notificationTimeout) {
-            clearTimeout(this.notificationTimeout);
-        }
-        
-        // Força a criação da área de notificações se não existir
-        if (!this.notificationArea || !document.body.contains(this.notificationArea)) {
-            console.log('Área de notificações não encontrada, criando nova');
-            this.notificationArea = document.createElement('div');
-            this.notificationArea.id = 'notification-area';
-            document.body.appendChild(this.notificationArea);
-        }
-        
-        // Cria elemento de notificação
+    // Exibe uma notificação
+    showNotification(message, type = 'info', duration = null) {
+        console.log('Exibindo notificação:', message, 'tipo:', type, 'tempo:', duration);
+
+        const container = this.getOrCreateNotificationContainer();
+
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.style.display = 'block'; // Garante que a notificação seja exibida
-        
-        // Adiciona botão de fechar para notificações importantes
-        if (message.includes('excluído') || type === 'error' || type === 'warning') {
-            notification.innerHTML = `
-                ${message}
-                <span class="notification-close-btn">×</span>
-            `;
-            // Adiciona evento ao botão de fechar
-            const closeBtn = notification.querySelector('.notification-close-btn');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    notification.style.opacity = '0';
-                    notification.style.transform = 'translateY(-20px)';
-                    notification.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                    setTimeout(() => {
-                        if (notification.parentNode === this.notificationArea) {
-                            this.notificationArea.removeChild(notification);
-                        }
-                    }, 500);
-                });
-            }
-        } else {
-            notification.textContent = message;
+
+        const icon = this.getNotificationIcon(type);
+
+        notification.innerHTML = `
+            <div class="notification-icon">${icon}</div>
+            <div class="notification-content">
+                <div class="notification-message">${message}</div>
+                ${type === 'loading' ? '<div class="notification-progress"><div class="progress-bar"></div></div>' : ''}
+            </div>
+            ${type !== 'loading' ? '<button class="notification-close">&times;</button>' : ''}
+        `;
+
+        // Configura o botão de fechar se não for loading
+        if (type !== 'loading') {
+            const closeBtn = notification.querySelector('.notification-close');
+            closeBtn.addEventListener('click', () => {
+                this.removeNotification(notification);
+            });
         }
-        
-        // Adiciona à área de notificações
-        this.notificationArea.appendChild(notification);
-        
-        // Define tempo de exibição com base no tipo e no conteúdo da mensagem
-        let displayTime = customTime || 5000; // 5 segundos (padrão)
-        
-        // Aumenta o tempo para mensagens importantes
-        if (message.includes('excluído com sucesso') || message.includes('excluir')) {
-            displayTime = customTime || 15000; // 15 segundos para exclusões (aumentado de 8s para 15s)
-        } else if (type === 'error' || type === 'warning') {
-            displayTime = customTime || 12000; // 12 segundos para erros e avisos (aumentado de 7s para 12s)
-        } else if (message.length > 50) {
-            displayTime = customTime || 8000; // 8 segundos para mensagens longas (aumentado de 6s para 8s)
-        }
-        
-        // Configura a remoção automática após o tempo definido
-        this.notificationTimeout = setTimeout(() => {
-            // Adiciona classe para animação de saída
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateY(-20px)';
-            notification.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-            
-            // Remove do DOM após a animação de fade out
+
+        container.appendChild(notification);
+
+        // Remove automaticamente após o tempo especificado ou padrão
+        const autoRemoveTime = duration || this.getDefaultDuration(type);
+        if (autoRemoveTime > 0 && type !== 'loading') {
             setTimeout(() => {
-                if (notification.parentNode === this.notificationArea) {
-                    this.notificationArea.removeChild(notification);
-                }
-            }, 500);
-        }, displayTime);
+                this.removeNotification(notification);
+            }, autoRemoveTime);
+        }
+
+        // Limita o número de notificações
+        this.limitNotifications(container);
+
+        return notification; // Retorna a notificação para permitir controle manual
+    }
+
+    // Método para mostrar loading global
+    showGlobalLoading(message = 'Carregando...') {
+        return this.showNotification(message, 'loading', 0);
+    }
+
+    // Método para esconder loading específico
+    hideNotification(notification) {
+        if (notification && notification.parentNode) {
+            this.removeNotification(notification);
+        }
     }
     
     // Abre o modal de ação rápida
@@ -889,7 +868,7 @@ class UI {
                 
                 // Checkbox de seleção, se necessário
                 if (options.selectable) {
-                    const selectCell = document.createElement('td');
+                    const selectCell =document.createElement('td');
                     selectCell.className = 'select-column';
                     
                     const checkbox = document.createElement('input');

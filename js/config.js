@@ -28,6 +28,21 @@ const SYSTEM_CONFIG = {
     dateFormat: "DD/MM/YYYY",
     dateTimeFormat: "DD/MM/YYYY HH:mm",
     currency: "R$",
+    // Configurações de performance
+    performance: {
+        cacheTimeout: 300000, // 5 minutos
+        debounceDelay: 300,
+        maxRetries: 3,
+        batchSize: 50,
+        enableLazyLoading: true
+    },
+    // Configurações de UI
+    ui: {
+        animationDuration: 300,
+        notificationDuration: 5000,
+        autoSaveInterval: 30000, // 30 segundos
+        maxNotifications: 5
+    },
     roles: {
         admin: {
             name: "Administrador",

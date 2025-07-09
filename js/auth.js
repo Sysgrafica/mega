@@ -449,9 +449,28 @@ class AuthSystem {
     
     // Carrega permissões do usuário com base em seu papel
     async loadUserPermissions(role) {
-        // Se já temos no cache, retorna
+        // Se já temos no cache e não passou muito tempo, retorna
+        const cacheKey = `${role}_permissions_cache`;
+        const cachedData = localStorage.getItem(cacheKey);
+        
+        if (cachedData) {
+            try {
+                const parsed = JSON.parse(cachedData);
+                const now = Date.now();
+                // Cache válido por 5 minutos
+                if (parsed.timestamp && (now - parsed.timestamp) < 300000) {
+                    console.log(`Usando permissões em cache local para ${role}`);
+                    this.permissionsCache[role] = parsed.permissions;
+                    return this.permissionsCache[role];
+                }
+            } catch (error) {
+                console.error('Erro ao ler cache local de permissões:', error);
+            }
+        }
+        
+        // Se já temos no cache em memória, retorna
         if (this.permissionsCache[role]) {
-            console.log(`Usando permissões em cache para ${role}`);
+            console.log(`Usando permissões em cache de memória para ${role}`);
             return this.permissionsCache[role];
         }
         
@@ -484,6 +503,18 @@ class AuthSystem {
                     pages: permissionsData.pages || [],
                     features: permissionsData.features || []
                 };
+                
+                // Salva também no localStorage para cache persistente
+                try {
+                    const cacheKey = `${role}_permissions_cache`;
+                    const cacheData = {
+                        permissions: this.permissionsCache[role],
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                } catch (error) {
+                    console.error('Erro ao salvar cache local de permissões:', error);
+                }
                 
                 console.log(`Permissões carregadas para ${role}:`, this.permissionsCache[role]);
                 return this.permissionsCache[role];

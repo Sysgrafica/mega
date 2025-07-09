@@ -1098,173 +1098,58 @@ class DashboardComponent {
         }
     }
     
-    // Configura listeners para atualização em tempo real
+    // Configurar listeners para atualizações em tempo real com debounce
     setupRealtimeListeners() {
-        // Verifica se já existem listeners ativos e remove
-        this.cleanup();
-        
-        // Flag para controlar se o componente está ativo
-        this.isActive = true;
-        
-        console.log("Configurando listeners do dashboard (otimizado)");
-        
-        // Listener para novos pedidos com menos frequência de atualização
+        console.log('Configurando listeners do dashboard (otimizado)');
+
+        // Debounce para evitar atualizações excessivas
+        const debouncedUpdate = this.debounce(() => {
+            this.loadStatistics();
+            this.loadControlPoints();
+        }, 1000);
+
+        // Escuta mudanças em pedidos
         this.ordersListener = db.collection('orders')
-            .orderBy('createdAt', 'desc')
-            .limit(10)
-            .onSnapshot(snapshot => {
-                // Verifica se o componente ainda está montado
-                if (!this.isActive) {
-                    console.log("Dashboard já não está mais ativo, ignorando atualização");
-                    return;
-                }
-                
-                let newOrders = false;
-                let updatedOrders = [];
-                
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'added' || change.type === 'modified') {
-                        newOrders = true;
-                        
-                        // Processa o pedido atualizado para incluir as propriedades necessárias
-                        const order = change.doc.data();
-                        let processedDeliveryDate = null;
-                        
-                        if (order.deliveryDate) {
-                            try {
-                                if (order.deliveryDate.toDate && typeof order.deliveryDate.toDate === 'function') {
-                                    processedDeliveryDate = order.deliveryDate.toDate();
-                                } else if (order.deliveryDate instanceof Date) {
-                                    processedDeliveryDate = order.deliveryDate;
-                                } else if (order.deliveryDate.seconds) {
-                                    processedDeliveryDate = new Date(order.deliveryDate.seconds * 1000);
-                                } else {
-                                    processedDeliveryDate = new Date(order.deliveryDate);
-                                }
-                            } catch (e) {
-                                console.error('Erro ao processar data de entrega em tempo real:', e);
-                            }
-                        }
-                        
-                        // Adiciona o pedido processado à lista de atualizações
-                        updatedOrders.push({
-                            id: change.doc.id,
-                            clientName: order.clientName,
-                            deliveryDate: processedDeliveryDate,
-                            toArrange: order.toArrange || false,
-                            delivered: order.delivered || false,
-                            status: order.status,
-                            createdAt: order.createdAt,
-                            finalSituacao: order.finalSituacao || null,
-                            finalSituacaoClass: order.finalSituacaoClass || null
-                        });
-                    }
-                });
-                
-                if (newOrders) {
-                    // Usa debounce para evitar múltiplas atualizações em sequência
-                    if (this.updateTimeout) {
-                        clearTimeout(this.updateTimeout);
-                    }
-                    
-                    this.updateTimeout = setTimeout(() => {
-                        // Verifica novamente se o componente ainda está ativo
-                        if (this.isActive) {
-                            // Atualiza os pedidos localmente com os dados processados
-                            if (updatedOrders.length > 0) {
-                                // Atualiza os pedidos existentes ou adiciona novos
-                                updatedOrders.forEach(updatedOrder => {
-                                    const existingIndex = this.latestOrders.findIndex(o => o.id === updatedOrder.id);
-                                    if (existingIndex >= 0) {
-                                        this.latestOrders[existingIndex] = updatedOrder;
-                                    } else {
-                                        this.latestOrders.unshift(updatedOrder);
-                                    }
-                                });
-                                
-                                // Mantém apenas os 10 pedidos mais recentes
-                                if (this.latestOrders.length > 10) {
-                                    this.latestOrders = this.latestOrders.slice(0, 10);
-                                }
-                                
-                                // Atualiza o cache
-                                try {
-                                    localStorage.setItem('latestOrders', JSON.stringify(this.latestOrders));
-                                    localStorage.setItem('latestOrdersTime', new Date().getTime().toString());
-                                } catch (cacheError) {
-                                    console.warn("Erro ao salvar cache dos últimos pedidos:", cacheError);
-                                }
-                            } else {
-                                // Se não houver pedidos atualizados, recarrega todos os dados
-                                this.loadLatestOrders();
-                            }
-                            
-                            // Atualiza a interface
-                            const clipboardListEl = document.querySelector('.table-card .fa-clipboard-list');
-                            if (clipboardListEl) {
-                                const ordersSection = clipboardListEl.closest('.table-card');
-                                if (ordersSection) {
-                                    const header = ordersSection.querySelector('h3');
-                                    if (header) {
-                                        ordersSection.innerHTML = '';
-                                        ordersSection.appendChild(header);
-                                        ordersSection.insertAdjacentHTML('beforeend', this.renderLatestOrders());
-                                        
-                                        // Reativa os event listeners para os pedidos clicáveis
-                                        this.setupClickableRows();
-                                    }
-                                }
-                            }
-                        }
-                    }, 2000); // Reduzido para 2 segundos para melhor experiência do usuário
-                }
-            }, error => {
-                console.error("Erro no listener de pedidos:", error);
+            .onSnapshot((snapshot) => {
+                console.log('Mudanças detectadas em pedidos');
+                this.handleOrdersUpdate(snapshot);
+                debouncedUpdate();
+            }, (error) => {
+                console.error('Erro no listener de pedidos:', error);
             });
-            
-        // Listener para atualizações nos pontos de controle
-        try {
-            // Listener para todos os pedidos sem filtrar por usuário - com throttling
-            this.controlPointsListener = db.collection('orders')
-                .onSnapshot(() => {
-                    // Verifica se o componente ainda está montado
-                    if (!this.isActive) {
-                        console.log("Dashboard já não está mais ativo, ignorando atualização de pontos de controle");
-                        return;
-                    }
-                    
-                    // Usa throttle para limitar frequência de atualizações
-                    if (this.controlPointsTimeout) {
-                        clearTimeout(this.controlPointsTimeout);
-                    }
-                    
-                    this.controlPointsTimeout = setTimeout(() => {
-                        if (!this.isActive) return;
-                        
-                        // Recarrega apenas os dados de pontos de controle e atualiza o bloco
-                        this.loadControlPoints().then(() => {
-                            if (!this.isActive) return;
-                            
-                            const controlPointsSection = document.querySelector('.control-points-card');
-                            if (controlPointsSection) {
-                                const titleElement = controlPointsSection.querySelector('h3');
-                                if (titleElement) {
-                                    titleElement.insertAdjacentHTML('afterend', this.renderControlPoints());
-                                    // Remove o conteúdo anterior
-                                    const oldPoints = controlPointsSection.querySelector('.control-points');
-                                    if (oldPoints) {
-                                        oldPoints.remove();
-                                    }
-                                }
-                            }
-                        });
-                    }, 10000); // 10 segundos antes de atualizar
-                }, error => {
-                    console.error("Erro no listener de pontos de controle:", error);
-                });
-        } catch (error) {
-            console.error("Erro ao configurar listener de pontos de controle:", error);
-        }
+
+        // Escuta mudanças em clientes com limite
+        this.clientsListener = db.collection('clients')
+            .limit(100) // Limita para melhorar performance
+            .onSnapshot((snapshot) => {
+                console.log('Mudanças detectadas em clientes');
+                this.handleClientsUpdate(snapshot);
+            }, (error) => {
+                console.error('Erro no listener de clientes:', error);
+            });
+
+        // Escuta mudanças em produtos com limite
+        this.productsListener = db.collection('products')
+            .limit(100) // Limita para melhorar performance
+            .onSnapshot((snapshot) => {
+                console.log('Mudanças detectadas em produtos');
+                this.handleProductsUpdate(snapshot);
+            }, (error) => {
+                console.error('Erro no listener de produtos:', error);
+            });
+    }
+
+    // Função debounce para limitar execuções
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
     
     // Renderiza o conteúdo do dashboard
@@ -1913,4 +1798,4 @@ class DashboardComponent {
 }
 
 // Registra o componente globalmente
-window.DashboardComponent = DashboardComponent; 
+window.DashboardComponent = DashboardComponent;
