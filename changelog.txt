@@ -1,0 +1,122 @@
+======================= VERSÃO 2.79 =======================
+Data: 26/11/2023
+- Implementação do tema visual Argon Dashboard 2 PRO
+- Melhorias na interface de usuário e experiência visual
+- Novos estilos para componentes como cards, botões e formulários
+- Suporte aprimorado para modo escuro
+- Compatibilidade com dispositivos móveis reforçada
+- Atualização da página de pedidos para o novo tema visual
+- Refinamento de elementos como cards, botões e tabelas nas páginas de pedido
+- Aplicação do tema Argon na página de Controle de Estoque
+- Melhorias visuais nos elementos da página de estoque (tabelas, botões e modal de formulário)
+- Aplicação do tema Argon na página de Novo Pedido
+- Melhorias na interface de criação de pedidos com estilo Argon
+- Reformulação do sistema de grid e responsividade na página de Novo Pedido
+- Aplicação do tema Argon na página de Detalhes do Pedido (modo claro)
+- Melhorias na visualização de detalhes de pedidos com estilo Argon no modo claro
+- Refinamento visual dos cards de informação, checkboxes e indicadores de status
+- Otimização da experiência visual para impressão de pedidos
+
+Versão 2.75 - 30/07/2024
+- Melhoria: A página de Estoque agora está disponível para todos os setores.
+- Melhoria: Interface de Estoque adaptada para mostrar opções de edição apenas para administradores.
+- Melhoria: Adicionada permissão "view_inventory" para todos os setores.
+
+Versão 2.74 - 29/07/2024
+- Corrigido: Itens não apareciam na lista ao serem adicionados na página de 'Novo Pedido'.
+- Melhoria: O campo de seleção de produto agora é desativado após adicionar um item, garantindo que novos itens sejam adicionados apenas pelo botão 'Adicionar Item'.
+
+Versão 2.73 - 26/07/2024
+- Melhorado: A impressão da página de "Detalhes do Pedido" agora é idêntica à visualização em tela, capturando todo o conteúdo sem cortes.
+- Corrigido: Removidos e ajustados os arquivos de estilo de impressão que causavam inconsistências no layout.
+- Confirmado: A lógica de exibição de pedidos foi verificada para garantir que pedidos com status "Cancelado" apareçam apenas na listagem geral e na página de busca, sendo ocultados das telas de fluxo de trabalho.
+- Corrigido o problema que fazia com que o campo de frete não fosse exibido corretamente ao carregar um pedido salvo com o tipo de entrega "Entrega".
+- Implementada a funcionalidade de salvar e carregar corretamente os custos de entrega e serviços extras ao criar e editar pedidos.
+
+Versão 2.72 - 26/07/2024
+- (Atualização manual do usuário)
+- Adicionada a capacidade de salvar e carregar os valores de custo de entrega e serviços extras no formulário de pedidos.
+
+Versão 2.41 - 25/07/2024
+- Ampliada a busca por "Entregas Próximas" no dashboard para incluir todos os status de produção relevantes, aumentando a chance de exibição correta dos pedidos.
+
+Versão 2.40 - 25/07/2024
+- Corrigido definitivamente o bug na seção "Entregas Próximas" do dashboard. A lista agora filtra corretamente os pedidos com tipo "Entrega".
+
+Versão 2.39 - 25/07/2024
+- Tentativa de correção do bug na seção "Entregas Próximas" do dashboard (sem sucesso).
+
+Versão 2.38 - 25/07/2024
+- Simplificada a interface de filtros na página de pedidos, mantendo apenas a busca principal.
+- Corrigido o funcionamento do filtro de busca que não estava funcional.
+- Removido código não utilizado referente aos filtros avançados.
+
+Versão 2.37 - 25/07/2024
+- Adicionado o arquivo changelog.txt para registrar as mudanças no sistema.
+- A versão do sistema agora é atualizada no rodapé e no changelog a cada nova funcionalidade.
+
+### Registro de Alterações do GrafSys
+
+## Versão 2.64 (Data: 02/09/2023)
+- Corrigido: Erro crítico que impedia a exclusão de pedidos na página "Buscar Pedidos" (`O componente de pedidos não está disponível`).
+- Refatorado: A lógica de exclusão de pedidos foi movida do componente `orders.js` para `ui.js`, tornando-a uma função global e reutilizável.
+- Melhorado: A arquitetura do código agora é mais modular, evitando dependências desnecessárias entre componentes.
+
+## Versão 2.63 (Data: 01/09/2023)
+- Melhorado: UI na página "Buscar Pedidos". Os botões de "Detalhes" e "Excluir" nos cards de resultado agora exibem texto e ícone para maior clareza.
+
+## Versão 2.62 (Data: 01/09/2023)
+- Adicionado: Ícone de exclusão (lixeira) nos cards de resultado da página "Buscar Pedidos", permitindo a exclusão direta.
+- Melhorado: A interface da página de busca agora é atualizada automaticamente após a exclusão de um pedido, removendo o card correspondente.
+- Técnico: Implementado um sistema de eventos (`CustomEvent`) para comunicar a exclusão de pedidos entre diferentes componentes (`orders.js` e `searchOrders.js`).
+
+## Versão 2.61 (Data: 01/09/2023)
+- Corrigido: Erro crítico `TypeError: this.prepareOrderDataForSave is not a function` que impedia o salvamento de pedidos. A função, que havia sido removida acidentalmente durante uma refatoração, foi restaurada.
+
+## Versão 2.60 (Data: 01/09/2023)
+- Corrigido: Erro `FirebaseError: The value of property "imageUrl" is longer than 1048487 bytes` que ocorria ao salvar pedidos com imagens muito grandes a partir do formulário de criação/edição.
+- Adicionado: Função para redimensionar imagens (`processImageForUpload`) no componente de criação de pedidos (`new-order.js`).
+- Melhorado: A lógica de salvamento agora verifica o tamanho da imagem, tenta redimensioná-la e, se ainda assim exceder o limite, remove a imagem para permitir que o pedido seja salvo, notificando o usuário.
+- Melhorado: Mensagens de erro mais claras para o usuário quando um problema com o tamanho da imagem ocorre.
+
+## Versão 2.59 (Data: 31/08/2023)
+- Corrigido: Erro "Bad Request (400)" ao salvar pedidos com imagens grandes ou dados inválidos
+- Melhorado: Tratamento de imagens grandes, agora são redimensionadas automaticamente ou removidas se ultrapassarem o limite
+- Melhorado: Validação de datas e timestamps para garantir compatibilidade com o Firestore
+- Melhorado: Feedback visual durante o salvamento de pedidos com indicadores de carregamento
+
+## Versão 2.58 (Data: 31/08/2023)
+- Corrigido: Falha crítica no modal de prompt que impedia a exclusão de pedidos. A função `promptModal` foi refatorada para usar a mesma abordagem segura da função `showModal`, evitando problemas de hierarquia do DOM.
+
+## Versão 2.57 (Data: 31/08/2023)
+- Corrigido: Botão de exclusão na página de "Gestão de Pedidos" não funcionava. O problema foi resolvido ao substituir o método de detecção de cliques de "delegado" para "direto", garantindo consistência com outras partes do sistema.
+
+## Versão 2.56 (Data: 31/08/2023)
+- Corrigido: Erro crítico `HierarchyRequestError` que impedia a abertura de modais de confirmação. A falha foi causada por uma chamada circular na lógica de renderização do modal.
+
+## Versão 2.55 (Data: 31/08/2023)
+- Corrigido: Problema crítico em que os botões de confirmação em modais (como o de exclusão) não funcionavam corretamente devido a `event listeners` duplicados.
+- Melhorado: A função `showModal` foi refatorada para garantir que os botões sejam recriados a cada chamada, aumentando a estabilidade da interface.
+
+## Versão 2.54 (Data: 30/08/2023)
+- Adicionado: Botão de exclusão na página de detalhes do pedido
+- Corrigido: Problema que impedia a exclusão de pedidos na página de detalhes
+
+## Versão 2.53 (Data: 30/08/2023)
+- Corrigido: Erro JavaScript "html is not defined" ao visualizar detalhes de pedidos
+
+## Versão 2.52 (Data: 30/08/2023)
+- Corrigido: Erro JavaScript ao visualizar detalhes de pedidos (statusClass is not defined)
+- Melhorado: Exibição dos status na página de detalhes do pedido
+
+## Versão 2.51 (Data: 29/08/2023)
+- Corrigido: Problemas na tabela de gestão de pedidos
+- Corrigido: Botão de exclusão de pedidos não funcionava corretamente na tela de listagem
+- Melhorado: Formatação dos valores monetários na tabela de pedidos
+
+## Versão 2.50 (Data: 28/08/2023)
+- Corrigido: Problema na função de excluir pedidos para usuários com perfil de vendedor
+- Adicionado: Permissão "delete_order" para o papel de vendedor
+
+## Versão 2.49 (Data: 15/08/2023)
+- Implementação inicial do sistema 

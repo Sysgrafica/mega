@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios de Vendas - GrafSys</title>
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS do Sistema -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/reports.css">
+    <!-- Favicon -->
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dark-mode">
+    <!-- Área de Autenticação (será controlada pelo sistema principal) -->
+    <div id="auth-container" class="hidden">
+        <!-- Conteúdo de autenticação -->
+    </div>
+
+    <!-- Área Principal do Sistema -->
+    <div id="main-app">
+        <!-- Barra Superior -->
+        <header class="top-bar">
+            <div class="logo">GrafSys</div>
+            <nav id="main-menu">
+                <a href="index.html" data-page="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="index.html#reports" data-page="reports"><i class="fas fa-chart-bar"></i> Relatórios</a>
+            </nav>
+            <div class="user-info">
+                <span id="user-name">Nome do Usuário</span>
+                <span id="user-role">Cargo</span>
+                <button id="logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </header>
+
+        <!-- Área de Notificações -->
+        <div id="notification-area"></div>
+
+        <!-- Conteúdo Principal -->
+        <main id="main-content">
+            <div id="reports-container" class="reports-container">
+                <div class="reports-header">
+                    <h2 class="reports-title">Relatórios de Vendas</h2>
+                    <div class="reports-actions">
+                        <button id="export-pdf" class="btn btn-export-report">
+                            <i class="fas fa-file-pdf"></i> Exportar PDF
+                        </button>
+                        <button id="export-excel" class="btn btn-export-report">
+                            <i class="fas fa-file-excel"></i> Exportar Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="reports-filters">
+                    <h3 class="filters-title">Filtros</h3>
+                    <div class="filters-form">
+                        <div class="filter-group">
+                            <label for="filter-date-start">Data Inicial</label>
+                            <input type="date" id="filter-date-start">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-date-end">Data Final</label>
+                            <input type="date" id="filter-date-end">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-product">Produto</label>
+                            <select id="filter-product">
+                                <option value="todos">Todos os produtos</option>
+                                <!-- Opções serão carregadas via JavaScript -->
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-client">Cliente</label>
+                            <select id="filter-client">
+                                <option value="todos">Todos os clientes</option>
+                                <!-- Opções serão carregadas via JavaScript -->
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-status">Status do Pedido</label>
+                            <select id="filter-status">
+                                <option value="todos">Todos os status</option>
+                                <option value="novo">Novo</option>
+                                <option value="aprovado">Aprovado</option>
+                                <option value="em_producao">Em Produção</option>
+                                <option value="concluido">Concluído</option>
+                                <option value="entregue">Entregue</option>
+                                <option value="cancelado">Cancelado</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-min-value">Valor Mínimo</label>
+                            <input type="number" id="filter-min-value" placeholder="R$ 0,00" min="0" step="0.01">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-max-value">Valor Máximo</label>
+                            <input type="number" id="filter-max-value" placeholder="R$ 0,00" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="filters-actions">
+                        <button id="apply-filters" class="btn btn-apply-filters">
+                            <i class="fas fa-filter"></i> Aplicar Filtros
+                        </button>
+                        <button id="clear-filters" class="btn btn-clear-filters">
+                            <i class="fas fa-times"></i> Limpar Filtros
+                        </button>
+                    </div>
+                </div>
+
+                <div id="reports-tabs" class="reports-tabs">
+                    <!-- Abas serão carregadas via JavaScript -->
+                </div>
+
+                <div id="report-content" class="report-content">
+                    <!-- Conteúdo do relatório será carregado via JavaScript -->
+                    <div class="loading-indicator">
+                        <i class="fas fa-spinner fa-spin"></i> Carregando relatório...
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para ações rápidas -->
+    <div id="quick-action-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Título do Modal</h2>
+                <button id="close-modal" class="close-btn">&times;</button>
+            </div>
+            <div id="modal-body">
+                <!-- Conteúdo do modal será inserido dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    
+    <!-- Scripts do Sistema -->
+    <script src="js/config.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sales-reports.js"></script>
+    <script>
+        // Verificar autenticação e permissões
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar Firebase
+            if (typeof firebaseConfig !== 'undefined') {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+            } else {
+                console.error('Configuração do Firebase não encontrada');
+            }
+            
+            // Função para processar os dados do usuário
+            function processUserData(userData) {
+                if (!userData) {
+                    console.error('Dados de usuário inválidos');
+                    redirectToLogin();
+                    return;
+                }
+                
+                console.log('Processando dados do usuário:', userData);
+                
+                // Mostrar interface principal
+                if (document.getElementById('auth-container')) {
+                    document.getElementById('auth-container').classList.add('hidden');
+                }
+                if (document.getElementById('main-app')) {
+                    document.getElementById('main-app').classList.remove('hidden');
+                }
+                
+                // Atualizar informações do usuário na interface
+                if (document.getElementById('user-name')) {
+                    document.getElementById('user-name').textContent = userData.name || 'Usuário';
+                }
+                if (document.getElementById('user-role')) {
+                    document.getElementById('user-role').textContent = userData.role || 'Função não definida';
+                }
+                
+                // Log para depuração
+                console.log('Dados do usuário (reports-sales.html):', userData);
+                
+                // Verificar permissões usando diretamente o módulo auth se estiver disponível
+                let hasAccess = false;
+                
+                if (window.auth && typeof window.auth.hasPagePermission === 'function') {
+                    // Usa a função de verificação de permissão do módulo auth
+                    hasAccess = window.auth.hasPagePermission('reports');
+                    console.log('Verificação de permissão usando auth.hasPagePermission:', hasAccess);
+                } else {
+                    // Verificação manual de permissões
+                    // Administradores sempre têm acesso
+                    if (userData.role === 'admin') {
+                        console.log('Acesso concedido: Usuário é administrador');
+                        hasAccess = true;
+                    } 
+                    // Gerentes têm acesso
+                    else if (userData.role === 'gerente') {
+                        console.log('Acesso concedido: Usuário é gerente');
+                        hasAccess = true;
+                    }
+                    // Verifica permissão específica
+                    else if (userData.permissions && 
+                            userData.permissions.features && 
+                            userData.permissions.features.includes('view_reports')) {
+                        console.log('Acesso concedido: Usuário tem permissão específica para relatórios');
+                        hasAccess = true;
+                    }
+                }
+                
+                // Verificar se tem permissão para acessar relatórios
+                if (!hasAccess) {
+                    // Sem permissão
+                    document.getElementById('reports-container').innerHTML = `
+                        <div class="access-denied">
+                            <i class="fas fa-lock"></i>
+                            <h2>Acesso Negado</h2>
+                            <p>Você não tem permissão para acessar os relatórios do sistema.</p>
+                            <a href="index.html" class="btn">Voltar ao Início</a>
+                        </div>
+                    `;
+                } else {
+                    // Usuário tem permissão, inicializar relatórios
+                    if (window.SalesReports) {
+                        window.SalesReports.init();
+                    } else {
+                        console.error('Módulo de relatórios não encontrado');
+                        document.getElementById('reports-container').innerHTML = `
+                            <div class="access-denied">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <h2>Erro ao Carregar</h2>
+                                <p>Não foi possível carregar o módulo de relatórios. Por favor, tente novamente mais tarde.</p>
+                                <a href="index.html" class="btn">Voltar ao Início</a>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            // Função para verificar e atualizar UI com base no status de autenticação
+            function checkAuthStatus() {
+                // Primeiro tenta obter o usuário a partir do módulo auth
+                let userData = null;
+                
+                if (window.auth && window.auth.currentUser) {
+                    userData = window.auth.currentUser;
+                    console.log('Usuário obtido do módulo auth:', userData);
+                    processUserData(userData);
+                } else {
+                    // Tenta obter do localStorage
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        try {
+                            userData = JSON.parse(savedUser);
+                            console.log('Usuário obtido do localStorage:', userData);
+                            processUserData(userData);
+                        } catch (error) {
+                            console.error('Erro ao processar usuário do localStorage:', error);
+                            checkFirebaseAuth();
+                        }
+                    } else {
+                        // Último recurso: verifica o Firebase Auth
+                        checkFirebaseAuth();
+                    }
+                }
+            }
+            
+            // Função para redirecionar para a página de login
+            function redirectToLogin() {
+                document.getElementById('reports-container').innerHTML = `
+                    <div class="access-denied">
+                        <i class="fas fa-user-lock"></i>
+                        <h2>Acesso Restrito</h2>
+                        <p>Você precisa estar autenticado para acessar esta página.</p>
+                        <a href="index.html" class="btn">Ir para Login</a>
+                    </div>
+                `;
+            }
+            
+            // Verifica o Firebase Auth diretamente
+            function checkFirebaseAuth() {
+                const currentUser = firebase.auth().currentUser;
+                
+                if (currentUser) {
+                    // Usuário autenticado no Firebase
+                    console.log('Usuário obtido do Firebase Auth:', currentUser);
+                    if (document.getElementById('auth-container')) {
+                        document.getElementById('auth-container').classList.add('hidden');
+                    }
+                    if (document.getElementById('main-app')) {
+                        document.getElementById('main-app').classList.remove('hidden');
+                    }
+                    
+                    // Buscar informações do usuário
+                    firebase.firestore().collection('employees')
+                        .doc(currentUser.uid)
+                        .get()
+                        .then(doc => {
+                            if (doc.exists) {
+                                const firestoreData = doc.data();
+                                // Combinar dados do Firestore com UID
+                                const userData = {
+                                    ...firestoreData,
+                                    uid: currentUser.uid
+                                };
+                                
+                                // Processar os dados do usuário
+                                processUserData(userData);
+                            } else {
+                                console.error('Documento do usuário não encontrado');
+                                document.getElementById('reports-container').innerHTML = `
+                                    <div class="access-denied">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <h2>Usuário Não Encontrado</h2>
+                                        <p>Não foi possível encontrar suas informações. Por favor, faça login novamente.</p>
+                                        <a href="index.html" class="btn">Voltar ao Início</a>
+                                    </div>
+                                `;
+                                setTimeout(() => {
+                                    redirectToLogin();
+                                }, 3000);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro ao verificar permissões:', error);
+                            document.getElementById('reports-container').innerHTML = `
+                                <div class="access-denied">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <h2>Erro ao Verificar Permissões</h2>
+                                    <p>Ocorreu um erro ao verificar suas permissões. Por favor, tente novamente.</p>
+                                    <a href="index.html" class="btn">Voltar ao Início</a>
+                                </div>
+                            `;
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 3000);
+                        });
+                } else {
+                    // Tenta recuperar usuário do localStorage
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        try {
+                            const userData = JSON.parse(savedUser);
+                            // Há um usuário salvo, mas não está autenticado no Firebase
+                            // Vamos tentar redirecionar para a página principal para autenticação
+                            window.location.href = 'index.html';
+                        } catch (e) {
+                            console.error('Erro ao processar usuário salvo:', e);
+                            redirectToLogin();
+                        }
+                    } else {
+                        // Não há usuário salvo, redirecionar para login
+                        redirectToLogin();
+                    }
+                }
+            }
+            
+            // Configurar o botão de logout se existir
+            if (document.getElementById('logout-btn')) {
+                document.getElementById('logout-btn').addEventListener('click', function() {
+                    if (window.auth) {
+                        window.auth.logout();
+                    } else {
+                        firebase.auth().signOut().then(() => {
+                            window.location.href = 'index.html';
+                        }).catch(error => {
+                            console.error('Erro ao fazer logout:', error);
+                        });
+                    }
+                });
+            }
+            
+            // Verificar o estado de autenticação quando a página carrega
+            checkAuthStatus();
+            
+            // Verificar o estado de autenticação quando ele muda
+            firebase.auth().onAuthStateChanged(checkAuthStatus);
+        });
+    </script>
+</body>
+</html> 

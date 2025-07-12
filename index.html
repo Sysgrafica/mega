@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrafSys - Sistema de Gestão para Gráficas</title>
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS do Sistema -->
+    <link rel="stylesheet" href="css/reset.css">
+    <!-- Tema Argon Dashboard 2 PRO -->
+    <link rel="stylesheet" href="css/argon-theme.css">
+    <!-- Google Fonts - Open Sans para compatibilidade com o tema Argon -->
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- CSS do Sistema -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- CSS para Detalhes de Pedido -->
+    <link rel="stylesheet" href="css/order-details.css">
+    <!-- CSS para Detalhes de Pedido Otimizado para Impressão -->
+    <link rel="stylesheet" href="css/detalhes-pedido-print.css">
+    <!-- CSS para Novo Pedido -->
+    <link rel="stylesheet" href="css/new-order-specific.css">
+    <!-- CSS para Busca de Pedidos -->
+    <link rel="stylesheet" href="css/searchOrders.css">
+    <!-- CSS para Impressão -->
+    <link rel="stylesheet" href="css/impressao.css">
+    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/orders.css">
+    <link rel="stylesheet" href="css/clients.css">
+    <link rel="stylesheet" href="css/products.css">
+    <link rel="stylesheet" href="css/reports.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/inventory.css">
+    <link rel="stylesheet" href="css/permissions.css">
+    <link rel="stylesheet" href="css/profile.css">
+    <!-- Folha de estilo para Impressão -->
+    <link rel="stylesheet" href="css/print.css" media="print">
+    <!-- Favicon -->
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+</head>
+<body class="dark-mode">
+    <!-- Área de Autenticação -->
+    <div id="auth-container" class="active">
+        <div class="auth-card">
+            <div class="logo">
+                <h1>GrafSys</h1>
+                <p>Sistema de Gestão para Gráficas</p>
+            </div>
+            <div class="auth-form">
+                <h2>Acesso ao Sistema</h2>
+                <form>
+                    <div class="input-group">
+                        <label for="access-code">
+                            <i class="fas fa-lock"></i> Código de Acesso
+                        </label>
+                        <input type="password" id="access-code" placeholder="Digite seu código de acesso" class="form-control">
+                    </div>
+                    <button id="login-btn" class="btn btn-primary" type="button">
+                        <i class="fas fa-sign-in-alt me-2"></i> Entrar
+                    </button>
+                    <div id="login-error" class="error-message"></div>
+                </form>
+            </div>
+            <div class="auth-footer">
+                <p>GrafSys &copy; 2023 - Sistema de Gestão para Gráficas</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área Principal do Sistema -->
+    <div id="main-app" class="hidden">
+        <!-- Barra Superior -->
+        <header class="top-bar">
+            <div class="logo">GrafSys</div>
+            <nav id="main-menu">
+                <!-- Menu dinâmico gerado via JavaScript -->
+            </nav>
+            <div class="user-info">
+                <span id="user-name">Nome do Usuário</span>
+                <span id="user-role">Cargo</span>
+                <button id="logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </header>
+
+        <!-- Área de Notificações -->
+        <div id="notification-area"></div>
+
+        <!-- Conteúdo Principal -->
+        <main id="main-content">
+            <!-- O conteúdo será carregado dinamicamente via JavaScript -->
+        </main>
+    </div>
+
+    <!-- Modal para ações rápidas -->
+    <div id="quick-action-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Título do Modal</h2>
+                <button id="close-modal" class="close-btn">&times;</button>
+            </div>
+            <div id="modal-body">
+                <!-- Conteúdo do modal será inserido dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    
+    <!-- Biblioteca html2canvas para captura de tela -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Script de fallback para html2canvas caso a CDN falhe -->
+    <script>
+        // Verifica se html2canvas foi carregado corretamente
+        window.addEventListener('DOMContentLoaded', function() {
+            if (typeof html2canvas !== 'function') {
+                console.warn('html2canvas não foi carregado da CDN primária. Tentando fonte alternativa...');
+                // Cria um novo script para carregar de uma fonte alternativa
+                var fallbackScript = document.createElement('script');
+                fallbackScript.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+                fallbackScript.onerror = function() {
+                    console.error('Falha ao carregar html2canvas de ambas as fontes.');
+                    // Notifica o usuário sobre o problema
+                    if (window.ui) {
+                        window.ui.showNotification('Não foi possível carregar a biblioteca de captura de tela. Algumas funcionalidades podem não funcionar corretamente.', 'warning');
+                    }
+                };
+                document.body.appendChild(fallbackScript);
+            }
+        });
+    </script>
+    
+    <!-- Scripts do Sistema -->
+    <script src="js/config.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/orders.js"></script>
+    <script src="js/workflow.js"></script>
+    <script src="js/impressao.js"></script>
+    <script src="js/aplicacao.js"></script>
+    <script src="js/acabamento.js"></script>
+    <script src="js/cortes-especiais.js"></script>
+    <script src="js/new-order.js"></script>
+    <script src="js/clients.js"></script>
+    <script src="js/products.js"></script>
+    <script src="js/permissions.js"></script>
+    <script src="js/employees.js"></script>
+    <script src="js/suppliers.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/searchOrders.js"></script>
+    <script src="js/profile.js"></script>
+    <script src="js/ReportsComponent.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/sales-reports.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // Inicializar módulos de relatórios
+        document.addEventListener('DOMContentLoaded', function() {
+            if (Reports) Reports.init();
+            if (SalesReports) SalesReports.init();
+        });
+    </script>
+    
+    <!-- Rodapé do Sistema -->
+    <footer id="system-footer">
+        <div class="footer-content">
+            <div class="benefits-section">
+                <h3>Benefícios do GrafSys</h3>
+                <ul>
+                    <li><i class="fas fa-check-circle"></i> Gestão completa de pedidos para sua gráfica</li>
+                    <li><i class="fas fa-check-circle"></i> Acompanhamento em tempo real do fluxo de trabalho</li>
+                    <li><i class="fas fa-check-circle"></i> Cadastro organizado de clientes e fornecedores</li>
+                    <li><i class="fas fa-check-circle"></i> Interface moderna e intuitiva</li>
+                    <li><i class="fas fa-check-circle"></i> Compatível com dispositivos móveis</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="version">Versão 2.79 (Argon Dashboard 2 PRO)</div>
+            <div class="credits">Criado por: JeffWeb3</div>
+        </div>
+    </footer>
+</body>
+</html>

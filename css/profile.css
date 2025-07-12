@@ -1,0 +1,114 @@
+/* css/profile.css */
+
+.profile-page .content-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.profile-page .content-header h2 {
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.profile-page .content-body {
+    background-color: var(--background-color-light);
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.profile-page .welcome-message {
+    font-size: 1.2em;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+
+.profile-stats {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.profile-stats h3 {
+    margin-bottom: 15px;
+    color: var(--text-color);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+.stat-card {
+    background-color: var(--background-color);
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.stat-card h4 {
+    margin: 0 0 5px 0;
+    font-size: 0.9em;
+    color: var(--text-color-secondary);
+}
+
+.stat-card p {
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.profile-goals {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.profile-goals h3, .profile-goals h4 {
+    margin-bottom: 15px;
+    color: var(--text-color);
+}
+
+.profile-goals h4 {
+    margin-top: 20px;
+    font-size: 1.1em;
+}
+
+.goal-bar-container {
+    margin-bottom: 15px;
+}
+
+.goal-bar-container label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+    color: var(--text-color-secondary);
+}
+
+.goal-bar {
+    width: 100%;
+    height: 20px;
+    background-color: var(--background-color);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.goal-bar-progress {
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: 10px 0 0 10px;
+    transition: width 0.5s ease-in-out;
+}
+
+.goal-bar-container span {
+    display: block;
+    text-align: right;
+    font-size: 0.9em;
+    margin-top: 5px;
+    color: var(--text-color);
+} 

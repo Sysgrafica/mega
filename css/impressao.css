@@ -1,0 +1,215 @@
+/* CSS para a página de Impressão com design aprimorado */
+
+.impressao-container {
+    padding: 20px;
+}
+
+.impressao-orders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 25px;
+}
+
+/* Animação de entrada para os cartões */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.impressao-order-card {
+    background: var(--color-background-card);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--color-border);
+    animation: fadeIn 0.5s ease-out forwards;
+    position: relative;
+    opacity: 0; /* Começa invisível para animação */
+}
+
+/* Adiciona um delay na animação para cada card aparecer em sequência */
+.impressao-order-card:nth-child(1) { animation-delay: 0.05s; }
+.impressao-order-card:nth-child(2) { animation-delay: 0.1s; }
+.impressao-order-card:nth-child(3) { animation-delay: 0.15s; }
+.impressao-order-card:nth-child(4) { animation-delay: 0.2s; }
+.impressao-order-card:nth-child(5) { animation-delay: 0.25s; }
+.impressao-order-card:nth-child(6) { animation-delay: 0.3s; }
+
+/* Barra lateral colorida de destaque */
+.impressao-order-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6px;
+    height: 100%;
+    background-color: var(--color-primary);
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.impressao-order-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.impressao-order-card:hover::before {
+    opacity: 1;
+}
+
+.impressao-order-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.impressao-order-card .order-number {
+    font-weight: 700;
+    font-size: 1.2em;
+    color: var(--color-primary);
+}
+
+.impressao-order-card .situacao {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.impressao-order-card .card-body {
+    padding: 15px;
+    padding-left: 20px; /* Alinha com a barra lateral */
+    flex-grow: 1;
+}
+
+.impressao-order-card .client-name {
+    font-size: 1.15em;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 15px;
+}
+
+.impressao-order-card .delivery-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-secondary);
+    font-size: 0.95em;
+}
+
+.impressao-order-card .delivery-info .fa-clock {
+    color: var(--color-primary);
+}
+
+.impressao-order-card .card-footer {
+    padding: 10px 15px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.impressao-order-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Estilo para botões de ação */
+.impressao-order-actions .btn {
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1em;
+    border: none;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.impressao-order-actions .btn:hover {
+    transform: scale(1.15);
+}
+
+.impressao-order-actions .view-order {
+    background-color: rgba(42, 157, 143, 0.2);
+    color: #2a9d8f;
+}
+.impressao-order-actions .view-order:hover {
+    background-color: #2a9d8f;
+    color: #fff;
+}
+
+.impressao-order-actions .change-status {
+    background-color: rgba(38, 70, 83, 0.2);
+    color: #264653;
+}
+.impressao-order-actions .change-status:hover {
+    background-color: #264653;
+    color: #fff;
+}
+
+
+/* Cores de Status Vibrantes com Gradiente */
+.situacao-atrasado { background: linear-gradient(45deg, #f53d3d, #d62828); }
+.situacao-urgente { background: linear-gradient(45deg, #ff9f1c, #f77f00); }
+.situacao-atencao { background: linear-gradient(45deg, #fee155, #fcc419); color: #333 !important; }
+.situacao-no-prazo {padding: 2px;display: inline-block;background: linear-gradient(45deg, #2a9d8f, #264653);}
+.situacao-combinar, .situacao-pendente {
+    background-color: var(--color-background-tag);
+    color: var(--color-text-secondary) !important;
+    border: 1px solid var(--color-border);
+    box-shadow: none;
+}
+
+/* Estilização colorida para os cards com base na situação */
+.impressao-order-card.situacao-atrasado {
+    background-color: rgba(214, 40, 40, 0.2);
+}
+.impressao-order-card.situacao-atrasado::before {
+    background-color: #d62828;
+}
+
+.impressao-order-card.situacao-urgente {
+    background-color: rgba(247, 127, 0, 0.2);
+}
+.impressao-order-card.situacao-urgente::before {
+    background-color: #f77f00;
+}
+
+.impressao-order-card.situacao-atencao {
+    background-color: rgba(252, 196, 25, 0.25);
+}
+.impressao-order-card.situacao-atencao::before {
+    background-color: #fcc419;
+}
+
+.impressao-order-card.situacao-no-prazo {
+    background-color: rgba(42, 157, 143, 0.2);
+}
+.impressao-order-card.situacao-no-prazo::before {
+    background-color: #2a9d8f;
+}
+
+.impressao-order-card.situacao-combinar,
+.impressao-order-card.situacao-pendente {
+    background: var(--color-background-card); /* Mantém o padrão */
+}
+.impressao-order-card.situacao-combinar::before,
+.impressao-order-card.situacao-pendente::before {
+    background-color: var(--color-text-secondary);
+} 

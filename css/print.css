@@ -1,0 +1,58 @@
+/* css/print.css */
+
+@media print {
+    /* ---- Redefinições Globais para Impressão ---- */
+    body, html {
+        width: 100%;
+        height: auto;
+        overflow: visible !important;
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 12pt;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* ---- Garante que a área principal e o conteúdo se expandam ---- */
+    #main-app, #main-content, .order-detail-container, .container, .page {
+        position: static !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    /* ---- Oculta todos os elementos que não devem ser impressos ---- */
+    .no-print, 
+    .top-bar, 
+    header.top-bar,
+    #system-footer,
+    footer#system-footer,
+    .page-header,
+    .header-actions,
+    .back-button,
+    #quick-action-modal,
+    #notification-area,
+    #auth-container,
+    button,
+    .btn {
+        display: none !important;
+    }
+
+    /* ---- Garante que os elementos dentro do pedido sejam visíveis ---- */
+    .card, .header, .main-layout, .content-column, .financial-summary {
+        display: block !important;
+        page-break-inside: avoid;
+    }
+
+    /* Remove a coluna do resumo financeiro para que os itens ocupem a largura total */
+    .main-layout {
+        grid-template-columns: 1fr !important;
+    }
+} 

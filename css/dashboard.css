@@ -1,0 +1,110 @@
+/* Estilos para o container do botão "Carregar mais" */
+.load-more-container {
+    text-align: center;
+    margin-top: 15px;
+    padding: 10px;
+}
+
+/* Estilos para o container do botão "Ver mais" */
+.see-more-container {
+    text-align: right;
+    margin-top: 15px;
+    padding: 10px;
+}
+
+.see-more-btn {
+    background-color: #4a6da7;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+}
+
+.see-more-btn:hover {
+    background-color: #3a5a8f;
+}
+
+.see-more-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.see-more-btn i {
+    margin-right: 8px;
+}
+
+.btn-secondary {
+    height: 60px;
+    margin-top: 0px;
+    background-color: #333637;
+    color: white;
+    border: none;
+    width: auto;
+    border-radius: 8px;
+    font-size: 24px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: inline-flex;
+}
+
+.btn-secondary:hover {
+    background-color: #95a5a6;
+    font-family: 'Poppins';
+}
+
+.btn-secondary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-secondary i {
+    margin-right: 8px;
+}
+
+/* Melhorias para o skeleton loading */
+.skeleton {
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.2) 20%,
+        rgba(255, 255, 255, 0.5) 60%,
+        rgba(255, 255, 255, 0)
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+} 
+h1 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 2rem;
+    font-weight: bold;
+    text-align: center;
+    color: #ffffff;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    margin-top: 0rem;
+    padding: 0px;
+}
+  

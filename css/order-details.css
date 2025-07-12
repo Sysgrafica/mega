@@ -1,0 +1,988 @@
+/* --- Tema Argon para Detalhes do Pedido --- */
+:root {
+    --primary-color: #5e72e4;
+    --primary-hover: #324cdd;
+    --secondary-color: #8898aa;
+    --success-color: #2dce89;
+    --info-color: #11cdef;
+    --warning-color: #fb6340;
+    --danger-color: #f5365c;
+    --light-color: #adb5bd;
+    --dark-color: #212529;
+    --white-color: #ffffff;
+    --card-bg: #ffffff;
+    --body-bg: #f8f9fe;
+    --border-color: rgba(0, 0, 0, .05);
+    --text-color: #525f7f;
+    --text-muted: #8898aa;
+    --heading-color: #32325d;
+    --box-shadow: 0 0 2rem 0 rgba(136, 152, 170, .15);
+    --border-radius: .375rem;
+    --font-weight-normal: 400;
+    --font-weight-bold: 600;
+}
+
+/* Tema escuro */
+.dark-mode {
+    --primary-color: #5e72e4;
+    --primary-hover: #324cdd;
+    --secondary-color: #8898aa;
+    --success-color: #2dce89;
+    --info-color: #11cdef;
+    --warning-color: #fb6340;
+    --danger-color: #f5365c;
+    --light-color: #4d5863;
+    --dark-color: #212529;
+    --white-color: #ffffff;
+    --card-bg: #2a2e3c;
+    --body-bg: #1a1c24;
+    --border-color: #464c5c;
+    --text-color: #e9ecef;
+    --text-muted: #ced4da;
+    --heading-color: #f8f9fe;
+    --box-shadow: 0 0 2rem 0 rgba(0, 0, 0, .2);
+}
+
+/* --- Reset Básico e Configurações Globais --- */
+.filter-row {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.order-detail-container {
+    font-family: 'Open Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--body-bg);
+    color: var(--text-color);
+    line-height: 1.5;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* --- Layout Principal (Simula uma folha A4) --- */
+.page {
+    width: 210mm;
+    max-width: 210mm;
+    min-height: 297mm; /* Altura mínima para garantir que o conteúdo não seja cortado */
+    padding: 15mm;
+    background: var(--card-bg);
+    box-shadow: var(--box-shadow);
+    border-radius: var(--border-radius);
+    margin: 0 auto;
+    border: 1px solid var(--border-color);
+}
+
+/* --- Estilos Otimizados para Impressão --- */
+@media print {
+}
+
+/* --- Cabeçalho --- */
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.main-header h1 {
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--heading-color);
+    margin-bottom: 0.25rem;
+}
+
+.main-header .order-title {
+    font-size: 1rem;
+    font-weight: var(--font-weight-normal);
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.print-button {
+    background-color: var(--primary-color);
+    color: var(--white-color);
+    border: none;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--border-radius);
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    transition: all .15s ease;
+    box-shadow: 0 4px 6px rgba(50, 50, 93, .11), 0 1px 3px rgba(0, 0, 0, .08);
+}
+
+.print-button:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 7px 14px rgba(50, 50, 93, .1), 0 3px 6px rgba(0, 0, 0, .08);
+}
+
+/* --- Títulos de Seção --- */
+.section-title {
+    font-size: 1.25rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--heading-color);
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* --- Grid de Informações Principais --- */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.info-card {
+    background-color: var(--card-bg);
+    padding: 1.25rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(50, 50, 93, .15), 0 1px 0 rgba(0, 0, 0, .02);
+    transition: all .15s ease;
+}
+
+.info-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow);
+}
+
+.info-card .card-title {
+    font-size: 1rem;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: 1rem;
+    color: var(--heading-color);
+}
+
+.info-card p {
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-color);
+    display: flex;
+}
+
+.info-card p strong {
+    color: var(--heading-color);
+    min-width: 140px; /* Alinha os valores */
+    display: inline-block;
+    font-weight: var(--font-weight-bold);
+}
+
+.info-card .delivery-date strong {
+    color: var(--danger-color); /* Destaque para a data de entrega */
+}
+
+/* --- Detalhes do Pedido (Itens e Imagem) --- */
+.order-details .details-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.item {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    background-color: var(--card-bg);
+    box-shadow: 0 1px 3px rgba(50, 50, 93, .15), 0 1px 0 rgba(0, 0, 0, .02);
+    transition: all .15s ease;
+}
+
+.item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow);
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.item-name {
+    color: var(--primary-color);
+}
+
+.item-body p {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+}
+
+.item-body strong {
+    color: var(--heading-color);
+    min-width: 120px;
+    display: inline-block;
+    font-weight: var(--font-weight-bold);
+}
+
+.item-description {
+    background-color: rgba(17, 205, 239, 0.1);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    margin-top: 0.75rem;
+    font-style: italic;
+    color: var(--text-color);
+    border: 1px solid rgba(17, 205, 239, 0.2);
+}
+
+/* Classe para garantir que os itens fiquem sempre visíveis */
+.visible-item {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Estilo para itens com checkbox marcado */
+.print-checked {
+    border-left: 4px solid var(--success-color);
+}
+
+.finishing-checked {
+    border-right: 4px solid var(--info-color);
+}
+
+.special-cut-checked {
+    border-left: 4px solid var(--warning-color);
+}
+
+/* --- Estilos para Checkbox e Indicador de Informação --- */
+.item-actions {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    gap: 8px;
+}
+
+.print-checkbox-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.print-checkbox {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.print-checkbox-label {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: rgba(94, 114, 228, 0.1);
+    border: 2px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    transition: all .15s ease;
+}
+
+/* Estilos para o checkbox de acabamento */
+.finishing-container {
+    display: flex;
+    align-items: center;
+    margin-left: 0.5rem;
+}
+
+.finishing-checkbox-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-left: 8px; /* Espaçamento do checkbox de impressão */
+}
+
+.finishing-checkbox {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.finishing-checkbox-label {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: rgba(17, 205, 239, 0.1);
+    border: 2px solid var(--info-color);
+    border-radius: var(--border-radius);
+    transition: all .15s ease;
+}
+
+.finishing-checkbox:checked ~ .finishing-checkbox-label {
+    background-color: var(--info-color);
+}
+
+.finishing-checkbox-label .checkmark {
+    width: 12px;
+    height: 12px;
+    background-color: var(--white-color);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.finishing-checkbox:checked ~ .finishing-checkbox-label .checkmark {
+    opacity: 1;
+}
+
+.finishing-checkbox-label:hover {
+    background-color: rgba(17, 205, 239, 0.2);
+}
+
+/* Dark mode para checkbox de acabamento */
+.dark-mode .finishing-checkbox-label {
+    background-color: var(--blue-800, #2c5282);
+    border-color: var(--blue-600, #3182ce);
+}
+
+.dark-mode .finishing-checkbox:checked ~ .finishing-checkbox-label {
+    background-color: var(--green-600, #38a169);
+    border-color: var(--green-500, #48bb78);
+}
+
+.info-indicator {
+    position: relative;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: rgba(94, 114, 228, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    transition: all .15s ease;
+}
+
+.info-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--dark-color);
+    color: var(--white-color);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 7px 14px rgba(50, 50, 93, .1), 0 3px 6px rgba(0, 0, 0, .08);
+}
+
+.info-tooltip:after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--dark-color) transparent transparent transparent;
+}
+
+.info-indicator:hover .info-tooltip {
+    opacity: 1;
+    visibility: visible;
+    bottom: 130%;
+}
+
+/* Estilos para modo escuro */
+.dark-mode .print-checkbox-label {
+    background-color: var(--gray-800, #2d3748);
+    border-color: var(--gray-600, #4b5563);
+}
+
+.dark-mode .print-checkbox:checked ~ .print-checkbox-label {
+    background-color: var(--green-600, #38a169);
+    border-color: var(--green-600, #38a169);
+}
+
+.dark-mode .info-indicator {
+    background-color: var(--blue-600, #2563eb);
+}
+
+.dark-mode .info-tooltip {
+    background-color: var(--gray-800, #1a202c);
+}
+
+.dark-mode .info-tooltip:after {
+    border-color: var(--gray-800, #1a202c) transparent transparent transparent;
+}
+
+/* --- Referência de Imagem --- */
+.reference-image {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    background-color: var(--card-bg);
+    box-shadow: 0 1px 3px rgba(50, 50, 93, .15), 0 1px 0 rgba(0, 0, 0, .02);
+}
+
+.reference-image h4 {
+    font-size: 1rem;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: 1rem;
+    color: var(--heading-color);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.reference-image img {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+/* --- Totais do Pedido --- */
+.totals {
+    border-top: 1px solid var(--border-color);
+    padding-top: 1.25rem;
+    margin-top: 1.25rem;
+}
+
+.totals p {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+}
+
+.totals .discount span:last-child {
+    color: var(--danger-color);
+}
+
+.totals .grand-total {
+    font-size: 1.1rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--heading-color);
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid var(--border-color);
+}
+
+.totals .grand-total span:last-child {
+    color: var(--primary-color);
+}
+
+/* --- Detalhes de Pagamento --- */
+.payment-details {
+    margin-top: 2rem;
+}
+
+.payment-item {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(50, 50, 93, .15), 0 1px 0 rgba(0, 0, 0, .02);
+}
+
+.payment-item p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-color);
+}
+
+.payment-item span {
+    font-weight: var(--font-weight-bold);
+    color: var(--heading-color);
+    font-size: 0.875rem;
+}
+
+.payment-summary p {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+}
+
+.payment-summary span:first-child {
+    font-weight: var(--font-weight-bold);
+}
+
+.payment-summary .paid-amount span:last-child {
+    color: var(--success-color);
+}
+
+.payment-summary .remaining-balance span:last-child {
+    color: var(--danger-color);
+    font-weight: var(--font-weight-bold);
+}
+
+/* --- Seção de Observações --- */
+.observations {
+    background-color: rgba(251, 99, 64, 0.1);
+    border: 1px solid rgba(251, 99, 64, 0.2);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+.observations h3 {
+    color: var(--warning-color);
+    font-size: 1rem;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: 0.75rem;
+}
+
+.observations p {
+    font-size: 0.875rem;
+    color: var(--text-color);
+    margin-bottom: 0;
+}
+
+/* --- Rodapé --- */
+.main-footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Responsividade para telas menores */
+@media (max-width: 768px) {
+    .page {
+        padding: 10mm;
+        width: 100%;
+    }
+    
+    .order-details .details-content {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* Estilos para tema escuro */
+.dark-mode .order-detail-container {
+    background-color: #1a1a2e;
+    color: #e1e1e1;
+}
+
+.dark-mode .page {
+    background: #272741;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.dark-mode .main-header h1 {
+    color: #ffffff;
+}
+
+.dark-mode .main-header .order-title {
+    color: #cccccc;
+}
+
+.dark-mode .section-title {
+    color: #ffffff;
+    border-bottom-color: #3a3a5a;
+}
+
+.dark-mode .info-card {
+    background-color: #2a2a45;
+    border-color: #3a3a5a;
+}
+
+.dark-mode .info-card .card-title {
+    color: #e1e1e1;
+}
+
+.dark-mode .info-card p {
+    color: #b8b8b8;
+}
+
+.dark-mode .info-card p strong {
+    color: #e1e1e1;
+}
+
+.dark-mode .item {
+    border-color: #3a3a5a;
+    background-color: #2a2a45;
+}
+
+.dark-mode .item-name {
+    color: #5e9afc;
+}
+
+.dark-mode .item-body p {
+    color: #b8b8b8;
+}
+
+.dark-mode .item-body strong {
+    color: #e1e1e1;
+}
+
+.dark-mode .item-description {
+    background-color: #1c3755;
+}
+
+.dark-mode .reference-image h4 {
+    color: #e1e1e1;
+}
+
+.dark-mode .reference-image img {
+    border-color: #3a3a5a;
+}
+
+.dark-mode .totals {
+    border-top-color: #3a3a5a;
+}
+
+.dark-mode .totals .grand-total {
+    color: #ffffff;
+    border-top-color: #3a3a5a;
+}
+
+.dark-mode .payment-item {
+    background-color: #2a2a45;
+    border-color: #3a3a5a;
+}
+
+.dark-mode .payment-item p {
+    color: #b8b8b8;
+}
+
+.dark-mode .payment-item span {
+    color: #e1e1e1;
+}
+
+.dark-mode .observations {
+    background-color: #332d19;
+    border-color: #665c34;
+    border-left-color: #997b25;
+}
+
+.dark-mode .observations p {
+    color: #d6c989;
+}
+
+.dark-mode .main-footer {
+    border-top-color: #3a3a5a;
+    color: #b8b8b8;
+}
+
+/* Ajuste para título do pedido mais próximo da imagem */
+.order-title-section {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(50, 50, 93, .15), 0 1px 0 rgba(0, 0, 0, .02);
+}
+
+.order-title-section h2 {
+    font-size: 1.25rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--heading-color);
+    margin-bottom: 0.5rem;
+}
+
+.order-title-section p {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+/* Ajustes para itens em uma única linha */
+.item-inline {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.item-inline-label {
+    font-weight: var(--font-weight-bold);
+    color: var(--heading-color);
+    min-width: 120px;
+    margin-right: 0.5rem;
+}
+
+.item-inline-value {
+    color: var(--text-color);
+    flex: 1;
+}
+
+/* Caixas de marcação para impressão e acabamento */
+.production-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: rgba(94, 114, 228, 0.05);
+    border-radius: var(--border-radius);
+}
+
+.checkbox-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-right: 1rem;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkbox-container label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-color);
+}
+
+.checkbox-container .tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--dark-color);
+    color: var(--white-color);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 7px 14px rgba(50, 50, 93, .1), 0 3px 6px rgba(0, 0, 0, .08);
+    pointer-events: none;
+}
+
+.checkbox-container .tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--dark-color) transparent transparent transparent;
+}
+
+.checkbox-container:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
+    bottom: 130%;
+}
+
+.form-group.d-flex.align-items-center label {
+    margin-right: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-color);
+}
+
+.form-group.d-flex.align-items-center .form-control {
+    max-width: 150px;
+}
+
+.form-group.d-flex.align-items-center .custom-checkbox {
+    margin-left: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+/* --- Estilos para Itens Concluídos --- */
+.order-item {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    background-color: var(--card-bg);
+    box-shadow: 0 1px 3px rgba(50, 50, 93, .15), 0 1px 0 rgba(0, 0, 0, .02);
+    transition: all .15s ease;
+}
+
+.order-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow);
+}
+
+#order-items-section .order-item {
+    padding-bottom: 2.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#order-items-section::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: var(--border-color);
+    margin: 1rem 0 2rem;
+}
+
+.order-item.completed {
+    border-left: 4px solid var(--success-color);
+    background-color: rgba(45, 206, 137, 0.05);
+}
+
+.order-item.printed:not(.finished):after {
+    content: "Impresso";
+    position: absolute;
+    bottom: 0.5rem;
+    left: 1rem;
+    background-color: rgba(94, 114, 228, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-bold);
+}
+
+.order-item.finished:not(.printed):after {
+    content: "Acabamento";
+    position: absolute;
+    bottom: 0.5rem;
+    left: 1rem;
+    background-color: rgba(17, 205, 239, 0.1);
+    color: var(--info-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-bold);
+}
+
+.order-item.printed.finished:after {
+    content: "Impresso e Acabamento";
+    position: absolute;
+    bottom: 0.5rem;
+    left: 1rem;
+    background-color: rgba(45, 206, 137, 0.1);
+    color: var(--success-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-bold);
+}
+
+.production-checkboxes {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-bold);
+    margin-right: 0.5rem;
+}
+
+.status-badge.ontime {
+    background-color: rgba(45, 206, 137, 0.1);
+    color: var(--success-color);
+}
+
+.status-badge.urgent {
+    background-color: rgba(251, 99, 64, 0.1);
+    color: var(--warning-color);
+}
+
+.status-badge.late {
+    background-color: rgba(245, 54, 92, 0.1);
+    color: var(--danger-color);
+}
+
+.status-updated-info {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+.print-checkbox:checked ~ .print-checkbox-label {
+    background-color: var(--primary-color);
+}
+
+.special-cut-container {
+    display: flex;
+    align-items: center;
+    margin-left: 0.5rem;
+}
+
+.special-cut-checkbox-label {
+    width: 24px;
+    height: 24px;
+    background-color: rgba(251, 99, 64, 0.1);
+    border: 2px solid var(--warning-color);
+    border-radius: var(--border-radius);
+    transition: all .15s ease;
+}
+
+.special-cut-checkbox:checked ~ .special-cut-checkbox-label {
+    background-color: var(--warning-color);
+}
+
+.special-cut-checkbox-label .checkmark {
+    width: 12px;
+    height: 12px;
+    background-color: var(--white-color);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.special-cut-checkbox:checked ~ .special-cut-checkbox-label .checkmark {
+    opacity: 1;
+}
+
+.special-cut-checkbox-label:hover {
+    background-color: rgba(251, 99, 64, 0.2);
+} 
